@@ -1,0 +1,185 @@
+# Docker Compose for SecuredHub
+# Week 1: Only essential services (db, rabbitmq, api)
+# Week 2+: Uncomment worker services as needed
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: secured_hub_db
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - secured_hub_network
+
+  # RabbitMQ Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: secured_hub_rabbitmq
+    env_file:
+      - .env
+    ports:
+      - "5672:5672" # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - secured_hub_network
+
+  # Django API Service
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: secured_hub_api
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8001"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_PORT=587
+      - EMAIL_USE_TLS=True
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    ports:
+      - "8001:8001"
+    volumes:
+      - ../backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - secured_hub_network
+
+  # ============================================
+  # WEEK 2+ SERVICES (Uncomment when needed)
+  # ============================================
+
+  # Scanner Service - Week 2 Day 3
+  # Uncomment after fixing scanner-service/requirements.txt
+  # scanner-worker:
+  #   build:
+  #     context: ../scanner-service
+  #     dockerfile: Dockerfile
+  #   container_name: secured_hub_scanner
+  #   command: celery -A app.config:app worker -Q scans,scanner_tasks -l info --concurrency=4
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  #     - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+  #     - CELERY_RESULT_BACKEND=redis://redis:6379/0
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD}
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   volumes:
+  #     - scanner_workspace:/tmp/scanner_workspace
+  #   networks:
+  #     - scanner_isolated
+  #     - secured_hub_network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '2'
+  #         memory: 2G
+  #   restart: unless-stopped
+
+  # RAG Service - Week 3
+  # Uncomment when implementing AI/RAG features
+  # rag-worker:
+  #   build:
+  #     context: ../rag-service
+  #     dockerfile: Dockerfile
+  #   container_name: secured_hub_rag
+  #   command: celery -A app.config:app worker -Q ai_analysis,rag_tasks -l info --concurrency=2
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  #     - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+  #     - CELERY_RESULT_BACKEND=redis://redis:6379/0
+  #     - OPENAI_API_KEY=${OPENAI_API_KEY}
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD}
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   volumes:
+  #     - rag_cache:/app/.cache
+  #   networks:
+  #     - secured_hub_network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 4G
+  #   restart: unless-stopped
+
+  # Orchestrator Service - Week 2 Day 5
+  # Uncomment when implementing webhook handling
+  # orchestrator-worker:
+  #   build:
+  #     context: ../orchestrator-service
+  #     dockerfile: Dockerfile
+  #   container_name: secured_hub_orchestrator
+  #   command: celery -A app.config:app worker -Q webhooks,notifications,default -l info --concurrency=2
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  #     - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+  #     - CELERY_RESULT_BACKEND=redis://redis:6379/0
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD}
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - secured_hub_network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 512M
+  #   restart: unless-stopped
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  media_volume:
+  scanner_workspace:
+  rag_cache:
+
+
+networks:
+  secured_hub_network:
+    driver: bridge
+  scanner_isolated:
+    driver: bridge
+    internal: false # Set to true in production for complete isolation
