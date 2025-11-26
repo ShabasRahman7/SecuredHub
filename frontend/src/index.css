@@ -1,0 +1,144 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+:root {
+  color-scheme: dark;
+}
+
+/* Custom Theme Colors */
+:root {
+  --color-base-100: #0A0F16;
+  --color-base-200: #05080C;
+  --color-base-300: #020305;
+  --color-primary: #136dec;
+  --color-secondary: #0ea5e9;
+  --color-accent: #8b5cf6;
+  --color-base-content: #E2E8F0;
+}
+
+/* DaisyUI Config */
+@layer base {
+  :root {
+    --b1: 215 38% 6%;
+    /* #0A0F16 */
+    --b2: 214 41% 3%;
+    /* #05080C */
+    --b3: 220 43% 1%;
+    /* #020305 */
+    --bc: 215 28% 85%;
+    /* Content color */
+    --p: 215 85% 50%;
+    /* Primary #136dec */
+    --pc: 215 100% 95%;
+    /* Primary Content */
+    --s: 199 89% 48%;
+    /* Secondary #0ea5e9 */
+    --sc: 199 100% 95%;
+    /* Secondary Content */
+    --a: 258 90% 66%;
+    /* Accent #8b5cf6 */
+    --ac: 258 100% 95%;
+    /* Accent Content */
+
+    --rounded-box: 0.5rem;
+    --rounded-btn: 0.5rem;
+    --rounded-badge: 1.9rem;
+  }
+}
+
+body {
+  @apply bg-base-200 text-base-content font-sans antialiased;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-base-200;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full transition-colors;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-white/20;
+}
+
+/* React Toastify Customization */
+.Toastify__toast-container {
+  width: 380px !important;
+  padding: 0 !important;
+}
+
+.Toastify__toast {
+  @apply !bg-[#0A0F16] !border !border-white/10 !rounded-xl !shadow-2xl;
+  min-height: 64px !important;
+  margin-bottom: 1rem !important;
+  padding: 0 !important;
+}
+
+.Toastify__toast-body {
+  @apply !p-4 !flex !items-center !gap-3;
+  margin: 0 !important;
+}
+
+.Toastify__toast-icon {
+  margin-right: 0 !important;
+  width: 20px !important;
+}
+
+.Toastify__close-button {
+  @apply !text-gray-400 !transition-colors;
+  align-self: flex-start !important;
+  margin-top: 16px !important;
+  margin-right: 16px !important;
+}
+
+.Toastify__close-button:hover {
+  @apply !text-white;
+}
+
+.Toastify__progress-bar {
+  @apply !bg-primary !h-1;
+}
+
+.Toastify__progress-bar--success {
+  @apply !bg-green-500;
+}
+
+.Toastify__progress-bar--error {
+  @apply !bg-red-500;
+}
+
+.Toastify__progress-bar--warning {
+  @apply !bg-yellow-500;
+}
+
+.Toastify__progress-bar--info {
+  @apply !bg-primary;
+}
+
+/* Toast Icons Colors */
+.Toastify__toast--success .Toastify__toast-icon svg {
+  @apply !fill-green-500;
+}
+
+.Toastify__toast--error .Toastify__toast-icon svg {
+  @apply !fill-red-500;
+}
+
+.Toastify__toast--warning .Toastify__toast-icon svg {
+  @apply !fill-yellow-500;
+}
+
+.Toastify__toast--info .Toastify__toast-icon svg {
+  @apply !fill-primary;
+}
