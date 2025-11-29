@@ -1,0 +1,16 @@
+# Scanner Service Dependencies
+
+# Core
+celery==5.3.4
+psycopg2-binary==2.9.9
+python-dotenv==1.0.0
+
+# Security Scanners
+bandit==1.7.5
+semgrep==1.45.0
+truffleHog==2.2.1
+pip-audit==2.6.1
+
+# Utilities
+GitPython==3.0.6  # Fixed: truffleHog requires 3.0.6
+requests==2.31.0
