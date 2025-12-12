@@ -29,7 +29,7 @@ import uuid
 logger = logging.getLogger('api')
 
 
-# ============ Tenant Management ============
+# --- Tenant Management ---
 
 @extend_schema(
     summary="List Tenants",
@@ -47,7 +47,6 @@ def list_tenants(request):
     """
     user = request.user
     
-    # Get tenants where user is a member
     memberships = TenantMember.objects.filter(user=user).select_related('tenant')
     tenants = [m.tenant for m in memberships]
     
@@ -218,7 +217,7 @@ def update_tenant(request, tenant_id):
     )
 
 
-# ============ Member Management ============
+# --- Member Management ---
 
 @extend_schema(
     summary="List Members",
@@ -319,7 +318,7 @@ def remove_member(request, tenant_id, member_id):
     )
 
 
-# ============ Invitation Management ============
+# --- Invitation Management ---
 
 @extend_schema(
     summary="Invite Developer",
@@ -365,7 +364,6 @@ def invite_developer(request, tenant_id):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Check if user is already a member
     if User.objects.filter(email=email).exists():
         existing_user = User.objects.get(email=email)
         if TenantMember.objects.filter(tenant=tenant, user=existing_user).exists():
@@ -380,7 +378,6 @@ def invite_developer(request, tenant_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
     
-    # Check for existing active invite in Redis
     existing_invite = RedisInviteManager.get_invite_by_email(tenant.id, email)
     if existing_invite and not RedisInviteManager.is_expired(existing_invite):
         return Response(
@@ -394,7 +391,6 @@ def invite_developer(request, tenant_id):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Create invite in Redis
     invite_data = RedisInviteManager.create_invite(
         tenant_id=tenant.id,
         email=email,
@@ -402,7 +398,6 @@ def invite_developer(request, tenant_id):
         role='developer'
     )
     
-    # Send invitation email
     from ..utils.tenant_invites import send_member_invite_email
     success, message = send_member_invite_email(
         email=email,

@@ -1,55 +1,178 @@
 from django.db import models
 from accounts.models import Tenant
+from cryptography.fernet import Fernet
+from django.conf import settings
+import base64
+
+
+class TenantCredential(models.Model):
+    """Tenant-level OAuth credentials for repository access."""
+    
+    PROVIDER_GITHUB = 'github'
+    PROVIDER_GITLAB = 'gitlab'
+    PROVIDER_BITBUCKET = 'bitbucket'
+    PROVIDER_AZURE = 'azure'
+    
+    PROVIDER_CHOICES = (
+        (PROVIDER_GITHUB, 'GitHub'),
+        (PROVIDER_GITLAB, 'GitLab'),
+        (PROVIDER_BITBUCKET, 'Bitbucket'),
+        (PROVIDER_AZURE, 'Azure DevOps'),
+    )
+    
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='credentials',
+        db_index=True
+    )
+    
+    name = models.CharField(
+        max_length=255,
+        help_text="Human-readable name for this credential"
+    )
+    
+    provider = models.CharField(
+        max_length=20,
+        choices=PROVIDER_CHOICES,
+        default=PROVIDER_GITHUB,
+        db_index=True
+    )
+    
+    # OAuth-specific fields
+    encrypted_access_token = models.TextField(
+        help_text="Encrypted OAuth access token"
+    )
+    
+    # GitHub-specific OAuth data
+    github_installation_id = models.CharField(
+        max_length=255, 
+        null=True, 
+        blank=True,
+        help_text="GitHub App installation ID"
+    )
+    
+    github_account_login = models.CharField(
+        max_length=255, 
+        null=True, 
+        blank=True,
+        help_text="GitHub account/organization login"
+    )
+    
+    github_account_id = models.CharField(
+        max_length=255, 
+        null=True, 
+        blank=True,
+        help_text="GitHub account/organization ID"
+    )
+    
+    # Permissions and scope
+    granted_scopes = models.TextField(
+        null=True, 
+        blank=True,
+        help_text="OAuth scopes granted (comma-separated)"
+    )
+    
+    # OAuth metadata
+    oauth_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional OAuth metadata"
+    )
+    
+    added_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='added_credentials'
+    )
+    
+    is_active = models.BooleanField(default=True, db_index=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'tenant_credentials'
+        verbose_name = 'Tenant Credential'
+        verbose_name_plural = 'Tenant Credentials'
+        ordering = ['-created_at']
+        unique_together = ('tenant', 'name')
+    
+    def __str__(self):
+        return f"{self.name} ({self.provider}) - {self.tenant.name}"
+    
+    def _get_encryption_key(self):
+        """Get encryption key for access tokens."""
+        key = getattr(settings, 'REPOSITORY_ENCRYPTION_KEY', None)
+        if not key:
+            key = Fernet.generate_key()
+        elif isinstance(key, str):
+            key = key.encode('utf-8')
+        return key
+    
+    def set_access_token(self, token: str):
+        """Encrypt and store access token."""
+        if not token:
+            self.encrypted_access_token = ''
+            return
+        
+        fernet = Fernet(self._get_encryption_key())
+        encrypted_token = fernet.encrypt(token.encode())
+        self.encrypted_access_token = base64.b64encode(encrypted_token).decode()
+    
+    def get_access_token(self) -> str:
+        """Decrypt and return access token."""
+        if not self.encrypted_access_token:
+            return None
+        
+        try:
+            fernet = Fernet(self._get_encryption_key())
+            encrypted_token = base64.b64decode(self.encrypted_access_token.encode())
+            return fernet.decrypt(encrypted_token).decode()
+        except Exception:
+            return None
+    
+    @property
+    def has_access_token(self) -> bool:
+        """Check if credential has an access token."""
+        return bool(self.encrypted_access_token)
+    
+    @property
+    def repositories_count(self) -> int:
+        """Count of repositories using this credential."""
+        return self.repositories.count()
 
 
 class Repository(models.Model):
-    """
-    Repository model for multi-tenant repository management.
-    Each repository belongs to exactly one organization and will be scanned by workers.
-    """
-    VISIBILITY_PUBLIC = 'public'
-    VISIBILITY_PRIVATE = 'private'
+    """Simple repository model for multi-tenant management."""
     
-    VISIBILITY_CHOICES = (
-        (VISIBILITY_PUBLIC, 'Public'),
-        (VISIBILITY_PRIVATE, 'Private'),
-    )
-
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
         related_name='repositories',
         db_index=True
     )
-
+    
     name = models.CharField(max_length=255, db_index=True)
     url = models.URLField(max_length=500)
-    visibility = models.CharField(
-        max_length=20,
-        choices=VISIBILITY_CHOICES,
-        default=VISIBILITY_PUBLIC
-    )
     default_branch = models.CharField(max_length=100, default='main')
-
-    # Status tracking
+    description = models.TextField(null=True, blank=True)
+    
+    # Link to credential for private repository access
+    credential = models.ForeignKey(
+        TenantCredential,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='repositories',
+        help_text="Credential used for repository access"
+    )
+    
     is_active = models.BooleanField(default=True)
     
-    # Future: Scanning pipeline metadata
-    last_scan_status = models.CharField(max_length=50, null=True, blank=True)
-    last_scan_at = models.DateTimeField(null=True, blank=True)
-    
-    # Future: GitHub integration
-    github_repo_id = models.CharField(max_length=255, null=True, blank=True, db_index=True)
-    github_owner = models.CharField(max_length=255, null=True, blank=True)
-    github_full_name = models.CharField(max_length=500, null=True, blank=True)  # e.g., "owner/repo"
-    
-    assigned_developers = models.ManyToManyField(
-        'accounts.User',
-        related_name='assigned_repositories',
-        blank=True
-    )
-    
-    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -58,28 +181,7 @@ class Repository(models.Model):
         verbose_name = 'Repository'
         verbose_name_plural = 'Repositories'
         ordering = ['-created_at']
-        unique_together = ('tenant', 'url')  # Same URL can't be added twice in same org
-        indexes = [
-            models.Index(fields=['tenant', 'is_active']),
-            models.Index(fields=['github_repo_id']),
-        ]
+        unique_together = ('tenant', 'url')
 
     def __str__(self):
         return f"{self.name} ({self.tenant.name})"
-    
-    def extract_github_info(self):
-        """
-        Extract GitHub owner and repo name from URL.
-        Example: https://github.com/owner/repo -> owner='owner', name='repo'
-        """
-        if 'github.com' in self.url:
-            parts = self.url.rstrip('/').split('/')
-            if len(parts) >= 2:
-                self.github_owner = parts[-2]
-                github_repo_name = parts[-1].replace('.git', '')
-                self.github_full_name = f"{self.github_owner}/{github_repo_name}"
-    
-    def save(self, *args, **kwargs):
-        """Auto-extract GitHub info before saving."""
-        self.extract_github_info()
-        super().save(*args, **kwargs)

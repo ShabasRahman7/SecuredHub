@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import TenantSidebar from '../../components/tenant/TenantSidebar';
+import CredentialsPage from './CredentialsPage';
 import { Search, Bell, HelpCircle, Plus, Github, Link as LinkIcon, Trash2, Edit, X, Save, Mail, UserPlus, Menu } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
-import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
+import Swal from 'sweetalert2';
 
 const TenantDashboard = () => {
-    const { user, tenants, logout } = useAuth();
+    const { user, tenant, logout } = useAuth();
     const [activeTab, setActiveTab] = useState('dashboard');
     const [currentTenant, setCurrentTenant] = useState(null);
     const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile Sidebar State
@@ -33,14 +35,28 @@ const TenantDashboard = () => {
     const [selectedDevs, setSelectedDevs] = useState([]);
     const [resendingInvite, setResendingInvite] = useState(null);
 
+    const [searchParams] = useSearchParams();
+
     useEffect(() => {
-        if (tenants.length > 0) {
-            const tenant = tenants.find(t => t.role === 'owner') || tenants[0];
+        if (tenant) {
             setCurrentTenant(tenant);
             setTenantName(tenant?.name || '');
             setTenantDescription(tenant?.description || '');
         }
-    }, [tenants]);
+    }, [tenant]);
+
+    // Handle GitHub OAuth success
+    useEffect(() => {
+        const githubConnected = searchParams.get('github_connected');
+        const credentialId = searchParams.get('credential_id');
+        
+        if (githubConnected === 'true') {
+            toast.success('GitHub connected successfully! You can now manage your repositories.');
+            setActiveTab('credentials'); // Switch to credentials tab
+            // Clean up URL parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }, [searchParams]);
 
     // Fetch members and repositories once when tenant is set
     useEffect(() => {
@@ -136,13 +152,13 @@ const TenantDashboard = () => {
     };
 
     const handleCancelInvite = async (inviteId) => {
-        const isConfirmed = await showConfirmDialog({ 
-            title: 'Cancel Invite?', 
-            text: "This invitation will be cancelled.", 
-            icon: 'warning' 
+        const isConfirmed = await showConfirmDialog({
+            title: 'Cancel Invite?',
+            text: "This invitation will be cancelled.",
+            icon: 'warning'
         });
         if (!isConfirmed) return;
-        
+
         try {
             const res = await api.delete(`/tenants/${currentTenant.id}/invites/${inviteId}/cancel/`);
             if (res.data.success) {
@@ -198,9 +214,9 @@ const TenantDashboard = () => {
                 <div className="text-center space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
                     <p className="text-lg">Loading tenant data...</p>
-                    {tenants.length === 0 && (
+                    {!tenant && (
                         <p className="text-sm text-gray-400">
-                            No tenants found. You may need to be invited to a tenant first.
+                            No tenant found. You may need to be invited to a tenant first.
                         </p>
                     )}
                 </div>
@@ -274,13 +290,16 @@ const TenantDashboard = () => {
                                         activeTab === 'repositories' ? 'Repositories' :
                                             activeTab === 'developers' ? 'Team Management' :
                                                 activeTab === 'profile' ? 'Organization Profile' :
-                                                    activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                                                    activeTab === 'credentials' ? 'Repository Credentials' :
+                                                        activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
                                 </p>
                                 <p className="text-[#6b7280] dark:text-[#9da8b9] text-sm lg:text-base font-normal">
                                     {activeTab === 'dashboard' ? 'Overview of your organization security posture.' :
                                         activeTab === 'repositories' ? 'Manage and connect your code repositories.' :
                                             activeTab === 'developers' ? 'Manage access and roles for your organization.' :
-                                                activeTab === 'profile' ? 'Update your organization details.' : 'Manage your organization settings.'}
+                                                activeTab === 'profile' ? 'Update your organization details.' :
+                                                    activeTab === 'credentials' ? 'Manage access tokens for your code repositories.' :
+                                                        'Manage your organization settings.'}
                                 </p>
                             </div>
                         </div>
@@ -510,12 +529,12 @@ const TenantDashboard = () => {
                         {activeTab === 'developers' && (
                             <div className="flex flex-col gap-6">
                                 {/* Active Members */}
-                                <div className="flex flex-col gap-4 rounded-xl p-6 border border-[#e5e7eb] dark:border-[#282f39] bg-white dark:bg-[#1a1d21]">
-                                    <h3 className="text-lg font-semibold">Active Members</h3>
+                                <div className="flex flex-col gap-4 rounded-xl p-6 border border-white/10 bg-[#0A0F16]">
+                                    <h3 className="text-lg font-semibold text-white">Active Members</h3>
                                     <div className="overflow-x-auto -mx-6">
-                                        <table className="w-full text-left">
-                                            <thead>
-                                                <tr className="text-sm text-[#6b7280] dark:text-[#9da8b9] border-b border-[#e5e7eb] dark:border-[#282f39]">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead className="bg-white/5 border-b border-white/10">
+                                                <tr className="text-sm text-gray-400 border-b border-white/10">
                                                     <th className="py-2 px-6 font-medium">Name</th>
                                                     <th className="py-2 px-6 font-medium">Email</th>
                                                     <th className="py-2 px-6 font-medium">Role</th>
@@ -525,8 +544,8 @@ const TenantDashboard = () => {
                                             </thead>
                                             <tbody>
                                                 {members.map(member => (
-                                                    <tr key={member.id} className="text-sm border-b border-[#e5e7eb] dark:border-[#282f39] hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                                                        <td className="py-4 px-6 font-medium">
+                                                    <tr key={member.id} className="text-sm border-b border-white/5 text-gray-300 hover:bg-white/5 transition-colors">
+                                                        <td className="py-4 px-6 font-medium text-white">
                                                             <div className="flex items-center gap-3">
                                                                 <div className="bg-primary/10 rounded-full size-8 flex items-center justify-center text-primary font-bold">
                                                                     {member.first_name?.[0] || 'U'}
@@ -534,13 +553,13 @@ const TenantDashboard = () => {
                                                                 <span>{member.first_name} {member.last_name}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="py-4 px-6 text-[#6b7280] dark:text-[#9da8b9]">{member.email}</td>
+                                                        <td className="py-4 px-6 text-gray-400">{member.email}</td>
                                                         <td className="py-4 px-6">
                                                             <span className={`px-2 py-1 rounded text-xs font-semibold ${member.role === 'owner' ? 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300'}`}>
                                                                 {member.role.toUpperCase()}
                                                             </span>
                                                         </td>
-                                                        <td className="py-4 px-6 text-[#6b7280] dark:text-[#9da8b9]">{new Date(member.joined_at).toLocaleDateString()}</td>
+                                                        <td className="py-4 px-6 text-gray-400">{new Date(member.joined_at).toLocaleDateString()}</td>
                                                         <td className="py-4 px-6 text-right">
                                                             {member.role !== 'owner' && (
                                                                 <button onClick={() => handleRemoveMember(member.id)} className="text-red-500 hover:bg-red-500/10 p-2 rounded transition-colors" title="Remove Member">
@@ -558,15 +577,15 @@ const TenantDashboard = () => {
 
                                 {/* Pending Invites */}
                                 {invites.length > 0 && (
-                                    <div className="flex flex-col gap-4 rounded-xl p-6 border border-[#e5e7eb] dark:border-[#282f39] bg-white dark:bg-[#1a1d21]">
+                                    <div className="flex flex-col gap-4 rounded-xl p-6 border border-white/10 bg-[#0A0F16]">
                                         <div className="flex items-center gap-2">
-                                            <h3 className="text-lg font-semibold">Pending Invitations</h3>
+                                            <h3 className="text-lg font-semibold text-white">Pending Invitations</h3>
                                             <span className="badge badge-sm bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-none">{invites.length}</span>
                                         </div>
                                         <div className="overflow-x-auto -mx-6">
-                                            <table className="w-full text-left">
-                                                <thead>
-                                                    <tr className="text-sm text-[#6b7280] dark:text-[#9da8b9] border-b border-[#e5e7eb] dark:border-[#282f39]">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead className="bg-white/5 border-b border-white/10">
+                                                    <tr className="text-sm text-gray-400 border-b border-white/10">
                                                         <th className="py-2 px-6 font-medium">Email</th>
                                                         <th className="py-2 px-6 font-medium">Status</th>
                                                         <th className="py-2 px-6 font-medium">Sent</th>
@@ -578,8 +597,8 @@ const TenantDashboard = () => {
                                                     {invites.map(invite => {
                                                         const isExpired = invite.is_expired || new Date(invite.expires_at) < new Date();
                                                         return (
-                                                            <tr key={invite.token} className="text-sm border-b border-[#e5e7eb] dark:border-[#282f39] hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                                                                <td className="py-4 px-6 font-medium">
+                                                            <tr key={invite.token} className="text-sm border-b border-white/5 text-gray-300 hover:bg-white/5 transition-colors">
+                                                                <td className="py-4 px-6 font-medium text-white">
                                                                     <div className="flex items-center gap-3">
                                                                         <div className="bg-gray-200 dark:bg-gray-700 rounded-full size-8 flex items-center justify-center text-gray-600 dark:text-gray-300">
                                                                             <Mail className="w-4 h-4" />
@@ -588,26 +607,25 @@ const TenantDashboard = () => {
                                                                     </div>
                                                                 </td>
                                                                 <td className="py-4 px-6">
-                                                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                                                        isExpired 
-                                                                            ? 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300' 
+                                                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${isExpired
+                                                                            ? 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300'
                                                                             : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-300'
-                                                                    }`}>
+                                                                        }`}>
                                                                         {isExpired ? 'EXPIRED' : 'PENDING'}
                                                                     </span>
                                                                 </td>
-                                                                <td className="py-4 px-6 text-[#6b7280] dark:text-[#9da8b9]">
+                                                                <td className="py-4 px-6 text-gray-400">
                                                                     {new Date(invite.created_at).toLocaleDateString()}
                                                                 </td>
-                                                                <td className="py-4 px-6 text-[#6b7280] dark:text-[#9da8b9]">
+                                                                <td className="py-4 px-6 text-gray-400">
                                                                     {new Date(invite.expires_at).toLocaleDateString()}
                                                                 </td>
                                                                 <td className="py-4 px-6 text-right">
                                                                     <div className="flex items-center justify-end gap-2">
                                                                         {isExpired ? (
-                                                                            <button 
-                                                                                onClick={() => handleResendInvite(invite.token)} 
-                                                                                className="text-blue-500 hover:bg-blue-500/10 px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-1" 
+                                                                            <button
+                                                                                onClick={() => handleResendInvite(invite.token)}
+                                                                                className="text-blue-500 hover:bg-blue-500/10 px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-1"
                                                                                 title="Resend with new token"
                                                                                 disabled={resendingInvite === invite.token}
                                                                             >
@@ -626,9 +644,9 @@ const TenantDashboard = () => {
                                                                         ) : (
                                                                             <span className="text-xs text-gray-500 dark:text-gray-400 italic">Waiting for acceptance</span>
                                                                         )}
-                                                                        <button 
-                                                                            onClick={() => handleCancelInvite(invite.token)} 
-                                                                            className="text-red-500 hover:bg-red-500/10 p-2 rounded transition-colors" 
+                                                                        <button
+                                                                            onClick={() => handleCancelInvite(invite.token)}
+                                                                            className="text-red-500 hover:bg-red-500/10 p-2 rounded transition-colors"
                                                                             title="Cancel invitation"
                                                                         >
                                                                             <X className="w-4 h-4" />
@@ -704,6 +722,11 @@ const TenantDashboard = () => {
                             </div>
                         )}
 
+                        {/* CREDENTIALS VIEW */}
+                        {activeTab === 'credentials' && (
+                            <CredentialsPage />
+                        )}
+
                         {/* PLACEHOLDER VIEWS */}
                         {(activeTab === 'scans' || activeTab === 'reports' || activeTab === 'settings') && (
                             <div className="flex flex-col items-center justify-center h-96 bg-white dark:bg-[#1a1d21] border border-[#e5e7eb] dark:border-[#282f39] rounded-xl text-center p-8">
@@ -735,30 +758,30 @@ const TenantDashboard = () => {
                                 <label className="label">
                                     <span className="label-text">Email Address</span>
                                 </label>
-                                <input 
-                                    type="email" 
-                                    placeholder="developer@example.com" 
-                                    className="input input-bordered w-full dark:bg-[#101822] dark:border-[#282f39]" 
-                                    value={inviteEmail} 
-                                    onChange={e => setInviteEmail(e.target.value)} 
+                                <input
+                                    type="email"
+                                    placeholder="developer@example.com"
+                                    className="input input-bordered w-full dark:bg-[#101822] dark:border-[#282f39]"
+                                    value={inviteEmail}
+                                    onChange={e => setInviteEmail(e.target.value)}
                                     disabled={isInviting}
-                                    required 
+                                    required
                                 />
                                 <label className="label">
                                     <span className="label-text-alt text-gray-500">An invitation email will be sent to this address</span>
                                 </label>
                             </div>
                             <div className="modal-action">
-                                <button 
-                                    type="button" 
-                                    className="btn btn-ghost" 
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost"
                                     onClick={() => setShowInviteModal(false)}
                                     disabled={isInviting}
                                 >
                                     Cancel
                                 </button>
-                                <button 
-                                    type="submit" 
+                                <button
+                                    type="submit"
                                     className="btn btn-primary bg-primary border-none"
                                     disabled={isInviting}
                                 >

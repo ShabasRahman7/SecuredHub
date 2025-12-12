@@ -3,7 +3,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import { Check, X, Clock, Search, Shield } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
-import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
+import Swal from 'sweetalert2';
 
 const AccessRequests = () => {
     const [requests, setRequests] = useState([]);

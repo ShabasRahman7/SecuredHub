@@ -1,4 +1,4 @@
-import { LayoutDashboard, Box, Shield, BarChart3, Users, Settings, LogOut, UserCircle, X } from 'lucide-react';
+import { LayoutDashboard, Box, Shield, BarChart3, Users, Settings, LogOut, UserCircle, X, KeyRound } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 const TenantSidebar = ({ activeTab, setActiveTab, logout, user, tenantName, isOpen, onClose }) => {
@@ -9,6 +9,7 @@ const TenantSidebar = ({ activeTab, setActiveTab, logout, user, tenantName, isOp
         { id: 'scans', label: 'Scans', icon: Shield },
         { id: 'reports', label: 'Reports', icon: BarChart3 },
         { id: 'developers', label: 'Developers', icon: Users },
+        { id: 'credentials', label: 'Credentials', icon: KeyRound },
         { id: 'settings', label: 'Settings', icon: Settings },
     ];
 

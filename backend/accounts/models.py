@@ -65,10 +65,9 @@ class User(AbstractUser):
         if self.is_staff:
             return 'admin'
         
-        from .models import TenantMember
-        membership = TenantMember.objects.filter(user=self).first()
-        if membership:
-            return membership.role
+        # Since user can only belong to one tenant, use OneToOne relationship
+        if hasattr(self, 'tenant_membership') and self.tenant_membership:
+            return self.tenant_membership.role
         return None
 
 
@@ -117,6 +116,9 @@ class TenantMember(models.Model):
     """
     Membership model linking users to organizations with roles.
     Implements role-based access control (RBAC).
+    
+    IMPORTANT: Each user can only belong to ONE tenant.
+    This ensures simple security model and clear ownership.
     """
     ROLE_OWNER = 'owner'
     ROLE_DEVELOPER = 'developer'
@@ -131,10 +133,10 @@ class TenantMember(models.Model):
         on_delete=models.CASCADE,
         related_name='members'
     )
-    user = models.ForeignKey(
+    user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
-        related_name='tenant_memberships'
+        related_name='tenant_membership'  # Changed to singular
     )
     role = models.CharField(max_length=32, choices=ROLE_CHOICES, db_index=True)
     joined_at = models.DateTimeField(auto_now_add=True)

@@ -2,20 +2,19 @@ import { useState, useEffect } from 'react';
 import { tenantService } from '../api/services/tenantService';
 import { toast } from 'react-toastify';
 
-export const useTenantData = (tenants) => {
+export const useTenantData = (tenant) => {
   const [currentTenant, setCurrentTenant] = useState(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [tenantName, setTenantName] = useState('');
   const [tenantDescription, setTenantDescription] = useState('');
 
   useEffect(() => {
-    if (tenants.length > 0) {
-      const tenant = tenants.find(t => t.role === 'owner') || tenants[0];
+    if (tenant) {
       setCurrentTenant(tenant);
       setTenantName(tenant?.name || '');
       setTenantDescription(tenant?.description || '');
     }
-  }, [tenants]);
+  }, [tenant]);
 
   const updateProfile = async (e) => {
     e.preventDefault();

@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger('api')
 User = get_user_model()
 
-# ============ Admin User Management ============
+# --- Admin User Management ---
 
 @extend_schema(
     summary="Admin Delete User",
@@ -87,7 +87,7 @@ def admin_update_user(request, user_id):
     }, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ============ Admin Tenant Management ============
+# --- Admin Tenant Management ---
 
 @extend_schema(
     summary="Admin Delete Tenant",
@@ -215,7 +215,7 @@ def admin_list_tenants(request):
     }, status=status.HTTP_200_OK)
 
 
-# ============ Admin Tenant Invitation ============
+# --- Admin Tenant Invitation ---
 
 @extend_schema(
     summary="Admin Invite Tenant",
@@ -244,7 +244,6 @@ def admin_invite_tenant(request):
             }
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    # Check if user already exists
     if User.objects.filter(email=email).exists():
         return Response({
             "success": False,
@@ -434,7 +433,7 @@ def admin_delete_tenant_invite(request, invite_id):
     }, status=status.HTTP_200_OK)
 
 
-# ============ Admin Access Request Management ============
+# --- Admin Access Request Management ---
 
 @extend_schema(
     summary="List Access Requests",
@@ -494,7 +493,6 @@ def admin_approve_access_request(request, request_id):
             }
         }, status=status.HTTP_400_BAD_REQUEST)
         
-    # Check if user already exists
     if User.objects.filter(email=access_request.email).exists():
         return Response({
             "success": False,

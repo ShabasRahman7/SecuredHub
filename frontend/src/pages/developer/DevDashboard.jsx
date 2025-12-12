@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import DeveloperSidebar from '../../components/developer/DeveloperSidebar';
 import { Search, Bell, Menu, ExternalLink, Play, Bot, Shield } from 'lucide-react';
@@ -29,47 +30,65 @@ ChartJS.register(
 );
 
 const DevDashboard = () => {
-    const { user, tenants, logout } = useAuth();
+    const { user, tenant, logout } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
     const [activeTab, setActiveTab] = useState('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [repos, setRepos] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // Fetch Repositories - Parallel API calls for better performance
+    // Enhanced Single Route Pattern: URL Synchronization
+    useEffect(() => {
+        const section = location.hash.replace('#', '') || 'dashboard';
+        const validSections = ['dashboard', 'repositories', 'vulnerabilities', 'ai-assistant', 'settings'];
+        
+        if (validSections.includes(section)) {
+            setActiveTab(section);
+        } else {
+            navigate('#dashboard', { replace: true });
+            setActiveTab('dashboard');
+        }
+    }, [location.hash, navigate]);
+
+    // Fetch Repositories - Simple single tenant API call
     useEffect(() => {
         const fetchRepos = async () => {
-            if (tenants.length === 0) return;
+            if (!tenant) return;
             setLoading(true);
             try {
-                // Make parallel requests instead of sequential
-                const promises = tenants.map(org => 
-                    api.get(`/tenants/${org.id}/repositories/`)
-                        .catch(err => {
-                            console.error(`Failed to fetch repos for ${org.name}:`, err);
-                            return { data: { repositories: [] } };
-                        })
-                );
-                const results = await Promise.all(promises);
-                const allRepos = results.flatMap((res, i) => 
-                    res.data.repositories.map(r => ({ 
-                        ...r, 
-                        orgName: tenants[i].name,
-                        orgId: tenants[i].id 
-                    }))
-                );
-                setRepos(allRepos);
+                const response = await api.get(`/tenants/${tenant.id}/repositories/`);
+                const repositories = response.data.repositories || [];
+                // Add tenant info to each repository
+                const reposWithTenant = repositories.map(r => ({ 
+                    ...r, 
+                    orgName: tenant.name,
+                    orgId: tenant.id 
+                }));
+                setRepos(reposWithTenant);
             } catch (error) {
                 console.error('Failed to fetch repositories:', error);
                 toast.error('Failed to load repositories');
+                setRepos([]);
             } finally {
                 setLoading(false);
             }
         };
         fetchRepos();
-    }, [tenants]);
+    }, [tenant]);
 
     const handleScan = () => {
         toast.info('Scan functionality coming in Week 2');
+    };
+
+    // Enhanced Navigation Handler
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        navigate(`#${tab}`, { replace: true });
+        
+        if (sidebarOpen) {
+            setSidebarOpen(false);
+        }
     };
 
     // Chart Options
@@ -133,7 +152,7 @@ const DevDashboard = () => {
             {/* Sidebar */}
             <DeveloperSidebar
                 activeTab={activeTab}
-                setActiveTab={setActiveTab}
+                setActiveTab={handleTabChange}
                 logout={logout}
                 user={user}
                 isOpen={sidebarOpen}
@@ -157,12 +176,7 @@ const DevDashboard = () => {
                             <div className="hidden md:flex items-center gap-2 pl-2 border-l border-white/10">
                                 <UsersIconGroup />
                                 <span className="text-sm font-medium text-white">
-                                    {tenants.length === 1 
-                                        ? tenants[0].name 
-                                        : tenants.length > 1 
-                                        ? `${tenants.length} Organizations` 
-                                        : 'No Organization'
-                                    }
+                                    {tenant ? tenant.name : 'No Organization'}
                                 </span>
                             </div>
                         </div>
@@ -204,16 +218,16 @@ const DevDashboard = () => {
                                     <div className="bg-[#0A0F16] border border-white/10 rounded-xl overflow-hidden">
                                         <div className="flex justify-between items-center px-6 py-4 border-b border-white/10">
                                             <h2 className="text-lg font-semibold text-white">Recent Scans on My Repositories</h2>
-                                            <button onClick={() => setActiveTab('repositories')} className="text-sm font-medium text-primary hover:underline">View All Scans</button>
+                                            <button onClick={() => handleTabChange('repositories')} className="text-sm font-medium text-primary hover:underline">View All Scans</button>
                                         </div>
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-left">
                                                 <thead className="bg-white/5">
                                                     <tr>
                                                         <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Repository</th>
-                                                        <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Scan Status</th>
-                                                        <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Vulnerabilities</th>
-                                                        <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Completed</th>
+                                                        <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                                                        <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Details</th>
+                                                        <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Added</th>
                                                         <th className="px-6 py-3"></th>
                                                     </tr>
                                                 </thead>
@@ -223,27 +237,47 @@ const DevDashboard = () => {
                                                             <td className="px-6 py-4 whitespace-nowrap">
                                                                 <div className="text-sm font-medium text-white">{repo.name}</div>
                                                                 <div className="text-sm text-gray-500">{repo.orgName}</div>
+                                                                {repo.description && (
+                                                                    <div className="text-xs text-gray-600 mt-1 max-w-xs truncate">
+                                                                        {repo.description}
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap">
                                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                                    repo.last_scan_status === 'failed' ? 'bg-red-500/10 text-red-400' :
-                                                                    repo.last_scan_status === 'in_progress' ? 'bg-yellow-500/10 text-yellow-400' :
-                                                                    repo.last_scan_status === 'completed' ? 'bg-green-500/10 text-green-400' :
+                                                                    repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400' :
+                                                                    repo.validation_status === 'invalid' ? 'bg-red-500/10 text-red-400' :
+                                                                    repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400' :
                                                                     'bg-gray-500/10 text-gray-400'
                                                                 }`}>
-                                                                    {repo.last_scan_status ? repo.last_scan_status.replace('_', ' ').toUpperCase() : 'Not Scanned'}
+                                                                    {repo.validation_status ? repo.validation_status.replace('_', ' ').toUpperCase() : 'Pending'}
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                                <div className="flex items-center gap-3 text-sm text-gray-500">
-                                                                    <span>Coming Soon</span>
+                                                                <div className="flex items-center gap-3 text-sm">
+                                                                    {repo.primary_language && (
+                                                                        <span className="text-blue-400">{repo.primary_language}</span>
+                                                                    )}
+                                                                    {repo.stars_count > 0 && (
+                                                                        <span className="text-yellow-400">⭐ {repo.stars_count}</span>
+                                                                    )}
+                                                                    {repo.forks_count > 0 && (
+                                                                        <span className="text-gray-400">🍴 {repo.forks_count}</span>
+                                                                    )}
                                                                 </div>
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                                {repo.last_scan_at ? new Date(repo.last_scan_at).toLocaleDateString() : 'Never'}
+                                                                {repo.created_at ? new Date(repo.created_at).toLocaleDateString() : 'Unknown'}
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                                <button className="text-gray-500 cursor-not-allowed" disabled>View Details</button>
+                                                                <a 
+                                                                    href={repo.url} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-primary hover:text-blue-400 flex items-center gap-1"
+                                                                >
+                                                                    View Repo <ExternalLink className="w-3 h-3" />
+                                                                </a>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -297,7 +331,7 @@ const DevDashboard = () => {
                                         <Bot className="w-10 h-10 text-primary mb-3" />
                                         <h3 className="text-lg font-bold text-white">Need help with a vulnerability?</h3>
                                         <p className="text-sm text-gray-400 mt-1 mb-6">Our AI assistant can provide explanations and suggest remediation steps.</p>
-                                        <button onClick={() => setActiveTab('ai-assistant')} className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-blue-600 transition-colors h-10 px-4 text-sm font-medium text-white">
+                                        <button onClick={() => handleTabChange('ai-assistant')} className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-blue-600 transition-colors h-10 px-4 text-sm font-medium text-white">
                                             Ask AI Assistant
                                         </button>
                                     </div>
@@ -315,8 +349,29 @@ const DevDashboard = () => {
                                     {repos.map(repo => (
                                         <div key={repo.id} className="flex flex-col md:flex-row items-center justify-between p-4 bg-[#05080C] border border-white/10 rounded-lg gap-4">
                                             <div className="flex-1">
-                                                <h3 className="font-bold text-lg text-white">{repo.name}</h3>
-                                                <p className="text-xs text-gray-500 mb-1">Tenant: {repo.orgName}</p>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <h3 className="font-bold text-lg text-white">{repo.name}</h3>
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                                        repo.visibility === 'private' ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'
+                                                    }`}>
+                                                        {repo.visibility}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-gray-500 mb-1">Organization: {repo.orgName}</p>
+                                                {repo.description && (
+                                                    <p className="text-sm text-gray-400 mb-2">{repo.description}</p>
+                                                )}
+                                                <div className="flex items-center gap-4 mb-2">
+                                                    {repo.primary_language && (
+                                                        <span className="text-xs text-blue-400">📝 {repo.primary_language}</span>
+                                                    )}
+                                                    {repo.stars_count > 0 && (
+                                                        <span className="text-xs text-yellow-400">⭐ {repo.stars_count}</span>
+                                                    )}
+                                                    {repo.forks_count > 0 && (
+                                                        <span className="text-xs text-gray-400">🍴 {repo.forks_count}</span>
+                                                    )}
+                                                </div>
                                                 <a href={repo.url} target="_blank" rel="noreferrer" className="text-sm hover:underline flex items-center text-blue-400">
                                                     {repo.url} <ExternalLink className="w-3 h-3 ml-1" />
                                                 </a>
@@ -324,15 +379,15 @@ const DevDashboard = () => {
                                             <div className="flex items-center gap-4">
                                                 <div className="text-right">
                                                     <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${
-                                                        repo.last_scan_status === 'completed' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                                        repo.last_scan_status === 'failed' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                                        repo.last_scan_status === 'in_progress' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                                                        repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                                        repo.validation_status === 'invalid' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                                        repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
                                                         'bg-gray-500/10 text-gray-400 border-gray-500/20'
                                                     }`}>
-                                                        {repo.last_scan_status ? repo.last_scan_status.replace('_', ' ').toUpperCase() : 'Not Scanned'}
+                                                        {repo.validation_status ? repo.validation_status.replace('_', ' ').toUpperCase() : 'Pending'}
                                                     </span>
                                                     <div className="text-xs text-gray-500 mt-1">
-                                                        {repo.last_scan_at ? `Scanned ${new Date(repo.last_scan_at).toLocaleDateString()}` : 'Never scanned'}
+                                                        Added {new Date(repo.created_at).toLocaleDateString()}
                                                     </div>
                                                 </div>
                                                 <button
