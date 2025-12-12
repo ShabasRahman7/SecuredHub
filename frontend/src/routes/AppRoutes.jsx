@@ -51,6 +51,7 @@ const AppRoutes = () => {
             </Route>
 
             <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
+            {/* Don't catch /admin routes - let them go to Django backend */}
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
