@@ -26,9 +26,9 @@ export const API_ENDPOINTS = {
   ACCEPT_INVITE: '/invites/accept/',
 
   // Repositories
-  ADD_REPOSITORY: (tenantId) => `/tenants/${tenantId}/repositories/add/`,
-  DELETE_REPOSITORY: (tenantId, repoId) => `/tenants/${tenantId}/repositories/${repoId}/delete/`,
-  ASSIGN_DEVELOPERS: (tenantId, repoId) => `/tenants/${tenantId}/repositories/${repoId}/assign-developers/`,
+  ADD_REPOSITORY: (tenantId) => `/tenants/${tenantId}/repositories/create/`,
+  DELETE_REPOSITORY: (tenantId, repoId) => `/tenants/${tenantId}/repositories/${repoId}/`,
+  ASSIGN_DEVELOPERS: (tenantId, repoId) => `/tenants/${tenantId}/repositories/${repoId}/assign/`,
 
   // Admin
   ADMIN_TENANTS: '/admin/tenants/',

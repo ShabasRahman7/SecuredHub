@@ -51,12 +51,10 @@ class RedisInviteManager:
             'status': 'pending'
         }
         
-        # Store by token (for verification)
         token_key = f"{cls.MEMBER_INVITE_PREFIX}{token}"
         timeout_seconds = expiry_hours * 60 * 60
         cache.set(token_key, json.dumps(invite_data), timeout=timeout_seconds)
         
-        # Store by email (for checking existing invites)
         email_key = f"{cls.MEMBER_EMAIL_PREFIX}{tenant_id}:{email}"
         cache.set(email_key, token, timeout=timeout_seconds)
         
@@ -88,12 +86,10 @@ class RedisInviteManager:
             'status': 'pending'
         }
         
-        # Store by token (for verification)
         token_key = f"{cls.TENANT_INVITE_PREFIX}{token}"
         timeout_seconds = expiry_hours * 60 * 60
         cache.set(token_key, json.dumps(invite_data), timeout=timeout_seconds)
         
-        # Store by email (for checking existing invites)
         email_key = f"{cls.TENANT_EMAIL_PREFIX}{email}"
         cache.set(email_key, token, timeout=timeout_seconds)
         

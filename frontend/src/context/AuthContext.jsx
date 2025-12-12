@@ -7,7 +7,7 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [tenants, setTenants] = useState([]); // Added tenants state
+    const [tenant, setTenant] = useState(null); // Single tenant instead of array
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate(); // Added useNavigate hook
 
@@ -22,15 +22,16 @@ export const AuthProvider = ({ children }) => {
             const userRes = await api.get('/auth/profile/');
             setUser(userRes.data.user);
 
-            // Fetch tenants
+            // Fetch user's single tenant
             const tenantsRes = await api.get('/tenants/');
-            setTenants(tenantsRes.data.tenants || []);
+            const userTenants = tenantsRes.data.tenants || [];
+            setTenant(userTenants.length > 0 ? userTenants[0] : null);
         } catch (error) {
             console.error('Failed to fetch user or tenants:', error);
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             setUser(null);
-            setTenants([]);
+            setTenant(null);
         } finally {
             setLoading(false);
         }
@@ -51,10 +52,11 @@ export const AuthProvider = ({ children }) => {
         // Fetch tenants immediately after login
         try {
             const tenantsRes = await api.get('/tenants/');
-            setTenants(tenantsRes.data.tenants || []);
+            const userTenants = tenantsRes.data.tenants || [];
+            setTenant(userTenants.length > 0 ? userTenants[0] : null);
         } catch (error) {
-            console.error('Failed to fetch tenants after login:', error);
-            setTenants([]);
+            console.error('Failed to fetch tenant after login:', error);
+            setTenant(null);
         }
 
         // Determine redirection based on role
@@ -83,7 +85,7 @@ export const AuthProvider = ({ children }) => {
     const role = user?.role || (user?.is_superuser ? 'admin' : null);
 
     return (
-        <AuthContext.Provider value={{ user, role, tenants, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, role, tenant, login, logout, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

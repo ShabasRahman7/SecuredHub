@@ -45,11 +45,9 @@ def register(request):
         if invite_token:
             from ..utils.redis_invites import RedisInviteManager
             
-            # Try Redis first (member invites)
             invite_data = RedisInviteManager.get_invite_by_token(invite_token)
             
             if invite_data:
-                # Redis invite found
                 if RedisInviteManager.is_expired(invite_data):
                     return Response({
                         "success": False,
@@ -62,11 +60,9 @@ def register(request):
                         "error": {"message": "Email doesn't match invitation"}
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
-                # Store invite data for later use
                 validated_invite = invite_data
                 is_tenant_signup = (invite_data.get('type') == 'tenant')
             else:
-                # Try database (legacy tenant invites)
                 tenant_invite, error = verify_tenant_invite_token(invite_token)
                 if error or not tenant_invite:
                     return Response({
@@ -100,27 +96,21 @@ def register(request):
                     }
                 }, status=status.HTTP_403_FORBIDDEN)
         
-        # Create user
         user = serializer.save()
         
-        # Handle invite token if present (Developer joining existing tenant)
         if validated_invite and not is_tenant_signup:
             from ..utils.redis_invites import RedisInviteManager
             
-            # Check if it's a Redis invite (dict) or database invite (object)
             if isinstance(validated_invite, dict):
-                # Redis invite
                 tenant = Tenant.objects.get(id=validated_invite['tenant_id'])
                 TenantMember.objects.create(
                     tenant=tenant,
                     user=user,
                     role=validated_invite['role']
                 )
-                # Delete invite from Redis (mark as accepted)
                 RedisInviteManager.delete_invite(invite_token)
                 logger.info(f"User {user.email} joined tenant {tenant.name} via Redis invite")
             else:
-                # Database invite (legacy)
                 if validated_invite.is_valid():
                     TenantMember.objects.create(
                         tenant=validated_invite.tenant,
@@ -130,14 +120,12 @@ def register(request):
                     validated_invite.mark_accepted()
                     logger.info(f"User {user.email} joined tenant {validated_invite.tenant.name} via database invite")
         
-        # Auto-create organization for Tenants (New Tenant)
         elif is_tenant_signup:
             tenant_name = f"{user.first_name}'s Tenant" if user.first_name else f"{user.email.split('@')[0]}'s Tenant"
             tenant = Tenant.objects.create(
                 name=tenant_name,
                 created_by=user
             )
-            # Add owner membership
             TenantMember.objects.create(
                 tenant=tenant,
                 user=user,
@@ -486,7 +474,7 @@ def admin_list_users(request):
     from django.contrib.auth import get_user_model
     User = get_user_model()
     # Filter for developers only
-    users = User.objects.filter(tenant_memberships__role=TenantMember.ROLE_DEVELOPER).distinct().order_by('-date_joined')
+    users = User.objects.filter(tenant_membership__role=TenantMember.ROLE_DEVELOPER).distinct().order_by('-date_joined')
     
     # Add tenant information to each user
     users_data = []

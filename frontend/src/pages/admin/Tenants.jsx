@@ -4,7 +4,7 @@ import Sidebar from '../../components/admin/Sidebar';
 import { Plus, Search, Filter, Building2, Users, ShieldCheck, Menu, Bell, HelpCircle } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
-import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
+import Swal from 'sweetalert2';
 
 const Tenants = () => {
     const { user } = useAuth();
