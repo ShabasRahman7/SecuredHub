@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import Sidebar from '../../components/admin/Sidebar';
-import StatCard from '../../components/common/StatCard';
-import ChartCard from '../../components/common/ChartCard';
-import WorkerHealthCard from '../../components/admin/WorkerHealthCard';
-import TableCard from '../../components/common/TableCard';
-import { Download, Menu, Bell, HelpCircle } from 'lucide-react';
+import StatCard from '../../components/shared/StatCard';
+import ChartCard from '../../components/shared/ChartCard';
+import WorkerHealthCard from '../../components/shared/WorkerHealthCard';
+import TableCard from '../../components/shared/TableCard';
+import { Download } from 'lucide-react';
 import Swal from 'sweetalert2';
 import api from '../../api/axios';
 
@@ -13,7 +12,6 @@ const AdminDashboard = () => {
     const { user } = useAuth();
     const [tenants, setTenants] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // Fetch Data
     useEffect(() => {
@@ -56,59 +54,26 @@ const AdminDashboard = () => {
     };
 
     return (
-        <div className="flex h-screen w-full bg-[#05080C] text-white font-sans overflow-hidden">
-            {/* Sidebar */}
-            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-            {/* Main Content */}
-            <div className="flex flex-1 flex-col overflow-y-auto relative w-full">
-                {/* Header */}
-                <header className="flex sticky top-0 z-10 items-center justify-between whitespace-nowrap border-b border-white/10 px-6 py-3 bg-[#05080C]/80 backdrop-blur-sm">
-                    <div className="flex items-center gap-4 lg:gap-8">
-                        <button
-                            className="lg:hidden p-2 -ml-2 text-gray-400 hover:text-white"
-                            onClick={() => setSidebarOpen(true)}
-                        >
-                            <Menu className="w-6 h-6" />
-                        </button>
-                        <div className="flex items-center gap-3">
-                            <h2 className="text-lg font-bold leading-tight text-white">Admin Dashboard</h2>
-                        </div>
+        <>
+            {/* Title Section */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-col gap-1">
+                        <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight">Platform Admin Dashboard</h1>
+                        <p className="text-gray-400 text-sm sm:text-base font-normal leading-normal">Oversee the entire SecuredHub system</p>
                     </div>
-                    <div className="flex flex-1 justify-end gap-3 lg:gap-4 items-center">
-                        <button className="hidden sm:flex cursor-pointer items-center justify-center rounded-full h-10 w-10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
-                            <Bell className="w-5 h-5" />
-                        </button>
-                        <button className="hidden sm:flex cursor-pointer items-center justify-center rounded-full h-10 w-10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
-                            <HelpCircle className="w-5 h-5" />
-                        </button>
-                        <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 bg-primary/20 flex items-center justify-center text-primary font-bold">
-                            {user?.first_name?.[0]}
-                        </div>
-                    </div>
-                </header>
+                </div>
+                <button
+                    onClick={handleDownloadReport}
+                    className="btn btn-primary h-10 sm:h-11 px-4 sm:px-6 rounded-lg text-sm font-medium gap-2 hover:shadow-lg hover:shadow-primary/20 border-none w-full sm:w-auto"
+                >
+                    <Download className="w-5 h-5" />
+                    Download Report
+                </button>
+            </div>
 
-                <main className="flex-1 p-4 lg:p-8">
-                    <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
-                        {/* Title Section */}
-                        <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
-                            <div className="flex items-center gap-4">
-                                <div className="flex flex-col gap-1">
-                                    <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight">Platform Admin Dashboard</h1>
-                                    <p className="text-gray-400 text-sm sm:text-base font-normal leading-normal">Oversee the entire SecuredHub system</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleDownloadReport}
-                                className="btn btn-primary h-10 sm:h-11 px-4 sm:px-6 rounded-lg text-sm font-medium gap-2 hover:shadow-lg hover:shadow-primary/20 border-none w-full sm:w-auto"
-                            >
-                                <Download className="w-5 h-5" />
-                                Download Report
-                            </button>
-                        </div>
-
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     title="Total Tenants"
                     value={tenants.length}
@@ -137,8 +102,8 @@ const AdminDashboard = () => {
                 />
                         </div>
 
-                        {/* Charts & Health Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* Charts & Health Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 <ChartCard
                     title="Scans Per Day"
                     subtitle="Last 30 days"
@@ -147,8 +112,8 @@ const AdminDashboard = () => {
                 <WorkerHealthCard />
                         </div>
 
-                        {/* Tables Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Tables Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Organization Management */}
                 <TableCard
                     title="Tenant Management"
@@ -225,11 +190,8 @@ const AdminDashboard = () => {
                         </tbody>
                     </table>
                 </TableCard>
-                        </div>
-                    </div>
-                </main>
             </div>
-        </div>
+        </>
     );
 };
 

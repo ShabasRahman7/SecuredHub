@@ -27,8 +27,7 @@ export const API_ENDPOINTS = {
 
   // Repositories
   ADD_REPOSITORY: (tenantId) => `/tenants/${tenantId}/repositories/create/`,
-  DELETE_REPOSITORY: (tenantId, repoId) => `/tenants/${tenantId}/repositories/${repoId}/`,
-  ASSIGN_DEVELOPERS: (tenantId, repoId) => `/tenants/${tenantId}/repositories/${repoId}/assign/`,
+  DELETE_REPOSITORY: (tenantId, repoId) => `/tenants/${tenantId}/repositories/${repoId}/delete/`,
 
   // Admin
   ADMIN_TENANTS: '/admin/tenants/',

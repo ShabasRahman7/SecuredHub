@@ -1,5 +1,4 @@
 import { useLocation, Link } from 'react-router-dom';
-import AdminLayout from '../../components/admin/AdminLayout';
 import { Construction, ArrowLeft } from 'lucide-react';
 
 const AdminPlaceholder = () => {
@@ -20,7 +19,12 @@ const AdminPlaceholder = () => {
     const featureName = getFeatureName(location.pathname);
 
     return (
-        <AdminLayout title={featureName}>
+        <>
+            {/* Title Section */}
+            <div className="flex flex-col gap-1 mb-6">
+                <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight">{featureName}</h1>
+            </div>
+
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
             <div className="bg-gray-800 p-6 rounded-full mb-6 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-blue-500/20 blur-xl group-hover:bg-blue-500/30 transition-all duration-500"></div>
@@ -35,14 +39,14 @@ const AdminPlaceholder = () => {
             </p>
 
             <Link
-                to="/admin-dashboard"
+                to="/admin/dashboard"
                 className="btn btn-primary bg-blue-600 hover:bg-blue-700 border-none text-white gap-2 px-8"
             >
                 <ArrowLeft className="w-4 h-4" />
                 Return to Dashboard
             </Link>
             </div>
-        </AdminLayout>
+        </>
     );
 };
 

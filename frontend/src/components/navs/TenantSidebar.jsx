@@ -1,17 +1,26 @@
+import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Box, Shield, BarChart3, Users, Settings, LogOut, UserCircle, X, KeyRound } from 'lucide-react';
 import PropTypes from 'prop-types';
 
-const TenantSidebar = ({ activeTab, setActiveTab, logout, user, tenantName, isOpen, onClose }) => {
+const TenantSidebar = ({ logout, user, tenantName, isOpen, onClose }) => {
+    const location = useLocation();
 
     const menuItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'repositories', label: 'Repositories', icon: Box },
-        { id: 'scans', label: 'Scans', icon: Shield },
-        { id: 'reports', label: 'Reports', icon: BarChart3 },
-        { id: 'developers', label: 'Developers', icon: Users },
-        { id: 'credentials', label: 'Credentials', icon: KeyRound },
-        { id: 'settings', label: 'Settings', icon: Settings },
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/tenant-dashboard' },
+        { id: 'repositories', label: 'Repositories', icon: Box, path: '/tenant-dashboard/repositories' },
+        { id: 'scans', label: 'Scans', icon: Shield, path: '/tenant-dashboard/scans' },
+        { id: 'reports', label: 'Reports', icon: BarChart3, path: '/tenant-dashboard/reports' },
+        { id: 'developers', label: 'Developers', icon: Users, path: '/tenant-dashboard/developers' },
+        { id: 'credentials', label: 'Credentials', icon: KeyRound, path: '/tenant-dashboard/credentials' },
+        { id: 'settings', label: 'Settings', icon: Settings, path: '/tenant-dashboard/settings' },
     ];
+
+    const isActive = (path) => {
+        if (path === '/tenant-dashboard') {
+            return location.pathname === path;
+        }
+        return location.pathname.startsWith(path);
+    };
 
     return (
         <>
@@ -52,34 +61,36 @@ const TenantSidebar = ({ activeTab, setActiveTab, logout, user, tenantName, isOp
                     <div className="flex flex-col gap-2">
                         {menuItems.map((item) => {
                             const Icon = item.icon;
-                            const isActive = activeTab === item.id;
+                            const active = isActive(item.path);
                             return (
-                                <button
+                                <Link
                                     key={item.id}
-                                    onClick={() => { setActiveTab(item.id); onClose && onClose(); }}
-                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors ${isActive
+                                    to={item.path}
+                                    onClick={() => onClose && onClose()}
+                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors ${active
                                         ? 'bg-primary/20 text-primary'
                                         : 'text-gray-400 hover:bg-white/5 hover:text-white'
                                         }`}
                                 >
-                                    <Icon className={`w-5 h-5 ${isActive ? 'fill-current' : ''}`} />
+                                    <Icon className={`w-5 h-5 ${active ? 'fill-current' : ''}`} />
                                     <p className="text-sm font-medium leading-normal">{item.label}</p>
-                                </button>
+                                </Link>
                             );
                         })}
                     </div>
 
                     <div className="flex flex-col gap-1 border-t border-white/10 pt-4">
-                        <button
-                            onClick={() => { setActiveTab('profile'); onClose && onClose(); }}
-                            className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors ${activeTab === 'profile'
+                        <Link
+                            to="/tenant-dashboard/profile"
+                            onClick={() => onClose && onClose()}
+                            className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors ${isActive('/tenant-dashboard/profile')
                                 ? 'bg-primary/20 text-primary'
                                 : 'text-gray-400 hover:bg-white/5 hover:text-white'
                                 }`}
                         >
                             <UserCircle className="w-5 h-5" />
                             <p className="text-sm font-medium leading-normal">Profile</p>
-                        </button>
+                        </Link>
                         <button
                             onClick={logout}
                             className="flex items-center gap-3 px-3 py-2 text-gray-400 hover:bg-white/5 hover:text-white rounded-lg w-full text-left transition-colors"
@@ -95,8 +106,6 @@ const TenantSidebar = ({ activeTab, setActiveTab, logout, user, tenantName, isOp
 };
 
 TenantSidebar.propTypes = {
-    activeTab: PropTypes.string.isRequired,
-    setActiveTab: PropTypes.func.isRequired,
     logout: PropTypes.func.isRequired,
     user: PropTypes.object,
     tenantName: PropTypes.string,

@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Github, GitBranch, Server, Key, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { credentialsApi } from '../../services/credentialsApi';
+import { showConfirmDialog } from '../../utils/sweetAlert';
 
 const CredentialsPage = () => {
     const { user, tenant } = useAuth();
@@ -192,7 +193,10 @@ const CredentialsPage = () => {
             fetchCredentials();
         } catch (error) {
             console.error('Error deleting credential:', error);
-            const errorMessage = error.response?.data?.error || 'Failed to delete credential';
+            console.error('Error status:', error.response?.status);
+            console.error('Error response data:', error.response?.data);
+            console.error('Full error response:', JSON.stringify(error.response?.data, null, 2));
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to delete credential';
             toast.error(errorMessage);
         }
     };
@@ -212,7 +216,16 @@ const CredentialsPage = () => {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
+        <>
+            {/* Title Section */}
+            <div className="flex flex-wrap justify-between items-center gap-4">
+                <div className="flex min-w-72 flex-col gap-1">
+                    <p className="text-2xl lg:text-3xl font-bold leading-tight tracking-tight">Repository Credentials</p>
+                    <p className="text-[#6b7280] dark:text-[#9da8b9] text-sm lg:text-base font-normal">
+                        Manage access tokens for your code repositories.
+                    </p>
+                </div>
+            </div>
 
             {/* Provider Selection Cards */}
             <div className="mb-8">
@@ -370,7 +383,7 @@ const CredentialsPage = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 };
 
