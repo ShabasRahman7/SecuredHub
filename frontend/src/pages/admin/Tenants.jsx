@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import Sidebar from '../../components/admin/Sidebar';
-import { Plus, Search, Filter, Building2, Users, ShieldCheck, Menu, Bell, HelpCircle } from 'lucide-react';
+import { Plus, Search, Filter, Building2, Users, ShieldCheck } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
-import Swal from 'sweetalert2';
+import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
 
 const Tenants = () => {
-    const { user } = useAuth();
     const [tenants, setTenants] = useState([]);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All Statuses');
@@ -125,42 +121,9 @@ const Tenants = () => {
     const totalMembers = tenants.reduce((acc, curr) => acc + (curr.member_count !== '-' ? curr.member_count : 0), 0);
 
     return (
-        <div className="flex h-screen w-full bg-[#05080C] text-white font-sans overflow-hidden">
-            {/* Sidebar */}
-            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-            {/* Main Content */}
-            <div className="flex flex-1 flex-col overflow-y-auto relative w-full">
-                {/* Header */}
-                <header className="flex sticky top-0 z-10 items-center justify-between whitespace-nowrap border-b border-white/10 px-6 py-3 bg-[#05080C]/80 backdrop-blur-sm">
-                    <div className="flex items-center gap-4 lg:gap-8">
-                        <button
-                            className="lg:hidden p-2 -ml-2 text-gray-400 hover:text-white"
-                            onClick={() => setSidebarOpen(true)}
-                        >
-                            <Menu className="w-6 h-6" />
-                        </button>
-                        <div className="flex items-center gap-3">
-                            <h2 className="text-lg font-bold leading-tight text-white">Tenant Management</h2>
-                        </div>
-                    </div>
-                    <div className="flex flex-1 justify-end gap-3 lg:gap-4 items-center">
-                        <button className="hidden sm:flex cursor-pointer items-center justify-center rounded-full h-10 w-10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
-                            <Bell className="w-5 h-5" />
-                        </button>
-                        <button className="hidden sm:flex cursor-pointer items-center justify-center rounded-full h-10 w-10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
-                            <HelpCircle className="w-5 h-5" />
-                        </button>
-                        <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 bg-primary/20 flex items-center justify-center text-primary font-bold">
-                            {user?.first_name?.[0]}
-                        </div>
-                    </div>
-                </header>
-
-                <main className="flex-1 p-4 lg:p-8">
-                    <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
-                        {/* Title Section */}
-                        <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
+        <>
+            {/* Title Section */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
                             <div className="flex items-center gap-4">
                                 <div className="flex flex-col gap-1">
                                     <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight">Tenant Management</h1>
@@ -400,10 +363,7 @@ const Tenants = () => {
                     <button>close</button>
                 </form>
             </dialog>
-                    </div>
-                </main>
-            </div>
-        </div>
+        </>
     );
 };
 

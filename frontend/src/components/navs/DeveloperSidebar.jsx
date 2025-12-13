@@ -1,15 +1,24 @@
+import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Code, Bug, Bot, Settings, LogOut, UserCircle, X } from 'lucide-react';
 import PropTypes from 'prop-types';
 
-const DeveloperSidebar = ({ activeTab, setActiveTab, logout, user, isOpen, onClose }) => {
+const DeveloperSidebar = ({ logout, user, isOpen, onClose }) => {
+    const location = useLocation();
 
     const menuItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'repositories', label: 'Repositories', icon: Code },
-        { id: 'vulnerabilities', label: 'Vulnerabilities', icon: Bug },
-        { id: 'ai-assistant', label: 'AI Assistant', icon: Bot },
-        { id: 'settings', label: 'Settings', icon: Settings },
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dev-dashboard' },
+        { id: 'repositories', label: 'Repositories', icon: Code, path: '/dev-dashboard/repositories' },
+        { id: 'vulnerabilities', label: 'Vulnerabilities', icon: Bug, path: '/dev-dashboard/vulnerabilities' },
+        { id: 'ai-assistant', label: 'AI Assistant', icon: Bot, path: '/dev-dashboard/ai-assistant' },
+        { id: 'settings', label: 'Settings', icon: Settings, path: '/dev-dashboard/settings' },
     ];
+
+    const isActive = (path) => {
+        if (path === '/dev-dashboard') {
+            return location.pathname === path;
+        }
+        return location.pathname.startsWith(path);
+    };
 
     return (
         <>
@@ -50,34 +59,36 @@ const DeveloperSidebar = ({ activeTab, setActiveTab, logout, user, isOpen, onClo
                     <div className="flex flex-col gap-2">
                         {menuItems.map((item) => {
                             const Icon = item.icon;
-                            const isActive = activeTab === item.id;
+                            const active = isActive(item.path);
                             return (
-                                <button
+                                <Link
                                     key={item.id}
-                                    onClick={() => { setActiveTab(item.id); onClose && onClose(); }}
-                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors ${isActive
+                                    to={item.path}
+                                    onClick={() => onClose && onClose()}
+                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors ${active
                                         ? 'bg-primary/20 text-primary'
                                         : 'text-gray-400 hover:bg-white/5 hover:text-white'
                                         }`}
                                 >
-                                    <Icon className={`w-5 h-5 ${isActive ? 'fill-current' : ''}`} />
+                                    <Icon className={`w-5 h-5 ${active ? 'fill-current' : ''}`} />
                                     <p className="text-sm font-medium leading-normal">{item.label}</p>
-                                </button>
+                                </Link>
                             );
                         })}
                     </div>
 
                     <div className="flex flex-col gap-1 border-t border-white/10 pt-4">
-                        <button
-                            onClick={() => { setActiveTab('profile'); onClose && onClose(); }}
-                            className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors ${activeTab === 'profile'
+                        <Link
+                            to="/dev-dashboard/profile"
+                            onClick={() => onClose && onClose()}
+                            className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors ${isActive('/dev-dashboard/profile')
                                 ? 'bg-primary/20 text-primary'
                                 : 'text-gray-400 hover:bg-white/5 hover:text-white'
                                 }`}
                         >
                             <UserCircle className="w-5 h-5" />
                             <p className="text-sm font-medium leading-normal">Profile</p>
-                        </button>
+                        </Link>
                         <button
                             onClick={logout}
                             className="flex items-center gap-3 px-3 py-2 text-gray-400 hover:bg-white/5 hover:text-white rounded-lg w-full text-left transition-colors"
@@ -93,8 +104,6 @@ const DeveloperSidebar = ({ activeTab, setActiveTab, logout, user, isOpen, onClo
 };
 
 DeveloperSidebar.propTypes = {
-    activeTab: PropTypes.string.isRequired,
-    setActiveTab: PropTypes.func.isRequired,
     logout: PropTypes.func.isRequired,
     user: PropTypes.object,
     isOpen: PropTypes.bool,

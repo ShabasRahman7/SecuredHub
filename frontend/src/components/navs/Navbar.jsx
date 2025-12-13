@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { Menu, Sun, Moon, LogOut, User, Settings, LayoutDashboard } from 'lucide-react';
 
 const Navbar = ({ title }) => {

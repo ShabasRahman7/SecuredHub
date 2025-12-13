@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import AdminLayout from '../../components/admin/AdminLayout';
 import { Check, X, Clock, Search, Shield } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
-import Swal from 'sweetalert2';
+import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
 
 const AccessRequests = () => {
     const [requests, setRequests] = useState([]);
@@ -97,8 +96,13 @@ const AccessRequests = () => {
     };
 
     return (
-        <AdminLayout title="Access Requests" subtitle="Manage signup requests from the waitlist">
+        <>
+            {/* Title Section */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-col gap-1">
+                    <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight">Access Requests</h1>
+                    <p className="text-gray-400 text-sm sm:text-base font-normal leading-normal">Manage signup requests from the waitlist</p>
+                </div>
                 <div></div>
                 <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -184,7 +188,7 @@ const AccessRequests = () => {
                     </div>
                 </div>
             )}
-        </AdminLayout>
+        </>
     );
 };
 

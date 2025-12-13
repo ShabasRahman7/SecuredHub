@@ -9,7 +9,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     const isActive = (path) => location.pathname === path;
 
     const navItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/admin-dashboard' },
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
         { icon: Shield, label: 'Access Requests', path: '/admin/access-requests' },
         { icon: Building2, label: 'Tenants', path: '/admin/tenants' },
         { icon: Activity, label: 'Worker Monitoring', path: '/admin/workers' },
