@@ -1,9 +1,6 @@
 from rest_framework.views import exception_handler as drf_exception_handler
 from rest_framework.response import Response
 from rest_framework import status
-import logging
-
-logger = logging.getLogger('api')
 
 
 def custom_exception_handler(exc, context):
@@ -23,18 +20,19 @@ def custom_exception_handler(exc, context):
             }
         }
         response.data = custom_response_data
-        
-        # Log the error
-        logger.error(f"API Error: {exc}", exc_info=True)
     else:
-        # Handle unexpected errors
-        logger.error(f"Unhandled exception: {exc}", exc_info=True)
+        # Log unexpected exceptions with traceback for debugging
+        try:
+            import traceback
+            traceback.print_exc()
+        except Exception:
+            pass
         response = Response(
             {
                 'success': False,
                 'error': {
                     'message': 'An unexpected error occurred.',
-                    'details': str(exc) if logger.level == logging.DEBUG else 'Internal server error'
+                    'details': 'Internal server error'
                 }
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR

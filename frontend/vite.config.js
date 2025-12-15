@@ -10,27 +10,21 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      // Proxy Django admin to backend
-      '/admin': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      },
       // Proxy API calls to backend
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8001',
         changeOrigin: true,
         secure: false,
       },
       // Proxy Django static files (CSS, JS, images)
       '/static': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8001',
         changeOrigin: true,
         secure: false,
       },
       // Proxy Django media files
       '/media': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8001',
         changeOrigin: true,
         secure: false,
       }

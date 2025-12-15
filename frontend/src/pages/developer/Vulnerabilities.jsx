@@ -27,3 +27,4 @@ const Vulnerabilities = () => {
 
 export default Vulnerabilities;
 
+

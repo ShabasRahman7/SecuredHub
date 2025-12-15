@@ -10,8 +10,7 @@ const Register = () => {
     const [otp, setOtp] = useState('');
     const [verificationToken, setVerificationToken] = useState('');
     const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
+        fullName: '',
         password: '',
         confirmPassword: ''
     });
@@ -60,6 +59,7 @@ const Register = () => {
             setEmail(response.data.email); // Auto-fill email
             
             // Show different message based on invite type
+            toast.dismiss();
             if (response.data.type === 'member') {
                 toast.info(`You've been invited to join as a Developer`);
             } else {
@@ -69,6 +69,7 @@ const Register = () => {
             // Prevent double toast messages
             if (!hasShownError) {
                 setHasShownError(true);
+                toast.dismiss();
                 toast.error('Invalid or expired invitation link');
             }
             // Use replace:true to prevent back button navigation
@@ -83,10 +84,12 @@ const Register = () => {
             await api.post('/auth/send-otp/', { email, type: 'register' });
             setStep(2);
             setTimer(60);
+            toast.dismiss();
             toast.success(`OTP sent to ${email}`);
         } catch (err) {
 
             const errorDetails = err.response?.data?.error?.details;
+            toast.dismiss();
             if (errorDetails?.email) {
                 toast.error(errorDetails.email[0]);
             } else if (typeof errorDetails === 'string') {
@@ -106,8 +109,10 @@ const Register = () => {
             const response = await api.post('/auth/verify-otp/', { email, otp });
             setVerificationToken(response.data.verification_token);
             setStep(3);
+            toast.dismiss();
             toast.success('OTP verified successfully');
         } catch (err) {
+            toast.dismiss();
             toast.error(err.response?.data?.error?.message || 'Invalid OTP');
         } finally {
             setLoading(false);
@@ -122,12 +127,21 @@ const Register = () => {
         }
         setLoading(true);
         try {
+            // Split full name into first/last (optional)
+            let first_name = '';
+            let last_name = '';
+            if (formData.fullName.trim()) {
+                const parts = formData.fullName.trim().split(' ');
+                first_name = parts.shift() || '';
+                last_name = parts.join(' ');
+            }
+
             const payload = {
                 email,
                 password: formData.password,
                 password2: formData.confirmPassword,
-                first_name: formData.firstName,
-                last_name: formData.lastName,
+                first_name,
+                last_name,
                 verification_token: verificationToken
             };
 
@@ -137,6 +151,7 @@ const Register = () => {
 
             await api.post('/auth/register/', payload);
 
+            toast.dismiss();
             if (inviteToken) {
                 toast.success('Registration successful! You have joined the tenant.');
             } else {
@@ -144,6 +159,7 @@ const Register = () => {
             }
             navigate('/login');
         } catch (err) {
+            toast.dismiss();
             toast.error(err.response?.data?.error?.message || 'Registration failed');
         } finally {
             setLoading(false);
@@ -228,30 +244,20 @@ const Register = () => {
                     {step === 3 && (
                         <form onSubmit={handleRegister}>
                             <div className="form-control w-full">
-                                <label className="label"><span className="label-text">First Name</span></label>
+                                <label className="label"><span className="label-text">Full Name (optional)</span></label>
                                 <div className="relative">
                                     <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                                     <input
                                         type="text"
-                                        placeholder="John"
+                                        placeholder="John Doe"
                                         className="input input-bordered w-full pl-10"
-                                        value={formData.firstName}
-                                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                        value={formData.fullName}
+                                        onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                                     />
                                 </div>
-                            </div>
-                            <div className="form-control w-full mt-2">
-                                <label className="label"><span className="label-text">Last Name</span></label>
-                                <div className="relative">
-                                    <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Doe"
-                                        className="input input-bordered w-full pl-10"
-                                        value={formData.lastName}
-                                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                                    />
-                                </div>
+                                <label className="label">
+                                    <span className="label-text-alt text-gray-400">Optional — we already have your company details from the access request.</span>
+                                </label>
                             </div>
                             <div className="form-control w-full mt-2">
                                 <label className="label"><span className="label-text">Password</span></label>

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Scan, ScanFinding
 
+
 class ScanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scan
@@ -8,6 +9,7 @@ class ScanSerializer(serializers.ModelSerializer):
             "id", "status", "branch", "commit_hash",
             "started_at", "completed_at", "created_at"
         ]
+
 
 class ScanFindingSerializer(serializers.ModelSerializer):
     class Meta:

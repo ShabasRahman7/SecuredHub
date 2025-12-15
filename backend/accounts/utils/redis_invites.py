@@ -123,7 +123,11 @@ class RedisInviteManager:
         
         for prefix in prefixes:
             token_key = f"{prefix}{token}"
-            data = cache.get(token_key)
+            try:
+                data = cache.get(token_key)
+            except Exception:
+                # If cache backend is unavailable (e.g., Redis down), treat as missing
+                data = None
             if data:
                 return json.loads(data)
         
@@ -142,7 +146,10 @@ class RedisInviteManager:
             dict or None: Invite data if found
         """
         email_key = f"{cls.MEMBER_EMAIL_PREFIX}{tenant_id}:{email}"
-        token = cache.get(email_key)
+        try:
+            token = cache.get(email_key)
+        except Exception:
+            token = None
         
         if token:
             return cls.get_invite_by_token(token, invite_type='member')
@@ -160,7 +167,10 @@ class RedisInviteManager:
             dict or None: Invite data if found
         """
         email_key = f"{cls.TENANT_EMAIL_PREFIX}{email}"
-        token = cache.get(email_key)
+        try:
+            token = cache.get(email_key)
+        except Exception:
+            token = None
         
         if token:
             return cls.get_invite_by_token(token, invite_type='tenant')
@@ -198,8 +208,12 @@ class RedisInviteManager:
                 token_key = f"{cls.TENANT_INVITE_PREFIX}{token}"
                 email_key = f"{cls.TENANT_EMAIL_PREFIX}{invite_data['email']}"
             
-            cache.delete(token_key)
-            cache.delete(email_key)
+            try:
+                cache.delete(token_key)
+                cache.delete(email_key)
+            except Exception:
+                # Ignore cache delete errors
+                pass
             
             return True
         return False
@@ -234,10 +248,16 @@ class RedisInviteManager:
         
         # Get all member invite tokens
         pattern = f"{cls.MEMBER_INVITE_PREFIX}*"
-        keys = cache.keys(pattern) if hasattr(cache, 'keys') else []
+        try:
+            keys = cache.keys(pattern) if hasattr(cache, 'keys') else []
+        except Exception:
+            keys = []
         
         for key in keys:
-            data = cache.get(key)
+            try:
+                data = cache.get(key)
+            except Exception:
+                data = None
             if data:
                 invite_data = json.loads(data)
                 if invite_data.get('tenant_id') == tenant_id:
@@ -257,10 +277,16 @@ class RedisInviteManager:
         
         # Get all tenant invite tokens
         pattern = f"{cls.TENANT_INVITE_PREFIX}*"
-        keys = cache.keys(pattern) if hasattr(cache, 'keys') else []
+        try:
+            keys = cache.keys(pattern) if hasattr(cache, 'keys') else []
+        except Exception:
+            keys = []
         
         for key in keys:
-            data = cache.get(key)
+            try:
+                data = cache.get(key)
+            except Exception:
+                data = None
             if data:
                 invites.append(json.loads(data))
         

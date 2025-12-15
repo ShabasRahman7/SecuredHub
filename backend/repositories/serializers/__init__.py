@@ -1,5 +1,9 @@
-"""Serializers package for repositories app."""
-from .repositories import RepositorySerializer
-from .credentials import CredentialSerializer, CredentialCreateSerializer
+from .repositories import (
+    RepositorySerializer, RepositoryCreateSerializer,
+    CredentialSerializer, CredentialCreateSerializer
+)
 
-__all__ = ['RepositorySerializer', 'CredentialSerializer', 'CredentialCreateSerializer']
+__all__ = [
+    'RepositorySerializer', 'RepositoryCreateSerializer',
+    'CredentialSerializer', 'CredentialCreateSerializer'
+]

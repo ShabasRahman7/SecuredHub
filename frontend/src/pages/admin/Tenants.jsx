@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Filter, Building2, Users, ShieldCheck } from 'lucide-react';
+import { Plus, Search, Filter, Building2, Users, ShieldCheck, RotateCcw, Trash2 } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
 
 const Tenants = () => {
-    const [tenants, setTenants] = useState([]);
+    const [currentTenants, setCurrentTenants] = useState([]);
+    const [deletedTenants, setDeletedTenants] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All Statuses');
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteLoading, setInviteLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState(null); // track current action to prevent duplicates
 
     // Modal Ref
     const addTenantModalRef = useRef(null);
@@ -20,14 +22,25 @@ const Tenants = () => {
         setLoading(true);
         try {
             const [tenantsRes, invitesRes] = await Promise.all([
-                api.get('/auth/admin/tenants/'),
+                api.get('/auth/admin/tenants/?include_deleted=true'), // All tenants including deleted
                 api.get('/auth/admin/tenant-invites/')
             ]);
 
-            const activeTenants = (tenantsRes.data.tenants || []).map(t => ({ ...t, type: 'tenant', status: t.is_active ? 'Active' : 'Inactive' }));
+            // Process all tenants
+            const allTenants = (tenantsRes.data.tenants || []).map(t => ({
+                ...t,
+                type: 'tenant',
+                status: t.deleted_at ? 'Deleted' : (t.is_active ? 'Active' : 'Blocked')
+            }));
+
+            // Separate current and deleted tenants
+            const current = allTenants.filter(t => !t.deleted_at);
+            const deleted = allTenants.filter(t => t.deleted_at);
+
+            // Add invites to current tenants
             const invites = (invitesRes.data.unverified || []).map(i => ({
                 id: i.id,
-                name: i.email, // Use email as name for invites
+                name: i.email,
                 member_count: '-',
                 repo_count: '-',
                 status: 'Pending',
@@ -37,14 +50,22 @@ const Tenants = () => {
                 email: i.email
             }));
 
-            // Merge and sort by creation date (newest first)
-            const mergedData = [...invites, ...activeTenants].sort((a, b) => {
+            // Merge invites with current tenants and sort
+            const mergedCurrent = [...invites, ...current].sort((a, b) => {
                 const dateA = new Date(a.created_at || a.invited_at);
                 const dateB = new Date(b.created_at || b.invited_at);
                 return dateB - dateA;
             });
 
-            setTenants(mergedData);
+            // Sort deleted tenants by deletion date (newest first)
+            const sortedDeleted = deleted.sort((a, b) => {
+                const dateA = new Date(a.deleted_at);
+                const dateB = new Date(b.deleted_at);
+                return dateB - dateA;
+            });
+
+            setCurrentTenants(mergedCurrent);
+            setDeletedTenants(sortedDeleted);
         } catch (error) {
             console.error('Failed to fetch data', error);
             toast.error('Failed to load tenants');
@@ -76,54 +97,165 @@ const Tenants = () => {
     };
 
     const handleResendInvite = async (inviteId) => {
+        const key = `invite-${inviteId}-resend`;
+        setActionLoading(key);
         try {
             await api.post(`/auth/admin/tenant-invites/${inviteId}/resend/`);
             toast.success('Invitation resent successfully');
         } catch (error) {
             toast.error(error.response?.data?.error?.message || 'Failed to resend invitation');
+        } finally {
+            setActionLoading(null);
         }
     };
 
-    const handleDelete = async (item) => {
+    const handleDelete = async (item, isHardDelete = false) => {
+        if (item.type === 'invite') {
+            const isConfirmed = await showConfirmDialog({
+                title: `Delete ${item.name}?`,
+                text: "This action cannot be undone.",
+                confirmButtonText: 'Yes, delete it!',
+                icon: 'error'
+            });
+
+            if (!isConfirmed) return;
+
+            const key = `invite-${item.id}-delete`;
+            setActionLoading(key);
+            try {
+                await api.delete(`/auth/admin/tenant-invites/${item.id}/delete/`);
+                showSuccessToast('Invitation deleted');
+                fetchTenants();
+            } catch (error) {
+                showErrorToast(error.response?.data?.error?.message || 'Failed to delete');
+            } finally {
+                setActionLoading(null);
+            }
+            return;
+        }
+
+        // For deleted tenants: hard delete
+        if (item.deleted_at || isHardDelete) {
+            const isConfirmed = await showConfirmDialog({
+                title: `Permanently Delete ${item.name}?`,
+                text: "This will permanently delete the tenant and all its data immediately. This action cannot be undone.",
+                confirmButtonText: 'Yes, permanently delete!',
+                icon: 'error'
+            });
+
+            if (!isConfirmed) return;
+
+            const key = `tenant-${item.id}-hard`;
+            setActionLoading(key);
+            try {
+                await api.delete(`/auth/admin/tenants/${item.id}/delete/?hard_delete=true`);
+                showSuccessToast('Tenant permanently deleted');
+                fetchTenants();
+            } catch (error) {
+                showErrorToast(error.response?.data?.error?.message || 'Failed to delete');
+            } finally {
+                setActionLoading(null);
+            }
+            return;
+        }
+
+        // For current tenants: soft delete
         const isConfirmed = await showConfirmDialog({
             title: `Delete ${item.name}?`,
-            text: "This action cannot be undone.",
+            text: "This will soft-delete the tenant. Data will be kept for 30 days before permanent deletion. You can restore it within this period.",
             confirmButtonText: 'Yes, delete it!',
-            icon: 'error'
+            icon: 'warning'
         });
 
         if (!isConfirmed) return;
 
+        const key = `tenant-${item.id}-soft`;
+        setActionLoading(key);
         try {
-            if (item.type === 'invite') {
-                await api.delete(`/auth/admin/tenant-invites/${item.id}/delete/`);
-                showSuccessToast('Invitation deleted');
-            } else {
-                await api.delete(`/auth/admin/tenants/${item.id}/delete/`);
-                showSuccessToast('Tenant deleted');
-            }
+            await api.delete(`/auth/admin/tenants/${item.id}/delete/`);
+            showSuccessToast('Tenant deleted. Data will be permanently removed in 30 days.');
             fetchTenants();
         } catch (error) {
             showErrorToast(error.response?.data?.error?.message || 'Failed to delete');
+        } finally {
+            setActionLoading(null);
         }
     };
 
-    // Filtered Tenants
-    const filteredTenants = tenants.filter(tenant => {
+    const handleRestore = async (item) => {
+        if (item.type === 'invite' || !item.deleted_at) return;
+
+        const isConfirmed = await showConfirmDialog({
+            title: `Restore ${item.name}?`,
+            text: "This will restore the tenant and make it active again.",
+            confirmButtonText: 'Yes, restore it!',
+            icon: 'info'
+        });
+
+        if (!isConfirmed) return;
+
+        const key = `tenant-${item.id}-restore`;
+        setActionLoading(key);
+        try {
+            await api.post(`/auth/admin/tenants/${item.id}/restore/`);
+            showSuccessToast('Tenant restored successfully');
+            fetchTenants();
+        } catch (error) {
+            showErrorToast(error.response?.data?.error?.message || 'Failed to restore tenant');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleBlock = async (item) => {
+        if (item.type === 'invite') return;
+
+        const action = item.is_active ? 'block' : 'unblock';
+        const isConfirmed = await showConfirmDialog({
+            title: `${action.charAt(0).toUpperCase() + action.slice(1)} ${item.name}?`,
+            text: action === 'block' 
+                ? "This will prevent the tenant and all its members from logging in."
+                : "This will allow the tenant and its members to log in again.",
+            confirmButtonText: `Yes, ${action} it!`,
+            icon: action === 'block' ? 'warning' : 'info'
+        });
+
+        if (!isConfirmed) return;
+
+        const key = `tenant-${item.id}-block`;
+        setActionLoading(key);
+        try {
+            await api.post(`/auth/admin/tenants/${item.id}/block/`);
+            showSuccessToast(`Tenant ${action}ed successfully`);
+            fetchTenants();
+        } catch (error) {
+            showErrorToast(error.response?.data?.error?.message || `Failed to ${action} tenant`);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    // Filtered Current Tenants (excluding deleted)
+    const filteredCurrentTenants = currentTenants.filter(tenant => {
         const matchesSearch = tenant.name.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All Statuses' || tenant.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
 
-    // Stats Calculation
-    const totalTenants = tenants.filter(t => t.type === 'tenant').length;
-    const activeTenantsCount = tenants.filter(t => t.status === 'Active').length;
-    const totalMembers = tenants.reduce((acc, curr) => acc + (curr.member_count !== '-' ? curr.member_count : 0), 0);
+    // Filtered Deleted Tenants
+    const filteredDeletedTenants = deletedTenants.filter(tenant => {
+        return tenant.name.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+
+    // Stats Calculation (only for current tenants)
+    const totalTenants = currentTenants.filter(t => t.type === 'tenant').length;
+    const activeTenantsCount = currentTenants.filter(t => t.status === 'Active').length;
+    const totalMembers = currentTenants.reduce((acc, curr) => acc + (curr.member_count !== '-' ? curr.member_count : 0), 0);
 
     return (
         <>
-            {/* Title Section */}
-            <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
+                        {/* Title Section */}
+                        <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
                             <div className="flex items-center gap-4">
                                 <div className="flex flex-col gap-1">
                                     <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight">Tenant Management</h1>
@@ -170,7 +302,7 @@ const Tenants = () => {
                 </div>
             </div>
 
-            {/* Main Content Area with Table */}
+            {/* Current Tenants Table */}
             <div className="rounded-xl border border-white/10 bg-[#0A0F16]">
                 {/* ToolBar */}
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 p-4">
@@ -194,7 +326,7 @@ const Tenants = () => {
                         >
                             <option>All Statuses</option>
                             <option>Active</option>
-                            <option>Inactive</option>
+                            <option>Blocked</option>
                             <option>Pending</option>
                         </select>
                         <button className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
@@ -203,7 +335,7 @@ const Tenants = () => {
                     </div>
                 </div>
 
-                {/* Table */}
+                {/* Current Tenants Table */}
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-white/5 border-b border-white/10">
@@ -221,12 +353,12 @@ const Tenants = () => {
                                 <tr>
                                     <td colSpan="6" className="py-8 text-center text-gray-500">Loading tenants...</td>
                                 </tr>
-                            ) : filteredTenants.length === 0 ? (
+                            ) : filteredCurrentTenants.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="py-8 text-center text-gray-500">No tenants found.</td>
                                 </tr>
                             ) : (
-                                filteredTenants.map((tenant) => (
+                                filteredCurrentTenants.map((tenant) => (
                                     <tr key={tenant.id} className="hover:bg-white/5 transition-colors">
                                         <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-white">
                                             {tenant.name}
@@ -239,7 +371,9 @@ const Tenants = () => {
                                                 ? 'bg-green-500/10 text-green-400 border-green-500/20'
                                                 : tenant.status === 'Pending'
                                                     ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
-                                                    : 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                    : tenant.status === 'Blocked'
+                                                        ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                        : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
                                                 }`}>
                                                 {tenant.status}
                                             </span>
@@ -253,25 +387,40 @@ const Tenants = () => {
                                                     <>
                                                         <button
                                                             onClick={() => handleResendInvite(tenant.id)}
-                                                            className="text-primary hover:text-primary/80 transition-colors text-xs"
+                                                            disabled={actionLoading === `invite-${tenant.id}-resend`}
+                                                            className="text-primary hover:text-primary/80 transition-colors text-xs disabled:opacity-50"
                                                         >
-                                                            Resend
+                                                            {actionLoading === `invite-${tenant.id}-resend` ? <span className="loading loading-spinner loading-xs" /> : 'Resend'}
                                                         </button>
                                                         <button
                                                             onClick={() => handleDelete(tenant)}
-                                                            className="text-red-500 hover:text-red-400 transition-colors text-xs"
+                                                            disabled={actionLoading === `invite-${tenant.id}-delete`}
+                                                            className="text-red-500 hover:text-red-400 transition-colors text-xs disabled:opacity-50"
                                                         >
-                                                            Delete
+                                                            {actionLoading === `invite-${tenant.id}-delete` ? <span className="loading loading-spinner loading-xs" /> : 'Delete'}
                                                         </button>
                                                     </>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => handleDelete(tenant)}
-                                                        className="text-red-500 hover:text-red-400 transition-colors"
-                                                    >
-                                                        <span className="sr-only">Delete</span>
-                                                        Delete
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleBlock(tenant)}
+                                                            disabled={actionLoading === `tenant-${tenant.id}-block`}
+                                                            className={`transition-colors text-xs ${
+                                                                tenant.is_active
+                                                                    ? 'text-orange-500 hover:text-orange-400'
+                                                                    : 'text-green-500 hover:text-green-400'
+                                                            } disabled:opacity-50`}
+                                                        >
+                                                            {actionLoading === `tenant-${tenant.id}-block` ? <span className="loading loading-spinner loading-xs" /> : (tenant.is_active ? 'Block' : 'Unblock')}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(tenant)}
+                                                            disabled={actionLoading === `tenant-${tenant.id}-soft`}
+                                                            className="text-red-500 hover:text-red-400 transition-colors text-xs disabled:opacity-50"
+                                                        >
+                                                            {actionLoading === `tenant-${tenant.id}-soft` ? <span className="loading loading-spinner loading-xs" /> : 'Delete'}
+                                                        </button>
+                                                    </>
                                                 )}
                                             </div>
                                         </td>
@@ -284,38 +433,88 @@ const Tenants = () => {
 
                 {/* Pagination */}
                 <div className="flex items-center justify-between border-t border-white/10 px-4 py-3 sm:px-6">
-                    <div className="flex flex-1 justify-between sm:hidden">
-                        <button className="relative inline-flex items-center rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-gray-400 hover:bg-white/10">Previous</button>
-                        <button className="relative ml-3 inline-flex items-center rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-gray-400 hover:bg-white/10">Next</button>
-                    </div>
                     <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                         <div>
                             <p className="text-sm text-gray-400">
-                                Showing <span className="font-medium text-white">1</span> to <span className="font-medium text-white">{filteredTenants.length}</span> of <span className="font-medium text-white">{totalTenants}</span> results
+                                Showing <span className="font-medium text-white">1</span> to <span className="font-medium text-white">{filteredCurrentTenants.length}</span> of <span className="font-medium text-white">{totalTenants}</span> results
                             </p>
-                        </div>
-                        <div>
-                            <nav className="isolate inline-flex -space-x-px rounded-lg shadow-sm" aria-label="Pagination">
-                                <button className="relative inline-flex items-center rounded-l-lg px-2 py-2 text-gray-400 ring-1 ring-inset ring-white/10 hover:bg-white/5 focus:z-20 focus:outline-offset-0">
-                                    <span className="sr-only">Previous</span>
-                                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
-                                <button aria-current="page" className="relative z-10 inline-flex items-center bg-primary/20 px-4 py-2 text-sm font-semibold text-primary focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">1</button>
-                                <button className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-400 ring-1 ring-inset ring-white/10 hover:bg-white/5 focus:z-20 focus:outline-offset-0">2</button>
-                                <button className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-400 ring-1 ring-inset ring-white/10 hover:bg-white/5 focus:z-20 focus:outline-offset-0">3</button>
-                                <button className="relative inline-flex items-center rounded-r-lg px-2 py-2 text-gray-400 ring-1 ring-inset ring-white/10 hover:bg-white/5 focus:z-20 focus:outline-offset-0">
-                                    <span className="sr-only">Next</span>
-                                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
-                            </nav>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Deleted Tenants Table */}
+            {filteredDeletedTenants.length > 0 && (
+                <div className="rounded-xl border border-white/10 bg-[#0A0F16] mt-6">
+                    <div className="border-b border-white/10 p-4">
+                        <h2 className="text-white text-xl font-bold">Deleted Tenants</h2>
+                        <p className="text-gray-400 text-sm mt-1">Tenants scheduled for permanent deletion</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-white/5 border-b border-white/10">
+                                <tr>
+                                    <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400">Tenant Name</th>
+                                    <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400">Members</th>
+                                    <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400">Deleted Date</th>
+                                    <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400">Hard Delete Date</th>
+                                    <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {filteredDeletedTenants.map((tenant) => (
+                                    <tr key={tenant.id} className="hover:bg-white/5 transition-colors">
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-white">
+                                            {tenant.name}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{tenant.member_count}</td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">
+                                            {tenant.deleted_at ? new Date(tenant.deleted_at).toLocaleDateString() : '-'}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">
+                                            {tenant.deletion_scheduled_at ? new Date(tenant.deletion_scheduled_at).toLocaleDateString() : '-'}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleRestore(tenant)}
+                                                    disabled={actionLoading === `tenant-${tenant.id}-restore`}
+                                                    className="text-green-500 hover:text-green-400 transition-colors text-xs flex items-center gap-1 disabled:opacity-50"
+                                                    title="Restore tenant"
+                                                >
+                                                    {actionLoading === `tenant-${tenant.id}-restore` ? (
+                                                        <span className="loading loading-spinner loading-xs" />
+                                                    ) : (
+                                                        <>
+                                                            <RotateCcw className="w-3 h-3" />
+                                                            Restore
+                                                        </>
+                                                    )}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(tenant, true)}
+                                                    disabled={actionLoading === `tenant-${tenant.id}-hard`}
+                                                    className="text-red-500 hover:text-red-400 transition-colors text-xs flex items-center gap-1 disabled:opacity-50"
+                                                    title="Permanently delete now"
+                                                >
+                                                    {actionLoading === `tenant-${tenant.id}-hard` ? (
+                                                        <span className="loading loading-spinner loading-xs" />
+                                                    ) : (
+                                                        <>
+                                                            <Trash2 className="w-3 h-3" />
+                                                            Delete Now
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* DaisyUI Modal for Add Tenant */}
             <dialog ref={addTenantModalRef} className="modal">

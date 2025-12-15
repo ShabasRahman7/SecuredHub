@@ -2,12 +2,12 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
 from ..utils.otp import check_verification_token
+from ..models import AccessRequest
 
 User = get_user_model()
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    """Serializer for user registration."""
     password = serializers.CharField(
         write_only=True,
         required=True,
@@ -73,7 +73,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    """Serializer for user login."""
     email = serializers.EmailField(required=True)
     password = serializers.CharField(
         required=True,
@@ -83,7 +82,6 @@ class LoginSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer for user profile information."""
     role = serializers.SerializerMethodField()
     
     class Meta:
@@ -138,3 +136,10 @@ class ResetPasswordSerializer(serializers.Serializer):
             })
             
         return attrs
+
+
+class AccessRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AccessRequest
+        fields = ['id', 'full_name', 'email', 'company_name', 'status', 'created_at']
+        read_only_fields = ['id', 'status', 'created_at']

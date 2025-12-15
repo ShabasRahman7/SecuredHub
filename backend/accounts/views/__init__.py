@@ -1,16 +1,3 @@
-"""
-Views module for accounts app.
-
-This file imports all view functions from their respective modules,
-making them available for URLs routing.
-
-Structure:
-- auth.py: Authentication views (login, register, profile, etc.)
-- admin.py: Admin management views (tenant/user CRUD, invites, access requests)
-- tenant.py: Tenant management views (create, update, members, invites)
-- verify_invite.py: Token verification views
-"""
-
 # Authentication & User Management
 from .auth import (
     register,
@@ -29,6 +16,8 @@ from .admin import (
     admin_list_tenants,
     admin_delete_tenant,
     admin_update_tenant,
+    admin_block_tenant,
+    admin_restore_tenant,
     admin_invite_tenant,
     list_tenant_invites,
     admin_delete_user,
@@ -48,16 +37,18 @@ from .tenant import (
     update_tenant,
     list_members,
     remove_member,
+    restore_member,
     invite_developer,
     accept_invite,
     list_invites,
     resend_invite,
-    cancel_invite
+    cancel_invite,
+    block_member
 )
 
 # Invite Verification
 from .verify_invite import (
-    verify_tenant_invite_token,
+    verify_tenant_invite_token_view,
     verify_invite_token_get
 )
 

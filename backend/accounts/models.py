@@ -88,15 +88,57 @@ class Tenant(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    deletion_scheduled_at = models.DateTimeField(null=True, blank=True, help_text="Scheduled permanent deletion date")
 
     class Meta:
         db_table = 'organizations'
         verbose_name = 'Tenant'
         verbose_name_plural = 'Organizations'
         ordering = ['-created_at']
+    
+    @property
+    def is_deleted(self):
+        """Check if tenant is soft-deleted"""
+        return self.deleted_at is not None
+    
+    def soft_delete(self):
+        """Soft delete the tenant (marks as deleted but keeps data)"""
+        self.deleted_at = timezone.now()
+        self.is_active = False
+        # Schedule permanent deletion in 30 days (GDPR compliance)
+        self.deletion_scheduled_at = timezone.now() + timedelta(days=30)
+        self.save()
+    
+    def restore(self):
+        """Restore a soft-deleted tenant"""
+        self.deleted_at = None
+        self.deletion_scheduled_at = None
+        self.is_active = True
+        self.save()
 
     def __str__(self):
         return self.name
+    
+    @property
+    def is_deleted(self):
+        """Check if tenant is soft-deleted"""
+        return self.deleted_at is not None
+    
+    def soft_delete(self):
+        """Soft delete the tenant (marks as deleted but keeps data for 30 days)"""
+        self.deleted_at = timezone.now()
+        self.is_active = False
+        # Schedule permanent deletion in 30 days (GDPR compliance)
+        self.deletion_scheduled_at = timezone.now() + timedelta(days=30)
+        self.save()
+    
+    def restore(self):
+        """Restore a soft-deleted tenant"""
+        self.deleted_at = None
+        self.deletion_scheduled_at = None
+        self.is_active = True
+        self.save()
 
     def save(self, *args, **kwargs):
         """Auto-generate slug from name if not provided."""
@@ -140,6 +182,8 @@ class TenantMember(models.Model):
     )
     role = models.CharField(max_length=32, choices=ROLE_CHOICES, db_index=True)
     joined_at = models.DateTimeField(auto_now_add=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    deletion_scheduled_at = models.DateTimeField(null=True, blank=True, help_text="Scheduled permanent deletion date")
 
     class Meta:
         db_table = 'tenant_members'
@@ -158,6 +202,42 @@ class TenantMember(models.Model):
     def is_developer(self):
         """Check if member is a developer."""
         return self.role == self.ROLE_DEVELOPER
+
+    @property
+    def is_deleted(self):
+        """Check if member is soft-deleted."""
+        return self.deleted_at is not None
+
+    def soft_delete(self):
+        """
+        Soft delete the member (marks as deleted but keeps data for 30 days).
+        Also disables the underlying user account so they cannot log in.
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+
+        self.deleted_at = timezone.now()
+        # Schedule permanent deletion in 30 days (aligned with tenant deletion policy)
+        self.deletion_scheduled_at = timezone.now() + timedelta(days=30)
+        self.save(update_fields=['deleted_at', 'deletion_scheduled_at'])
+
+        # Disable user login while member is soft-deleted
+        if self.user.is_active:
+            self.user.is_active = False
+            self.user.save(update_fields=['is_active'])
+
+    def restore(self):
+        """
+        Restore a soft-deleted member.
+        Also re-enables the underlying user account so they can log in again.
+        """
+        self.deleted_at = None
+        self.deletion_scheduled_at = None
+        self.save(update_fields=['deleted_at', 'deletion_scheduled_at'])
+
+        if not self.user.is_active:
+            self.user.is_active = True
+            self.user.save(update_fields=['is_active'])
 
 
 class MemberInvite(models.Model):
