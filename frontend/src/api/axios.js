@@ -104,6 +104,22 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        // Handle blocked tenant errors (403 with blocked message)
+        if (error.response?.status === 403) {
+            const errorMessage = error.response?.data?.error?.message || '';
+            if (errorMessage.toLowerCase().includes('blocked')) {
+                console.log('🚫 Tenant account blocked, logging out...');
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                
+                // Redirect to login
+                if (window.location.pathname !== '/login') {
+                    window.location.href = '/login';
+                }
+                return Promise.reject(error);
+            }
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
             console.log('🔄 Access token expired, attempting refresh...');
 

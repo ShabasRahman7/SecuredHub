@@ -1,11 +1,6 @@
-"""
-Utility functions for tenant invitation emails.
-"""
-import logging
 from django.core.mail import send_mail
 from django.conf import settings
-
-logger = logging.getLogger('api')
+from django.utils import timezone
 
 
 def send_tenant_invite_email(tenant_invite):
@@ -61,11 +56,9 @@ SecuredHub Team
             fail_silently=False
         )
         
-        logger.info(f"Tenant invitation email sent to {email} (token: {token})")
         return True, "Invitation email sent successfully."
         
     except Exception as e:
-        logger.error(f"Failed to send tenant invitation to {email}: {str(e)}")
         return False, "Failed to send invitation email. Please try again later."
 
 
@@ -104,11 +97,9 @@ SecuredHub Team
             fail_silently=False
         )
         
-        logger.info(f"Access request rejection email sent to {email}")
         return True, "Rejection email sent successfully."
         
     except Exception as e:
-        logger.error(f"Failed to send rejection email to {email}: {str(e)}")
         return False, "Failed to send rejection email."
 
 
@@ -125,30 +116,32 @@ def verify_tenant_invite_token(token):
     from ..models import TenantInvite
     from .redis_tokens import InviteTokenManager
     
-    # First check Redis for fast expiration validation
-    email = InviteTokenManager.verify_token(str(token))
-    if not email:
-        # Token not in Redis = expired or invalid
-        return None, "This invitation has expired or is invalid."
+    # First check Redis for fast expiration validation (best effort)
+    try:
+        email = InviteTokenManager.verify_token(str(token))
+    except Exception:
+        email = None
     
-    # Token is in Redis, now validate database record
+    # Validate against database regardless (so we still work if Redis is down or keys evicted)
     try:
         invite = TenantInvite.objects.get(token=token)
-        
-        # Email mismatch check
-        if invite.email != email:
-            logger.warning(f"Email mismatch for token {token}: DB={invite.email}, Redis={email}")
-            return None, "Invalid invitation token."
-        
-        if invite.status == TenantInvite.STATUS_REGISTERED:
-            return None, "This invitation has already been used."
-        
-        if invite.status == TenantInvite.STATUS_EXPIRED:
-            return None, "This invitation has expired."
-        
-        # Valid invite
-        return invite, None
-        
     except TenantInvite.DoesNotExist:
         return None, "Invalid invitation token."
+    
+    # If Redis provided an email, ensure it matches
+    if email and invite.email != email:
+        return None, "Invalid invitation token."
+    
+    # Expiration / status checks
+    if invite.status == TenantInvite.STATUS_REGISTERED:
+        return None, "This invitation has already been used."
+    
+    # If expired_at is set, enforce it
+    if invite.expires_at and invite.expires_at < timezone.now():
+        invite.status = TenantInvite.STATUS_EXPIRED
+        invite.save(update_fields=['status'])
+        return None, "This invitation has expired."
+    
+    # Still pending and not expired
+    return invite, None
 

@@ -1,7 +1,8 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import api from '../api/axios';
-import { useNavigate } from 'react-router-dom'; // Added useNavigate
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 const AuthContext = createContext(null);
 
@@ -22,16 +23,51 @@ export const AuthProvider = ({ children }) => {
             const userRes = await api.get('/auth/profile/');
             setUser(userRes.data.user);
 
-            // Fetch user's single tenant
-            const tenantsRes = await api.get('/tenants/');
-            const userTenants = tenantsRes.data.tenants || [];
-            setTenant(userTenants.length > 0 ? userTenants[0] : null);
+            // Only fetch tenant for non-admin users (admins don't have tenants)
+            if (!userRes.data.user.is_superuser && !userRes.data.user.is_staff) {
+                try {
+                    const tenantsRes = await api.get('/tenants/');
+                    const userTenants = tenantsRes.data.tenants || [];
+                    const userTenant = userTenants.length > 0 ? userTenants[0] : null;
+                    setTenant(userTenant);
+                    
+                    // Check if tenant is blocked
+                    if (userTenant && !userTenant.is_active) {
+                        // Tenant is blocked, logout user
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('refresh_token');
+                        setUser(null);
+                        setTenant(null);
+                        navigate('/login');
+                        // Show error message
+                        toast.error('Your account has been blocked. Please contact the administrator.');
+                        return;
+                    }
+                } catch (tenantError) {
+                    // If tenant fetch fails, continue without tenant (might be admin or error)
+                    console.error('Failed to fetch tenant:', tenantError);
+                    setTenant(null);
+                }
+            } else {
+                // Admin users don't have tenants
+                setTenant(null);
+            }
         } catch (error) {
             console.error('Failed to fetch user or tenants:', error);
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            setUser(null);
-            setTenant(null);
+            // Check if error is due to blocked tenant
+            if (error.response?.status === 403 && error.response?.data?.error?.message?.includes('blocked')) {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                setUser(null);
+                setTenant(null);
+                navigate('/login');
+                toast.error(error.response.data.error.message || 'Your account has been blocked.');
+            } else {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                setUser(null);
+                setTenant(null);
+            }
         } finally {
             setLoading(false);
         }

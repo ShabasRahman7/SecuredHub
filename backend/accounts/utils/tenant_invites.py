@@ -1,13 +1,7 @@
-"""
-Utilities for sending organization invites.
-"""
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 def send_invite_email(invite):
@@ -57,11 +51,9 @@ SecuredHub Team
         invite.last_sent_at = timezone.now()
         invite.save(update_fields=['last_sent_at'])
         
-        logger.info(f"Invite email sent to {invite.email} for tenant {invite.tenant.name}")
         return True, "Invitation email sent successfully"
         
     except Exception as e:
-        logger.error(f"Failed to send invite email to {invite.email}: {str(e)}")
         return False, f"Failed to send email: {str(e)}"
 
 
@@ -168,9 +160,7 @@ SecuredHub Team
             fail_silently=False
         )
         
-        logger.info(f"Invite email sent to {email} for tenant {tenant_name}")
         return True, "Invitation email sent successfully"
         
     except Exception as e:
-        logger.error(f"Failed to send invite email to {email}: {str(e)}")
         return False, f"Failed to send email: {str(e)}"

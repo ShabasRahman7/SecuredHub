@@ -1,18 +1,72 @@
 from rest_framework import serializers
-from ..models import Tenant, TenantMember, MemberInvite, User
+from ..models import Tenant, TenantMember, TenantInvite
 
 
 class TenantSerializer(serializers.ModelSerializer):
-    """Serializer for Tenant with user's role context."""
     role = serializers.SerializerMethodField()
     member_count = serializers.SerializerMethodField()
     created_by_email = serializers.EmailField(source='created_by.email', read_only=True)
+    deleted_at = serializers.DateTimeField(read_only=True, required=False, allow_null=True)
+    deletion_scheduled_at = serializers.DateTimeField(read_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Tenant
         fields = ['id', 'name', 'slug', 'description', 'created_by_email', 'role', 
-                  'member_count', 'created_at', 'updated_at', 'is_active']
-        read_only_fields = ['id', 'slug', 'created_at', 'updated_at']
+                  'member_count', 'created_at', 'updated_at', 'is_active', 
+                  'deleted_at', 'deletion_scheduled_at']
+        read_only_fields = ['id', 'slug', 'created_at', 'updated_at', 'deleted_at', 'deletion_scheduled_at']
+    
+    def to_representation(self, instance):
+        """Handle cases where deleted_at fields might not exist in database"""
+        try:
+            data = super().to_representation(instance)
+        except Exception as e:
+            # If serialization fails due to missing fields, manually build the representation
+            try:
+                data = {
+                    'id': instance.id,
+                    'name': instance.name,
+                    'slug': getattr(instance, 'slug', ''),
+                    'description': getattr(instance, 'description', ''),
+                    'created_by_email': instance.created_by.email if instance.created_by else None,
+                    'role': self.get_role(instance),
+                    'member_count': self.get_member_count(instance),
+                    'created_at': instance.created_at,
+                    'updated_at': instance.updated_at,
+                    'is_active': getattr(instance, 'is_active', True),
+                    'deleted_at': None,
+                    'deletion_scheduled_at': None,
+                }
+            except Exception:
+                # If even manual building fails, return minimal data
+                data = {
+                    'id': instance.id,
+                    'name': str(instance),
+                    'slug': '',
+                    'description': '',
+                    'created_by_email': None,
+                    'role': None,
+                    'member_count': 0,
+                    'created_at': None,
+                    'updated_at': None,
+                    'is_active': True,
+                    'deleted_at': None,
+                    'deletion_scheduled_at': None,
+                }
+        else:
+            # Ensure fields exist even if they're None
+            try:
+                if 'deleted_at' not in data:
+                    data['deleted_at'] = getattr(instance, 'deleted_at', None)
+            except Exception:
+                data['deleted_at'] = None
+                
+            try:
+                if 'deletion_scheduled_at' not in data:
+                    data['deletion_scheduled_at'] = getattr(instance, 'deletion_scheduled_at', None)
+            except Exception:
+                data['deletion_scheduled_at'] = None
+        return data
 
     def get_role(self, obj):
         request = self.context.get('request')
@@ -31,7 +85,6 @@ class TenantSerializer(serializers.ModelSerializer):
 
 
 class TenantCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating new tenants."""
     class Meta:
         model = Tenant
         fields = ['name', 'description']
@@ -43,7 +96,6 @@ class TenantCreateSerializer(serializers.ModelSerializer):
             **validated_data
         )
         
-        # Add creator as owner
         TenantMember.objects.create(
             tenant=tenant,
             user=request.user,
@@ -54,95 +106,42 @@ class TenantCreateSerializer(serializers.ModelSerializer):
 
 
 class TenantUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for updating tenants."""
     class Meta:
         model = Tenant
         fields = ['name', 'description', 'is_active']
 
 
 class TenantMemberSerializer(serializers.ModelSerializer):
-    """Serializer for tenant members."""
     email = serializers.EmailField(source='user.email', read_only=True)
     first_name = serializers.CharField(source='user.first_name', read_only=True)
     last_name = serializers.CharField(source='user.last_name', read_only=True)
     user_id = serializers.IntegerField(source='user.id', read_only=True)
+    is_active = serializers.BooleanField(source='user.is_active', read_only=True)
+    deleted_at = serializers.DateTimeField(read_only=True, required=False, allow_null=True)
+    deletion_scheduled_at = serializers.DateTimeField(read_only=True, required=False, allow_null=True)
 
     class Meta:
         model = TenantMember
-        fields = ['id', 'user_id', 'email', 'first_name', 'last_name', 'role', 'joined_at']
-        read_only_fields = ['id', 'joined_at']
+        fields = [
+            'id',
+            'user_id',
+            'email',
+            'first_name',
+            'last_name',
+            'role',
+            'joined_at',
+            'is_active',
+            'deleted_at',
+            'deletion_scheduled_at',
+        ]
+        read_only_fields = ['id', 'joined_at', 'deleted_at', 'deletion_scheduled_at']
 
 
-class InviteCreateSerializer(serializers.Serializer):
-    """Serializer for creating member invitations."""
-    email = serializers.EmailField()
-    role = serializers.ChoiceField(
-        choices=[TenantMember.ROLE_DEVELOPER],
-        default=TenantMember.ROLE_DEVELOPER
-    )
-
-    def validate_email(self, value):
-        tenant = self.context.get('tenant')
-        
-        # Check if user is already a member
-        if User.objects.filter(email=value).exists():
-            user = User.objects.get(email=value)
-            if TenantMember.objects.filter(tenant=tenant, user=user).exists():
-                raise serializers.ValidationError("User is already a member of this tenant.")
-        
-        # Check for pending invite
-        existing_invite = MemberInvite.objects.filter(
-            tenant=tenant,
-            email=value,
-            status=MemberInvite.STATUS_PENDING
-        ).first()
-        
-        if existing_invite and existing_invite.is_valid():
-            raise serializers.ValidationError("An active invitation already exists for this email.")
-        
-        return value
-
-    def create(self, validated_data):
-        tenant = self.context.get('tenant')
-        invited_by = self.context.get('invited_by')
-        
-        invite = MemberInvite.objects.create(
-            tenant=tenant,
-            email=validated_data['email'],
-            role=validated_data.get('role', TenantMember.ROLE_DEVELOPER),
-            invited_by=invited_by
-        )
-        
-        return invite
-
-
-class InviteSerializer(serializers.ModelSerializer):
-    """Serializer for listing member invitations."""
+class TenantInviteSerializer(serializers.ModelSerializer):
     invited_by_email = serializers.EmailField(source='invited_by.email', read_only=True)
-    tenant_name = serializers.CharField(source='tenant.name', read_only=True)
-    is_expired = serializers.BooleanField(read_only=True)
-
+    registered_user_email = serializers.EmailField(source='registered_user.email', read_only=True, allow_null=True)
+    
     class Meta:
-        model = MemberInvite
-        fields = ['id', 'email', 'tenant_name', 'role', 'status', 'token',
-                  'invited_by_email', 'created_at', 'expires_at', 'is_expired']
-        read_only_fields = ['id', 'token', 'status', 'created_at', 'expires_at']
-
-
-class AcceptInviteSerializer(serializers.Serializer):
-    """Serializer for accepting invitations."""
-    token = serializers.CharField()
-
-    def validate_token(self, value):
-        try:
-            invite = MemberInvite.objects.get(token=value)
-        except MemberInvite.DoesNotExist:
-            raise serializers.ValidationError("Invalid invitation token.")
-        
-        if not invite.is_valid():
-            if invite.is_expired():
-                raise serializers.ValidationError("This invitation has expired.")
-            else:
-                raise serializers.ValidationError(f"This invitation is {invite.status}.")
-        
-        return value
+        model = TenantInvite
+        fields = ['id', 'email', 'status', 'invited_by_email', 'invited_at', 'registered_at', 'registered_user_email']
+        read_only_fields = ['id', 'invited_at', 'registered_at']

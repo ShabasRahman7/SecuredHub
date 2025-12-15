@@ -1,12 +1,5 @@
-"""
-Redis-based invite token management utility.
-Provides 24-hour auto-expiring tokens for tenant invitations.
-"""
 from django.core.cache import cache
 import uuid
-import logging
-
-logger = logging.getLogger('api')
 
 
 class InviteTokenManager:
@@ -31,11 +24,8 @@ class InviteTokenManager:
         
         try:
             cache.set(cache_key, email, timeout=cls.TOKEN_TTL)
-            logger.info(f"Created invite token in Redis for {email} (expires in 24h)")
             return token
-        except Exception as e:
-            logger.error(f"Failed to create token in Redis: {str(e)}")
-            # Fallback to returning token even if Redis fails
+        except Exception:
             return token
     
     @classmethod
@@ -53,13 +43,8 @@ class InviteTokenManager:
         
         try:
             email = cache.get(cache_key)
-            if email:
-                logger.info(f"Token verified in Redis for {email}")
-            else:
-                logger.warning(f"Token not found or expired in Redis: {token[:8]}...")
             return email
-        except Exception as e:
-            logger.error(f"Failed to verify token in Redis: {str(e)}")
+        except Exception:
             return None
     
     @classmethod
@@ -74,9 +59,8 @@ class InviteTokenManager:
         
         try:
             cache.delete(cache_key)
-            logger.info(f"Deleted token from Redis: {token[:8]}...")
-        except Exception as e:
-            logger.error(f"Failed to delete token from Redis: {str(e)}")
+        except Exception:
+            pass
     
     @classmethod
     def get_ttl(cls, token):
@@ -95,8 +79,7 @@ class InviteTokenManager:
             # Django's cache doesn't have native TTL command
             # We check if key exists, if so it hasn't expired
             if cache.get(cache_key):
-                return cls.TOKEN_TTL  # Approximate
+                return cls.TOKEN_TTL
             return 0
-        except Exception as e:
-            logger.error(f"Failed to get TTL from Redis: {str(e)}")
+        except Exception:
             return 0

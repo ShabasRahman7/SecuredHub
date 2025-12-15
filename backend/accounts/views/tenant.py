@@ -1,93 +1,74 @@
-"""
-Tenant (Tenant) management views.
-"""
-from rest_framework.decorators import api_view, permission_classes
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
-from django.utils import timezone
+from drf_spectacular.utils import extend_schema, OpenApiTypes
 
-from ..models import Tenant, TenantMember, TenantInvite, User
+from ..models import Tenant, TenantMember, User
 from ..serializers.tenant import (
     TenantSerializer,
     TenantCreateSerializer,
     TenantUpdateSerializer,
-    TenantMemberSerializer,
-    InviteCreateSerializer,
-    InviteSerializer,
-    AcceptInviteSerializer
+    TenantMemberSerializer
 )
-from ..utils import user_has_tenant_access, user_is_tenant_owner
+from ..permissions import IsTenantOwner, IsTenantMember
 from ..utils.redis_invites import RedisInviteManager
-
-import logging
-import uuid
-
-logger = logging.getLogger('api')
+from ..utils.tenant_invites import send_member_invite_email
 
 
-# --- Tenant Management ---
+class TenantListView(APIView):
+    permission_classes = [IsAuthenticated]
 
-@extend_schema(
-    summary="List Tenants",
-    description="List all tenants the current user is a member of.",
-    responses={200: TenantSerializer(many=True)},
-    tags=["Tenants"]
-)
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def list_tenants(request):
-    """
-    List all tenants the current user is a member of.
-    
-    GET /api/v1/tenants/
-    """
-    user = request.user
-    
-    memberships = TenantMember.objects.filter(user=user).select_related('tenant')
-    tenants = [m.tenant for m in memberships]
-    
-    serializer = TenantSerializer(tenants, many=True, context={'request': request})
-    
-    return Response(
-        {
-            "success": True,
-            "count": len(tenants),
-            "tenants": serializer.data
-        },
-        status=status.HTTP_200_OK
+    @extend_schema(
+        summary="List Tenants",
+        responses={200: TenantSerializer(many=True)},
+        tags=["Tenants"]
     )
+    def get(self, request):
+        user = request.user
+        memberships = TenantMember.objects.filter(user=user).select_related('tenant')
+        tenants = [m.tenant for m in memberships]
+        
+        serializer = TenantSerializer(tenants, many=True, context={'request': request})
+        
+        return Response(
+            {
+                "success": True,
+                "count": len(tenants),
+                "tenants": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
 
 
-@extend_schema(
-    summary="Create Tenant",
-    description="Create a new tenant.",
-    request=TenantCreateSerializer,
-    responses={201: TenantSerializer},
-    tags=["Tenants"]
-)
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_tenant(request):
-    """
-    Create a new tenant.
-    
-    POST /api/v1/tenants/create/
-    Body: {
-        "name": "My Tenant",
-        "description": "Optional description"
-    }
-    """
-    serializer = TenantCreateSerializer(data=request.data, context={'request': request})
-    
-    if serializer.is_valid():
+class TenantCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Create Tenant",
+        request=TenantCreateSerializer,
+        responses={201: TenantSerializer},
+        tags=["Tenants"]
+    )
+    def post(self, request):
+        serializer = TenantCreateSerializer(data=request.data, context={'request': request})
+        
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Validation failed",
+                        "details": serializer.errors
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         try:
             tenant = serializer.save()
-            logger.info(f"Tenant '{tenant.name}' created by user {request.user.id}")
-            
             return Response(
                 {
                     "success": True,
@@ -107,95 +88,55 @@ def create_tenant(request):
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
-    return Response(
-        {
-            "success": False,
-            "error": {
-                "message": "Validation failed",
-                "details": serializer.errors
-            }
-        },
-        status=status.HTTP_400_BAD_REQUEST
+
+
+class TenantDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantMember]
+
+    @extend_schema(
+        summary="Get Tenant Details",
+        responses={200: TenantSerializer},
+        tags=["Tenants"]
     )
-
-
-@extend_schema(
-    summary="Get Tenant Details",
-    description="Get details of a specific tenant.",
-    responses={200: TenantSerializer},
-    tags=["Tenants"]
-)
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_tenant(request, tenant_id):
-    """
-    Get details of a specific tenant.
-    
-    GET /api/v1/tenants/{tenant_id}/
-    """
-    user = request.user
-    tenant = get_object_or_404(Tenant, id=tenant_id)
-    
-    if not user_has_tenant_access(user, tenant):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Unauthorized",
-                    "details": "You are not a member of this tenant."
-                }
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    serializer = TenantSerializer(tenant, context={'request': request})
-    
-    return Response(
-        {
-            "success": True,
-            "tenant": serializer.data
-        },
-        status=status.HTTP_200_OK
-    )
-
-
-@extend_schema(
-    summary="Update Tenant",
-    description="Update tenant details (owner only).",
-    request=TenantUpdateSerializer,
-    responses={200: TenantSerializer},
-    tags=["Tenants"]
-)
-@api_view(['PUT', 'PATCH'])
-@permission_classes([IsAuthenticated])
-def update_tenant(request, tenant_id):
-    """
-    Update tenant details (owner only).
-    
-    PUT/PATCH /api/v1/tenants/{tenant_id}/update/
-    """
-    user = request.user
-    tenant = get_object_or_404(Tenant, id=tenant_id)
-    
-    if not user_is_tenant_owner(user, tenant):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Unauthorized",
-                    "details": "Only the owner can update tenant details."
-                }
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    serializer = TenantUpdateSerializer(tenant, data=request.data, partial=True)
-    
-    if serializer.is_valid():
-        serializer.save()
-        logger.info(f"Tenant {tenant_id} updated by user {user.id}")
+    def get(self, request, tenant_id):
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
         
+        serializer = TenantSerializer(tenant, context={'request': request})
+        
+        return Response(
+            {
+                "success": True,
+                "tenant": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+
+    @extend_schema(
+        summary="Update Tenant",
+        request=TenantUpdateSerializer,
+        responses={200: TenantSerializer},
+        tags=["Tenants"]
+    )
+    def put(self, request, tenant_id):
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
+        
+        serializer = TenantUpdateSerializer(tenant, data=request.data, partial=True)
+        
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Validation failed",
+                        "details": serializer.errors
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer.save()
         return Response(
             {
                 "success": True,
@@ -204,544 +145,518 @@ def update_tenant(request, tenant_id):
             },
             status=status.HTTP_200_OK
         )
-    
-    return Response(
-        {
-            "success": False,
-            "error": {
-                "message": "Validation failed",
-                "details": serializer.errors
-            }
-        },
-        status=status.HTTP_400_BAD_REQUEST
+
+    def patch(self, request, tenant_id):
+        return self.put(request, tenant_id)
+
+
+class MemberListView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantMember]
+
+    @extend_schema(
+        summary="List Members",
+        responses={200: TenantMemberSerializer(many=True)},
+        tags=["Tenants"]
     )
+    def get(self, request, tenant_id):
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
 
+        include_deleted = request.query_params.get('include_deleted', 'false').lower() == 'true'
 
-# --- Member Management ---
-
-@extend_schema(
-    summary="List Members",
-    description="List all members of a tenant.",
-    responses={200: TenantMemberSerializer(many=True)},
-    tags=["Tenants"]
-)
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def list_members(request, tenant_id):
-    """
-    List all members of a tenant.
-    
-    GET /api/v1/tenants/{tenant_id}/members/
-    """
-    user = request.user
-    tenant = get_object_or_404(Tenant, id=tenant_id)
-    
-    if not user_has_tenant_access(user, tenant):
+        if include_deleted:
+            members = TenantMember.objects.filter(tenant=tenant).select_related('user')
+        else:
+            members = TenantMember.objects.filter(
+                tenant=tenant,
+                deleted_at__isnull=True
+            ).select_related('user')
+        serializer = TenantMemberSerializer(members, many=True)
+        
         return Response(
             {
-                "success": False,
-                "error": {
-                    "message": "Unauthorized",
-                    "details": "You are not a member of this tenant."
-                }
+                "success": True,
+                "count": members.count(),
+                "members": serializer.data
             },
-            status=status.HTTP_403_FORBIDDEN
+            status=status.HTTP_200_OK
         )
-    
-    members = TenantMember.objects.filter(tenant=tenant).select_related('user')
-    serializer = TenantMemberSerializer(members, many=True)
-    
-    return Response(
-        {
-            "success": True,
-            "count": members.count(),
-            "members": serializer.data
-        },
-        status=status.HTTP_200_OK
+
+
+class MemberRemoveView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantOwner]
+
+    @extend_schema(
+        summary="Remove Member",
+        responses={200: OpenApiTypes.OBJECT},
+        tags=["Tenants"]
     )
+    def delete(self, request, tenant_id, member_id):
+        """
+        Tenant owner delete member.
 
+        - Default: soft delete (marks member as deleted, disables login, keeps data for 30 days).
+        - With ?hard_delete=true: hard delete (permanently removes user and membership).
+        """
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
 
-@extend_schema(
-    summary="Remove Member",
-    description="Remove a member from the tenant (owner only).",
-    responses={200: OpenApiTypes.OBJECT},
-    tags=["Tenants"]
-)
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def remove_member(request, tenant_id, member_id):
-    """
-    Remove a member from the tenant (owner only).
-    
-    DELETE /api/v1/tenants/{tenant_id}/members/{member_id}/remove/
-    """
-    user = request.user
-    tenant = get_object_or_404(Tenant, id=tenant_id)
-    
-    if not user_is_tenant_owner(user, tenant):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Unauthorized",
-                    "details": "Only the owner can remove members."
-                }
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    member_to_remove = get_object_or_404(TenantMember, id=member_id, tenant=tenant)
-    
-    # Prevent removing self (owner)
-    if member_to_remove.user == user:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Operation failed",
-                    "details": "You cannot remove yourself from the tenant."
-                }
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    user_email = member_to_remove.user.email
-    member_to_remove.delete()
-    logger.info(f"Member {user_email} removed from tenant {tenant_id} by {user.id}")
-    
-    return Response(
-        {
-            "success": True,
-            "message": f"Member {user_email} removed successfully"
-        },
-        status=status.HTTP_200_OK
-    )
+        hard_delete = request.query_params.get('hard_delete', 'false').lower() == 'true'
 
+        member = get_object_or_404(TenantMember, id=member_id, tenant=tenant)
 
-# --- Invitation Management ---
-
-@extend_schema(
-    summary="Invite Developer",
-    description="Invite a developer to the tenant (owner only).",
-    request=InviteCreateSerializer,
-    responses={201: InviteSerializer},
-    tags=["Tenants"]
-)
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def invite_developer(request, tenant_id):
-    """
-    Invite a developer to the tenant (Redis-based).
-    
-    POST /api/v1/tenants/{tenant_id}/invite/
-    Body: { "email": "dev@example.com" }
-    """
-    user = request.user
-    tenant = get_object_or_404(Tenant, id=tenant_id)
-    
-    if not user_is_tenant_owner(user, tenant):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Unauthorized",
-                    "details": "Only the owner can invite members."
-                }
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    email = request.data.get('email')
-    if not email:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Validation failed",
-                    "details": {"email": ["This field is required."]}
-                }
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    if User.objects.filter(email=email).exists():
-        existing_user = User.objects.get(email=email)
-        if TenantMember.objects.filter(tenant=tenant, user=existing_user).exists():
+        if member.user == request.user:
             return Response(
                 {
                     "success": False,
                     "error": {
-                        "message": "User is already a member",
-                        "details": "This user is already a member of this tenant."
+                        "message": "Operation failed",
+                        "details": "You cannot remove yourself from the tenant."
                     }
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
-    existing_invite = RedisInviteManager.get_invite_by_email(tenant.id, email)
-    if existing_invite and not RedisInviteManager.is_expired(existing_invite):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Active invitation exists",
-                    "details": "An active invitation already exists for this email."
-                }
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    invite_data = RedisInviteManager.create_invite(
-        tenant_id=tenant.id,
-        email=email,
-        invited_by_id=user.id,
-        role='developer'
-    )
-    
-    from ..utils.tenant_invites import send_member_invite_email
-    success, message = send_member_invite_email(
-        email=email,
-        tenant_name=tenant.name,
-        invited_by_name=f"{user.first_name} {user.last_name}",
-        token=invite_data['token']
-    )
-    
-    if not success:
-        logger.warning(f"Invite created but email failed for {email}: {message}")
-    
-    logger.info(f"Invite created for {email} in tenant {tenant_id}")
-    
-    return Response(
-        {
-            "success": True,
-            "message": f"Invitation sent to {email}",
-            "email_sent": success,
-            "invite": invite_data
-        },
-        status=status.HTTP_201_CREATED
-    )
 
+        if hard_delete:
+            user_email = member.user.email
+            # Hard delete: permanently remove the underlying user account
+            member.user.delete()
 
-@extend_schema(
-    summary="List Invites",
-    description="List all pending invitations for a tenant.",
-    responses={200: InviteSerializer(many=True)},
-    tags=["Tenants"]
-)
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def list_invites(request, tenant_id):
-    """List all pending invitations for a tenant (Redis-based)."""
-    user = request.user
-    tenant = get_object_or_404(Tenant, id=tenant_id)
-    
-    if not user_is_tenant_owner(user, tenant):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Unauthorized",
-                    "details": "Only the owner can view invites."
-                }
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    # Get invites from Redis
-    invites = RedisInviteManager.list_tenant_invites(tenant.id)
-    
-    # Add is_expired flag to each invite
-    for invite in invites:
-        invite['is_expired'] = RedisInviteManager.is_expired(invite)
-    
-    return Response(
-        {
-            "success": True,
-            "count": len(invites),
-            "invites": invites
-        },
-        status=status.HTTP_200_OK
-    )
+            return Response(
+                {
+                    "success": True,
+                    "message": f"Member {user_email} permanently deleted"
+                },
+                status=status.HTTP_200_OK
+            )
 
+        # Soft delete: mark member as deleted and schedule hard delete
+        member.soft_delete()
 
-@extend_schema(
-    summary="Resend Invite",
-    description="Resend an invitation email (with cooldown).",
-    responses={200: OpenApiTypes.OBJECT},
-    tags=["Tenants"]
-)
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def resend_invite(request, tenant_id, invite_id):
-    """Resend an invitation email (Redis-based). invite_id is actually the token."""
-    user = request.user
-    tenant = get_object_or_404(Tenant, id=tenant_id)
-    
-    if not user_is_tenant_owner(user, tenant):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Unauthorized",
-                    "details": "Only the owner can resend invites."
-                }
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    # Get invite from Redis (invite_id is the token)
-    token = invite_id
-    invite_data = RedisInviteManager.get_invite_by_token(token)
-    
-    if not invite_data:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Invite not found",
-                    "details": "This invitation has expired or been cancelled."
-                }
-            },
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
-    # Verify tenant matches
-    if invite_data['tenant_id'] != tenant.id:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Unauthorized",
-                    "details": "This invite belongs to a different tenant."
-                }
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    # Delete old invite and create new one with fresh token
-    RedisInviteManager.delete_invite(token)
-    new_invite_data = RedisInviteManager.create_invite(
-        tenant_id=tenant.id,
-        email=invite_data['email'],
-        invited_by_id=user.id,
-        role=invite_data['role']
-    )
-    
-    # Send invitation email with new token
-    from ..utils.tenant_invites import send_member_invite_email
-    success, message = send_member_invite_email(
-        email=new_invite_data['email'],
-        tenant_name=tenant.name,
-        invited_by_name=f"{user.first_name} {user.last_name}",
-        token=new_invite_data['token']
-    )
-    
-    if success:
-        logger.info(f"Invite resent to {new_invite_data['email']} by {user.email}")
         return Response(
             {
                 "success": True,
-                "message": f"Invitation resent to {new_invite_data['email']}",
-                "invite": new_invite_data
+                "message": f"Member {member.user.email} deleted. Data will be permanently removed in 30 days.",
+                "member": TenantMemberSerializer(member).data
             },
             status=status.HTTP_200_OK
         )
-    else:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Failed to resend invitation",
-                    "details": message
-                }
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
 
 
-@extend_schema(
-    summary="Cancel Invite",
-    description="Cancel a pending invitation.",
-    responses={200: OpenApiTypes.OBJECT},
-    tags=["Tenants"]
-)
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def cancel_invite(request, tenant_id, invite_id):
-    """Cancel a pending invitation (Redis-based). invite_id is actually the token."""
-    user = request.user
-    tenant = get_object_or_404(Tenant, id=tenant_id)
-    
-    if not user_is_tenant_owner(user, tenant):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Unauthorized",
-                    "details": "Only the owner can cancel invites."
-                }
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    # Get invite from Redis (invite_id is the token)
-    token = invite_id
-    invite_data = RedisInviteManager.get_invite_by_token(token)
-    
-    if not invite_data:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Invite not found",
-                    "details": "This invitation has expired or been cancelled."
-                }
-            },
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
-    # Verify tenant matches
-    if invite_data['tenant_id'] != tenant.id:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Unauthorized",
-                    "details": "This invite belongs to a different tenant."
-                }
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    # Delete invite from Redis
-    RedisInviteManager.delete_invite(token)
-    
-    logger.info(f"Invite cancelled for {invite_data['email']} by {user.email}")
-    
-    return Response(
-        {
-            "success": True,
-            "message": f"Invitation to {invite_data['email']} has been cancelled"
-        },
-        status=status.HTTP_200_OK
+class MemberRestoreView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantOwner]
+
+    @extend_schema(
+        summary="Restore Soft-Deleted Member",
+        responses={200: OpenApiTypes.OBJECT},
+        tags=["Tenants"]
     )
+    def post(self, request, tenant_id, member_id):
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
 
-
-@extend_schema(
-    summary="Accept Invite",
-    description="Accept an invitation to join a tenant.",
-    request=AcceptInviteSerializer,
-    responses={200: OpenApiTypes.OBJECT},
-    tags=["Tenants"]
-)
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def accept_invite(request):
-    """Accept an invitation to join a tenant (Redis-based)."""
-    token = request.data.get('token')
-    
-    if not token:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Token required",
-                    "details": "Please provide an invitation token."
-                }
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Get invite from Redis
-    invite_data = RedisInviteManager.get_invite_by_token(token, invite_type='member')
-    
-    if not invite_data:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Invalid invitation",
-                    "details": "This invitation has expired or been cancelled."
-                }
-            },
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
-    # Check if expired
-    if RedisInviteManager.is_expired(invite_data):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Invitation expired",
-                    "details": "This invitation has expired. Please request a new one."
-                }
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Check if user email matches invite email
-    if invite_data['email'] != request.user.email:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "message": "Invalid invitation",
-                    "details": "This invitation was sent to a different email address."
-                }
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Get tenant
-    tenant = get_object_or_404(Tenant, id=invite_data['tenant_id'])
-    
-    # Add user to tenant
-    try:
-        TenantMember.objects.create(
+        member = get_object_or_404(
+            TenantMember,
+            id=member_id,
             tenant=tenant,
-            user=request.user,
-            role=invite_data['role']
+            deleted_at__isnull=False
         )
-        
-        # Delete invite from Redis (mark as accepted)
-        RedisInviteManager.delete_invite(token)
-        
-        logger.info(f"User {request.user.email} accepted invite to {tenant.name}")
-        
+
+        member.restore()
+
         return Response(
             {
                 "success": True,
-                "message": f"Successfully joined {tenant.name}",
-                "tenant": {
-                    "id": tenant.id,
-                    "name": tenant.name,
-                    "role": invite_data['role']
-                }
+                "message": f"Member {member.user.email} has been restored successfully",
+                "member": TenantMemberSerializer(member).data
             },
             status=status.HTTP_200_OK
         )
-    except IntegrityError:
-        return Response(
-            {
+
+
+class MemberBlockView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantOwner]
+
+    @extend_schema(
+        summary="Block/Unblock Member",
+        responses={200: OpenApiTypes.OBJECT},
+        tags=["Tenants"]
+    )
+    def post(self, request, tenant_id, member_id):
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
+
+        member = get_object_or_404(TenantMember, id=member_id, tenant=tenant)
+        block = request.data.get('block', True)
+
+        # Owners cannot block themselves
+        if member.user == request.user:
+            return Response({
                 "success": False,
                 "error": {
                     "message": "Operation failed",
-                    "details": "You are already a member of this tenant."
+                    "details": "You cannot block yourself."
                 }
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    return Response(
-        {
-            "success": False,
-            "error": {
-                "message": "Validation failed",
-                "details": serializer.errors
-            }
-        },
-        status=status.HTTP_400_BAD_REQUEST
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        member.user.is_active = not block
+        member.user.save(update_fields=['is_active'])
+
+        return Response({
+            "success": True,
+            "message": f"Member {'blocked' if block else 'unblocked'} successfully"
+        }, status=status.HTTP_200_OK)
+
+class InviteDeveloperView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantOwner]
+
+    @extend_schema(
+        summary="Invite Developer",
+        request=OpenApiTypes.OBJECT,
+        responses={201: OpenApiTypes.OBJECT},
+        tags=["Tenants"]
     )
+    def post(self, request, tenant_id):
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
+        
+        email = request.data.get('email')
+        if not email:
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Validation failed",
+                        "details": {"email": ["This field is required."]}
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if User.objects.filter(email=email).exists():
+            existing_user = User.objects.get(email=email)
+            if TenantMember.objects.filter(tenant=tenant, user=existing_user).exists():
+                return Response(
+                    {
+                        "success": False,
+                        "error": {
+                            "message": "User is already a member",
+                            "details": "This user is already a member of this tenant."
+                        }
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Do not allow inviting an account that already exists elsewhere
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "User already has an account",
+                        "details": "This email is already registered. Ask them to request access from the tenant owner."
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        existing_invite = RedisInviteManager.get_invite_by_email(tenant.id, email)
+        if existing_invite and not RedisInviteManager.is_expired(existing_invite):
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Active invitation exists",
+                        "details": "An active invitation already exists for this email."
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        invite_data = RedisInviteManager.create_invite(
+            tenant_id=tenant.id,
+            email=email,
+            invited_by_id=request.user.id,
+            role='developer'
+        )
+        
+        success, message = send_member_invite_email(
+            email=email,
+            tenant_name=tenant.name,
+            invited_by_name=f"{request.user.first_name} {request.user.last_name}",
+            token=invite_data['token']
+        )
+        
+        return Response(
+            {
+                "success": True,
+                "message": f"Invitation sent to {email}",
+                "email_sent": success,
+                "invite": invite_data
+            },
+            status=status.HTTP_201_CREATED
+        )
 
 
+class InviteListView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantOwner]
+
+    @extend_schema(
+        summary="List Invites",
+        responses={200: OpenApiTypes.OBJECT},
+        tags=["Tenants"]
+    )
+    def get(self, request, tenant_id):
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
+        
+        invites = RedisInviteManager.list_tenant_invites(tenant.id)
+        
+        for invite in invites:
+            invite['is_expired'] = RedisInviteManager.is_expired(invite)
+        
+        return Response(
+            {
+                "success": True,
+                "count": len(invites),
+                "invites": invites
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class ResendInviteView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantOwner]
+
+    @extend_schema(
+        summary="Resend Invite",
+        responses={200: OpenApiTypes.OBJECT},
+        tags=["Tenants"]
+    )
+    def post(self, request, tenant_id, invite_id):
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
+        
+        token = invite_id
+        invite_data = RedisInviteManager.get_invite_by_token(token)
+        
+        if not invite_data:
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Invite not found",
+                        "details": "This invitation has expired or been cancelled."
+                    }
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if invite_data['tenant_id'] != tenant.id:
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Unauthorized",
+                        "details": "This invite belongs to a different tenant."
+                    }
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        RedisInviteManager.delete_invite(token)
+        new_invite_data = RedisInviteManager.create_invite(
+            tenant_id=tenant.id,
+            email=invite_data['email'],
+            invited_by_id=request.user.id,
+            role=invite_data['role']
+        )
+        
+        success, message = send_member_invite_email(
+            email=new_invite_data['email'],
+            tenant_name=tenant.name,
+            invited_by_name=f"{request.user.first_name} {request.user.last_name}",
+            token=new_invite_data['token']
+        )
+        
+        if success:
+            return Response(
+                {
+                    "success": True,
+                    "message": f"Invitation resent to {new_invite_data['email']}",
+                    "invite": new_invite_data
+                },
+                status=status.HTTP_200_OK
+            )
+        else:
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Failed to resend invitation",
+                        "details": message
+                    }
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class CancelInviteView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantOwner]
+
+    @extend_schema(
+        summary="Cancel Invite",
+        responses={200: OpenApiTypes.OBJECT},
+        tags=["Tenants"]
+    )
+    def delete(self, request, tenant_id, invite_id):
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
+        
+        token = invite_id
+        invite_data = RedisInviteManager.get_invite_by_token(token)
+        
+        if not invite_data:
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Invite not found",
+                        "details": "This invitation has expired or been cancelled."
+                    }
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if invite_data['tenant_id'] != tenant.id:
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Unauthorized",
+                        "details": "This invite belongs to a different tenant."
+                    }
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        RedisInviteManager.delete_invite(token)
+        
+        return Response(
+            {
+                "success": True,
+                "message": f"Invitation to {invite_data['email']} has been cancelled"
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class AcceptInviteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Accept Invite",
+        request=OpenApiTypes.OBJECT,
+        responses={200: OpenApiTypes.OBJECT},
+        tags=["Tenants"]
+    )
+    def post(self, request):
+        token = request.data.get('token')
+        
+        if not token:
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Token required",
+                        "details": "Please provide an invitation token."
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        invite_data = RedisInviteManager.get_invite_by_token(token, invite_type='member')
+        
+        if not invite_data:
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Invalid invitation",
+                        "details": "This invitation has expired or been cancelled."
+                    }
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if RedisInviteManager.is_expired(invite_data):
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Invitation expired",
+                        "details": "This invitation has expired. Please request a new one."
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if invite_data['email'] != request.user.email:
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Invalid invitation",
+                        "details": "This invitation was sent to a different email address."
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tenant = get_object_or_404(Tenant, id=invite_data['tenant_id'])
+        
+        try:
+            TenantMember.objects.create(
+                tenant=tenant,
+                user=request.user,
+                role=invite_data['role']
+            )
+            
+            RedisInviteManager.delete_invite(token)
+            
+            return Response(
+                {
+                    "success": True,
+                    "message": f"Successfully joined {tenant.name}",
+                    "tenant": {
+                        "id": tenant.id,
+                        "name": tenant.name,
+                        "role": invite_data['role']
+                    }
+                },
+                status=status.HTTP_200_OK
+            )
+        except IntegrityError:
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Operation failed",
+                        "details": "You are already a member of this tenant."
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+list_tenants = TenantListView.as_view()
+create_tenant = TenantCreateView.as_view()
+get_tenant = TenantDetailView.as_view()
+update_tenant = TenantDetailView.as_view()
+list_members = MemberListView.as_view()
+remove_member = MemberRemoveView.as_view()
+restore_member = MemberRestoreView.as_view()
+block_member = MemberBlockView.as_view()
+invite_developer = InviteDeveloperView.as_view()
+list_invites = InviteListView.as_view()
+resend_invite = ResendInviteView.as_view()
+cancel_invite = CancelInviteView.as_view()
+accept_invite = AcceptInviteView.as_view()

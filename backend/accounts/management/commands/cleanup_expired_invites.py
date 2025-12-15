@@ -1,11 +1,8 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta
-import logging
 
 from accounts.models import MemberInvite, TenantInvite
-
-logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -53,7 +50,6 @@ class Command(BaseCommand):
 
             updated = qs.update(status=expired_status)
             self.stdout.write(self.style.SUCCESS(f"Marked {updated} {label} invitations as expired"))
-            logger.info(f"Marked {updated} {label} invitations as expired")
             return updated
 
         expired_members = expire_invites(
@@ -90,7 +86,6 @@ class Command(BaseCommand):
                     self.stdout.write(
                         self.style.WARNING(f"Deleted {deleted_count} old member invitations")
                     )
-                    logger.info(f"Deleted {deleted_count} old member invitations")
 
             # --- TenantInvites: delete expired only (NOT registered) ---
             old_tenant_qs = TenantInvite.objects.filter(
@@ -106,7 +101,6 @@ class Command(BaseCommand):
                     self.stdout.write(
                         self.style.WARNING(f"Deleted {deleted_count} old tenant invitations")
                     )
-                    logger.info(f"Deleted {deleted_count} old tenant invitations")
 
         # -------------------------
         # SUMMARY

@@ -24,7 +24,7 @@ COPY . /app/
 RUN mkdir -p /app/logs
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8001
 
 # Run migrations and start server
-CMD python manage.py migrate && python manage.py runserver 0.0.0.0:8000
+CMD python manage.py migrate && python manage.py runserver 0.0.0.0:8001

@@ -34,8 +34,10 @@ const ForgotPassword = () => {
             await api.post('/auth/send-otp/', { email, type: 'reset_password' });
             setStep(2);
             setTimer(60);
+            toast.dismiss();
             toast.success(`OTP sent to ${email}`);
         } catch (err) {
+            toast.dismiss();
             toast.error(err.response?.data?.error?.message || 'Failed to send OTP');
         } finally {
             setLoading(false);
@@ -49,8 +51,10 @@ const ForgotPassword = () => {
             const response = await api.post('/auth/verify-otp/', { email, otp });
             setVerificationToken(response.data.verification_token);
             setStep(3);
+            toast.dismiss();
             toast.success('OTP verified successfully');
         } catch (err) {
+            toast.dismiss();
             toast.error(err.response?.data?.error?.message || 'Invalid OTP');
         } finally {
             setLoading(false);
@@ -71,9 +75,11 @@ const ForgotPassword = () => {
                 password2: confirmPassword,
                 verification_token: verificationToken
             });
+            toast.dismiss();
             toast.success('Password reset successful! Please login.');
             navigate('/login');
         } catch (err) {
+            toast.dismiss();
             toast.error(err.response?.data?.error?.message || 'Password reset failed');
         } finally {
             setLoading(false);

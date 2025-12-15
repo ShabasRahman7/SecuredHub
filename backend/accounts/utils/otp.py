@@ -1,12 +1,9 @@
 import random
 import string
-import logging
 from django.core.mail import send_mail
 from django.core.cache import cache
 from django.conf import settings
 import time
-
-logger = logging.getLogger('api')
 
 OTP_EXPIRY = 300  # 5 minutes
 VERIFIED_TOKEN_EXPIRY = 900  # 15 minutes
@@ -132,11 +129,9 @@ SecuredHub Team"""
         # Update rate limit
         increment_rate_limit(email)
         
-        logger.info(f"OTP sent to {email} (context: {context})")
         return True, "OTP sent successfully."
         
     except Exception as e:
-        logger.error(f"Failed to send OTP to {email}: {str(e)}")
         return False, "Failed to send email. Please try again later."
 
 def get_otp_attempts_key(email):
@@ -186,7 +181,6 @@ def increment_otp_attempts(email):
     if data['attempts'] >= 3:
         lockout_duration = 900  # 15 minutes
         data['locked_until'] = time.time() + lockout_duration
-        logger.warning(f"OTP attempts exceeded for {email}. Locked for 15 minutes.")
     
     cache.set(key, data, timeout=1800)
     return data['attempts']
@@ -205,7 +199,6 @@ def verify_otp_code(email, code):
     
     if not allowed:
         wait_minutes = int((locked_until - time.time()) / 60) + 1
-        logger.warning(f"OTP verification blocked for {email} due to too many attempts")
         return None, f"Too many failed attempts. Please try again in {wait_minutes} minutes."
     
     stored_otp = cache.get(get_otp_key(email))
@@ -230,10 +223,13 @@ def verify_otp_code(email, code):
     verification_token = generate_otp(32)
     cache.set(get_verified_key(email), verification_token, timeout=VERIFIED_TOKEN_EXPIRY)
     
-    logger.info(f"OTP verified successfully for {email}")
     return verification_token, "OTP verified successfully."
 
 def check_verification_token(email, token):
     """Check if the email has a valid verification token."""
-    stored_token = cache.get(get_verified_key(email))
+    try:
+        stored_token = cache.get(get_verified_key(email))
+    except Exception:
+        # If cache/Redis is unavailable, treat as invalid to avoid 500s
+        return False
     return stored_token and stored_token == token

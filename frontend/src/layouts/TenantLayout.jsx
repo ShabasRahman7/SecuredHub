@@ -46,7 +46,12 @@ const TenantLayout = () => {
               <Menu className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-bold leading-tight text-white">SecuredHub</h2>
+              <h2 className="text-lg font-bold leading-tight text-white">Tenant Dashboard</h2>
+              {tenant?.name && (
+                <div className="hidden md:flex items-center gap-2 pl-2 border-l border-white/10">
+                  <span className="text-sm font-medium text-white">{tenant.name}</span>
+                </div>
+              )}
             </div>
             <label className="hidden md:flex flex-col min-w-40 !h-10 max-w-64">
               <div className="flex w-full flex-1 items-stretch rounded-lg h-full bg-[#0A0F16] border border-white/10">

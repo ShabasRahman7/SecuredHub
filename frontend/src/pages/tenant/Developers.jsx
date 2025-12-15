@@ -12,6 +12,8 @@ const Developers = () => {
     const [invites, setInvites] = useState([]);
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [resendingInvite, setResendingInvite] = useState(null);
+    const [actionLoading, setActionLoading] = useState(null); // member-level loading
+    const [inviteSubmitting, setInviteSubmitting] = useState(false);
 
     useEffect(() => {
         if (tenant) {
@@ -29,7 +31,7 @@ const Developers = () => {
     const fetchMembers = async () => {
         if (!currentTenant) return;
         try {
-            const res = await api.get(`/tenants/${currentTenant.id}/members/`);
+            const res = await api.get(`/tenants/${currentTenant.id}/members/?include_deleted=true`);
             setMembers(res.data.members || []);
         } catch (error) {
             console.error('Failed to fetch members', error);
@@ -95,17 +97,98 @@ const Developers = () => {
         }
     };
 
-    const handleRemoveMember = async (id) => {
-        const isConfirmed = await showConfirmDialog({ title: 'Remove Member?', text: "They will lose access.", icon: 'warning' });
+    const handleBlockMember = async (member, block = true) => {
+        if (!currentTenant) return;
+        const action = block ? 'block' : 'unblock';
+        const isConfirmed = await showConfirmDialog({
+            title: `${block ? 'Block' : 'Unblock'} member?`,
+            text: block
+                ? 'This will log the member out immediately and prevent them from signing in.'
+                : 'This will restore the member’s access so they can sign in again.',
+            confirmButtonText: `Yes, ${action} it!`,
+            cancelButtonText: 'Cancel',
+            icon: block ? 'warning' : 'info'
+        });
         if (!isConfirmed) return;
+
+        setActionLoading(member.id);
+        try {
+            const res = await api.post(`/tenants/${currentTenant.id}/members/${member.id}/block/`, { block });
+            if (res.data.success) {
+                showSuccessToast(res.data.message || (block ? 'Member blocked' : 'Member unblocked'));
+                setMembers(members.map(m => m.id === member.id ? { ...m, is_active: !block } : m));
+            }
+        } catch (error) {
+            showErrorToast(error.response?.data?.error?.message || 'Failed to update member');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleRemoveMember = async (id) => {
+        const isConfirmed = await showConfirmDialog({
+            title: 'Delete Member?',
+            text: "This will soft-delete the member. They will lose access immediately and their data will be scheduled for permanent deletion in 30 days. You can restore them before that.",
+            confirmButtonText: 'Yes, delete it!',
+            icon: 'warning'
+        });
+        if (!isConfirmed) return;
+        setActionLoading(id);
         try {
             const res = await api.delete(`/tenants/${currentTenant.id}/members/${id}/remove/`);
             if (res.data.success) {
-                showSuccessToast("Member removed");
-                setMembers(members.filter(m => m.id !== id));
+                showSuccessToast(res.data.message || "Member deleted. Data will be permanently removed in 30 days.");
+                // Refresh to update active/deleted lists
+                fetchMembers();
             }
         } catch (error) {
             showErrorToast("Failed to remove member");
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleRestoreMember = async (id) => {
+        const isConfirmed = await showConfirmDialog({
+            title: 'Restore Member?',
+            text: "This will restore the member and re-enable their access.",
+            confirmButtonText: 'Yes, restore it!',
+            icon: 'info'
+        });
+        if (!isConfirmed) return;
+        setActionLoading(id);
+        try {
+            const res = await api.post(`/tenants/${currentTenant.id}/members/${id}/restore/`);
+            if (res.data.success) {
+                showSuccessToast(res.data.message || "Member restored successfully");
+                fetchMembers();
+            }
+        } catch (error) {
+            showErrorToast(error.response?.data?.error?.message || "Failed to restore member");
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleHardDeleteMember = async (id) => {
+        const isConfirmed = await showConfirmDialog({
+            title: 'Permanently Delete Member?',
+            text: "This will permanently delete the member account and all associated data immediately. This action cannot be undone.",
+            confirmButtonText: 'Yes, permanently delete!',
+            icon: 'error'
+        });
+        if (!isConfirmed) return;
+        setActionLoading(id);
+        try {
+            const res = await api.delete(`/tenants/${currentTenant.id}/members/${id}/remove/?hard_delete=true`);
+            if (res.data.success) {
+                showSuccessToast(res.data.message || "Member permanently deleted");
+                fetchMembers();
+            }
+        } catch (error) {
+            showErrorToast(error.response?.data?.error?.message || "Failed to permanently delete member");
+        } finally {
+            setActionLoading(null);
         }
     };
 
@@ -119,6 +202,10 @@ const Developers = () => {
             </div>
         );
     }
+
+    // Split members into active and deleted (soft-deleted) lists
+    const activeMembers = members.filter(m => !m.deleted_at);
+    const deletedMembers = members.filter(m => m.deleted_at);
 
     return (
         <>
@@ -149,13 +236,13 @@ const Developers = () => {
                             <tr className="text-sm text-gray-400 border-b border-white/10">
                                 <th className="py-2 px-6 font-medium">Name</th>
                                 <th className="py-2 px-6 font-medium">Email</th>
-                                <th className="py-2 px-6 font-medium">Role</th>
+                                <th className="py-2 px-6 font-medium">Role / Status</th>
                                 <th className="py-2 px-6 font-medium">Joined</th>
                                 <th className="py-2 px-6 font-medium text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {members.map(member => (
+                            {activeMembers.map(member => (
                                 <tr key={member.id} className="text-sm border-b border-white/5 text-gray-300 hover:bg-white/5 transition-colors">
                                     <td className="py-4 px-6 font-medium text-white">
                                         <div className="flex items-center gap-3">
@@ -167,25 +254,115 @@ const Developers = () => {
                                     </td>
                                     <td className="py-4 px-6 text-gray-400">{member.email}</td>
                                     <td className="py-4 px-6">
-                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${member.role === 'owner' ? 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300'}`}>
-                                            {member.role.toUpperCase()}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`px-2 py-1 rounded text-xs font-semibold ${member.role === 'owner' ? 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300'}`}>
+                                                {member.role.toUpperCase()}
+                                            </span>
+                                            {member.role !== 'owner' && (
+                                                member.is_active ? (
+                                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-green-500/10 text-green-300 border border-green-500/20">ACTIVE</span>
+                                                ) : (
+                                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-red-500/10 text-red-300 border border-red-500/20">BLOCKED</span>
+                                                )
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="py-4 px-6 text-gray-400">{new Date(member.joined_at).toLocaleDateString()}</td>
                                     <td className="py-4 px-6 text-right">
                                         {member.role !== 'owner' && (
-                                            <button onClick={() => handleRemoveMember(member.id)} className="text-red-500 hover:bg-red-500/10 p-2 rounded transition-colors" title="Remove Member">
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleBlockMember(member, member.is_active)}
+                                                    disabled={actionLoading === member.id}
+                                                    className="px-3 py-1 rounded bg-white/5 hover:bg-white/10 text-yellow-300 text-xs font-semibold disabled:opacity-50"
+                                                    title={member.is_active ? 'Block' : 'Unblock'}
+                                                >
+                                                    {actionLoading === member.id ? <span className="loading loading-spinner loading-xs" /> : (member.is_active ? 'Block' : 'Unblock')}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleRemoveMember(member.id)}
+                                                    disabled={actionLoading === member.id}
+                                                    className="text-red-500 hover:bg-red-500/10 p-2 rounded transition-colors disabled:opacity-50"
+                                                    title="Remove Member"
+                                                >
+                                                    {actionLoading === member.id ? (
+                                                        <span className="loading loading-spinner loading-xs" />
+                                                    ) : (
+                                                        <Trash2 className="w-4 h-4" />
+                                                    )}
+                                                </button>
+                                            </div>
                                         )}
                                     </td>
                                 </tr>
                             ))}
-                            {members.length === 0 && <tr><td colSpan="5" className="py-8 text-center text-gray-500">No members found.</td></tr>}
+                            {activeMembers.length === 0 && <tr><td colSpan="5" className="py-8 text-center text-gray-500">No members found.</td></tr>}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            {/* Deleted Members (Soft-Deleted) */}
+            {deletedMembers.length > 0 && (
+                <div className="flex flex-col gap-4 rounded-xl p-6 border border-white/10 bg-[#0A0F16] mt-6">
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-semibold text-white">Deleted Members</h3>
+                        <span className="badge badge-sm bg-red-500/20 text-red-400 border-none">{deletedMembers.length}</span>
+                    </div>
+                    <div className="overflow-x-auto -mx-6">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-white/5 border-b border-white/10">
+                                <tr className="text-sm text-gray-400 border-b border-white/10">
+                                    <th className="py-2 px-6 font-medium">Name</th>
+                                    <th className="py-2 px-6 font-medium">Email</th>
+                                    <th className="py-2 px-6 font-medium">Deleted Date</th>
+                                    <th className="py-2 px-6 font-medium">Hard Delete Date</th>
+                                    <th className="py-2 px-6 font-medium text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {deletedMembers.map(member => (
+                                    <tr key={member.id} className="text-sm border-b border-white/5 text-gray-300 hover:bg-white/5 transition-colors">
+                                        <td className="py-4 px-6 font-medium text-white">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-red-500/10 rounded-full size-8 flex items-center justify-center text-red-400 font-bold">
+                                                    {member.first_name?.[0] || 'U'}
+                                                </div>
+                                                <span>{member.first_name} {member.last_name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-6 text-gray-400">{member.email}</td>
+                                        <td className="py-4 px-6 text-gray-400">
+                                            {member.deleted_at ? new Date(member.deleted_at).toLocaleDateString() : '-'}
+                                        </td>
+                                        <td className="py-4 px-6 text-gray-400">
+                                            {member.deletion_scheduled_at ? new Date(member.deletion_scheduled_at).toLocaleDateString() : '-'}
+                                        </td>
+                                        <td className="py-4 px-6 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleRestoreMember(member.id)}
+                                                    disabled={actionLoading === member.id}
+                                                    className="px-3 py-1 rounded bg-green-500/10 hover:bg-green-500/20 text-green-300 text-xs font-semibold disabled:opacity-50"
+                                                >
+                                                    {actionLoading === member.id ? <span className="loading loading-spinner loading-xs" /> : 'Restore'}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleHardDeleteMember(member.id)}
+                                                    disabled={actionLoading === member.id}
+                                                    className="px-3 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-300 text-xs font-semibold disabled:opacity-50"
+                                                >
+                                                    {actionLoading === member.id ? <span className="loading loading-spinner loading-xs" /> : 'Delete Now'}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Pending Invites */}
             {invites.length > 0 && (
@@ -281,9 +458,12 @@ const Developers = () => {
                         <h3 className="font-bold text-lg mb-4">Invite Developer</h3>
                         <form onSubmit={async (e) => {
                             e.preventDefault();
+                            if (inviteSubmitting) return;
+                            setInviteSubmitting(true);
                             const formData = new FormData(e.target);
                             const email = formData.get('email');
                             const success = await handleInvite(email);
+                            setInviteSubmitting(false);
                             if (success) {
                                 setShowInviteModal(false);
                             }
@@ -315,10 +495,17 @@ const Developers = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="btn btn-primary bg-primary border-none"
+                                    className="btn btn-primary bg-primary border-none disabled:opacity-50"
+                                    disabled={inviteSubmitting}
                                 >
-                                    <Mail className="w-4 h-4" />
-                                    Send Invite
+                                    {inviteSubmitting ? (
+                                        <span className="loading loading-spinner loading-sm" />
+                                    ) : (
+                                        <>
+                                            <Mail className="w-4 h-4" />
+                                            Send Invite
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </form>
