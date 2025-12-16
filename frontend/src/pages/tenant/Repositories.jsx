@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Link as LinkIcon, Trash2, Github, Search, X } from 'lucide-react';
+import { Link as LinkIcon, Trash2, Github, Search, X, Users, UserPlus, UserMinus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
 import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
@@ -11,8 +11,12 @@ const Repositories = () => {
     const { tenant } = useAuth();
     const [currentTenant, setCurrentTenant] = useState(null);
     const [repositories, setRepositories] = useState([]);
+    const [members, setMembers] = useState([]);
+    const [assignments, setAssignments] = useState({});
     const [showGitHubModal, setShowGitHubModal] = useState(false);
     const [showRepoModal, setShowRepoModal] = useState(false);
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [selectedRepoForAssign, setSelectedRepoForAssign] = useState(null);
     const [ghRepos, setGhRepos] = useState([]);
     const [filteredGhRepos, setFilteredGhRepos] = useState([]);
     const [loadingGhRepos, setLoadingGhRepos] = useState(false);
@@ -29,6 +33,7 @@ const Repositories = () => {
     useEffect(() => {
         if (currentTenant) {
             fetchRepositories();
+            fetchMembers();
         }
     }, [currentTenant]);
 
@@ -37,8 +42,29 @@ const Repositories = () => {
         try {
             const res = await api.get(`/tenants/${currentTenant.id}/repositories/`);
             setRepositories(res.data.repositories || []);
+            const assignmentsData = {};
+            for (const repo of res.data.repositories || []) {
+                try {
+                    const assignRes = await api.get(`/tenants/${currentTenant.id}/repositories/${repo.id}/assignments/`);
+                    assignmentsData[repo.id] = assignRes.data.assigned_member_ids || [];
+                } catch (err) {
+                    assignmentsData[repo.id] = [];
+                }
+            }
+            setAssignments(assignmentsData);
         } catch (error) {
-            console.error("Failed to fetch repositories", error);
+            toast.error('Failed to load repositories');
+        }
+    };
+
+    const fetchMembers = async () => {
+        if (!currentTenant) return;
+        try {
+            const res = await api.get(`/tenants/${currentTenant.id}/members/`);
+            const developers = (res.data.members || []).filter(m => m.role === 'developer' && !m.deleted_at);
+            setMembers(developers);
+        } catch (error) {
+            toast.error('Failed to load members');
         }
     };
 
@@ -67,7 +93,6 @@ const Repositories = () => {
             showSuccessToast("Repository deleted successfully");
             fetchRepositories();
         } catch (error) {
-            console.error('Failed to delete repository', error);
             showErrorToast("Failed to delete repository");
         }
     };
@@ -98,7 +123,6 @@ const Repositories = () => {
             setGhRepos(availableRepos);
             setFilteredGhRepos(availableRepos);
         } catch (err) {
-            console.error('Failed to fetch GitHub repos', err);
             toast.error('Failed to load GitHub repositories');
         } finally {
             setLoadingGhRepos(false);
@@ -135,7 +159,6 @@ const Repositories = () => {
             fetchRepositories();
             setShowGitHubModal(false);
         } catch (err) {
-            console.error('Import failed', err);
             toast.error('Failed to import repository');
         }
     };
@@ -168,7 +191,6 @@ const Repositories = () => {
 
     return (
         <>
-            {/* Title Section */}
             <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="flex min-w-72 flex-col gap-1">
                     <p className="text-2xl lg:text-3xl font-bold leading-tight tracking-tight">Repositories</p>
@@ -178,7 +200,6 @@ const Repositories = () => {
                 </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-wrap gap-3 justify-start">
                 <button
                     onClick={() => setShowGitHubModal(true)}
@@ -189,36 +210,104 @@ const Repositories = () => {
                 </button>
             </div>
 
-            {/* Repositories Grid */}
-            <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {repositories.map(repo => (
-                        <div key={repo.id} className="flex flex-col gap-3 p-6 rounded-xl border border-white/10 bg-[#0A0F16]">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h4 className="font-bold text-lg text-white">{repo.name}</h4>
-                                    <a href={repo.url} target="_blank" rel="noreferrer" className="text-sm text-blue-500 hover:underline flex items-center gap-1">
-                                        <LinkIcon className="w-3 h-3" /> {repo.url}
-                                    </a>
-                                </div>
-                                <span className={`badge ${repo.visibility === 'private' ? 'badge-warning bg-yellow-500/10 text-yellow-400 border-none' : 'badge-success bg-green-500/10 text-green-400 border-none'}`}>{repo.visibility}</span>
-                            </div>
-                            <div className="mt-auto pt-4 border-t border-white/10 flex justify-end items-center">
-                                <button 
-                                    className="btn btn-sm btn-ghost text-red-500 hover:bg-red-500/10" 
-                                    onClick={() => handleDeleteRepository(repo.id, repo.name)}
-                                    title="Delete Repository"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                    {repositories.length === 0 && <div className="col-span-full text-center py-10 text-gray-500">No repositories connected. Add one to get started.</div>}
-                </div>
+            <div className="bg-[#0A0F16] rounded-xl border border-white/10 overflow-hidden">
+                {repositories.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                        <Github className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                        <p className="text-lg">No repositories connected</p>
+                        <p className="text-sm mt-2">Import from GitHub to get started</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="table w-full">
+                            <thead>
+                                <tr className="border-b border-white/10">
+                                    <th className="text-gray-400 font-semibold">Repository</th>
+                                    <th className="text-gray-400 font-semibold">Visibility</th>
+                                    <th className="text-gray-400 font-semibold">Assigned Developers</th>
+                                    <th className="text-gray-400 font-semibold">Created</th>
+                                    <th className="text-gray-400 font-semibold text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {repositories.map(repo => {
+                                    const assignedMemberIds = assignments[repo.id] || [];
+                                    const assignedMembers = members.filter(m => assignedMemberIds.includes(m.id));
+                                    return (
+                                        <tr key={repo.id} className="border-b border-white/5 hover:bg-white/5">
+                                            <td>
+                                                <div>
+                                                    <div className="font-semibold text-white">{repo.name}</div>
+                                                    <a 
+                                                        href={repo.url} 
+                                                        target="_blank" 
+                                                        rel="noreferrer" 
+                                                        className="text-sm text-blue-400 hover:underline flex items-center gap-1 mt-1"
+                                                    >
+                                                        <LinkIcon className="w-3 h-3" /> 
+                                                        <span className="truncate max-w-xs">{repo.url}</span>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className={`badge badge-sm ${
+                                                    repo.visibility === 'private' 
+                                                        ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' 
+                                                        : 'bg-green-500/10 text-green-400 border-green-500/20'
+                                                } border`}>
+                                                    {repo.visibility}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div className="flex items-center gap-2">
+                                                    {assignedMembers.length > 0 ? (
+                                                        <>
+                                                            <Users className="w-4 h-4 text-gray-400" />
+                                                            <span className="text-sm text-gray-300">{assignedMembers.length}</span>
+                                                            <span className="text-xs text-gray-500">
+                                                                ({assignedMembers.map(m => m.email).join(', ')})
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-sm text-gray-500">None assigned</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className="text-sm text-gray-400">
+                                                    {new Date(repo.created_at).toLocaleDateString()}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        className="btn btn-sm btn-ghost text-blue-400 hover:bg-blue-500/10"
+                                                        onClick={() => {
+                                                            setSelectedRepoForAssign(repo);
+                                                            setShowAssignModal(true);
+                                                        }}
+                                                        title="Manage Assignments"
+                                                    >
+                                                        <UserPlus className="w-4 h-4" />
+                                                    </button>
+                                                    <button 
+                                                        className="btn btn-sm btn-ghost text-red-500 hover:bg-red-500/10" 
+                                                        onClick={() => handleDeleteRepository(repo.id, repo.name)}
+                                                        title="Delete Repository"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
-            {/* GitHub Import Modal */}
             {showGitHubModal && (
                 <div className="modal modal-open">
                     <div className="modal-box dark:bg-[#1a1d21] border dark:border-[#282f39] max-w-xl">
@@ -293,7 +382,104 @@ const Repositories = () => {
                 </div>
             )}
 
-            {/* Add Repository Modal */}
+            {showAssignModal && selectedRepoForAssign && (
+                <div className="modal modal-open">
+                    <div className="modal-box dark:bg-[#1a1d21] border dark:border-[#282f39] max-w-2xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-lg text-white">
+                                Manage Assignments - {selectedRepoForAssign.name}
+                            </h3>
+                            <button
+                                className="btn btn-sm btn-circle btn-ghost"
+                                onClick={() => {
+                                    setShowAssignModal(false);
+                                    setSelectedRepoForAssign(null);
+                                }}
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="text-sm font-semibold text-gray-400 mb-3">Assign Developers</h4>
+                                {members.length === 0 ? (
+                                    <p className="text-sm text-gray-500">No developers available</p>
+                                ) : (
+                                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                                        {members.map(member => {
+                                            const isAssigned = (assignments[selectedRepoForAssign.id] || []).includes(member.id);
+                                            return (
+                                                <div
+                                                    key={member.id}
+                                                    className="flex items-center justify-between p-3 rounded border border-white/10 bg-[#0A0F16]"
+                                                >
+                                                    <div>
+                                                        <div className="font-medium text-white">{member.email}</div>
+                                                        <div className="text-xs text-gray-400">{member.role}</div>
+                                                    </div>
+                                                    {isAssigned ? (
+                                                        <button
+                                                            className="btn btn-sm btn-ghost text-red-400 hover:bg-red-500/10"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    const assignRes = await api.get(`/tenants/${currentTenant.id}/repositories/${selectedRepoForAssign.id}/assignments/`);
+                                                                    const assignment = assignRes.data.assignments.find(a => a.member_id === member.id);
+                                                                    if (assignment) {
+                                                                        await api.delete(`/tenants/${currentTenant.id}/repositories/${selectedRepoForAssign.id}/assignments/${assignment.id}/unassign/`);
+                                                                        toast.success(`Unassigned ${member.email}`);
+                                                                        fetchRepositories();
+                                                                    }
+                                                                } catch (error) {
+                                                                    toast.error('Failed to unassign developer');
+                                                                }
+                                                            }}
+                                                        >
+                                                            <UserMinus className="w-4 h-4 mr-1" />
+                                                            Unassign
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            className="btn btn-sm btn-primary"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await api.post(`/tenants/${currentTenant.id}/repositories/${selectedRepoForAssign.id}/assign/`, {
+                                                                        member_id: member.id
+                                                                    });
+                                                                    toast.success(`Assigned ${member.email}`);
+                                                                    fetchRepositories();
+                                                                } catch (error) {
+                                                                    toast.error(error.response?.data?.error || 'Failed to assign developer');
+                                                                }
+                                                            }}
+                                                        >
+                                                            <UserPlus className="w-4 h-4 mr-1" />
+                                                            Assign
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="modal-action mt-6">
+                            <button 
+                                className="btn btn-ghost" 
+                                onClick={() => {
+                                    setShowAssignModal(false);
+                                    setSelectedRepoForAssign(null);
+                                }}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showRepoModal && (
                 <div className="modal modal-open">
                     <div className="modal-box dark:bg-[#1a1d21] border dark:border-[#282f39]">

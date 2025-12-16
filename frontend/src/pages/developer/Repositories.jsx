@@ -16,14 +16,12 @@ const Repositories = () => {
             try {
                 const response = await api.get(`/tenants/${tenant.id}/repositories/`);
                 const repositories = response.data.repositories || [];
-                const reposWithTenant = repositories.map(r => ({ 
+                setRepos(repositories.map(r => ({ 
                     ...r, 
                     orgName: tenant.name,
                     orgId: tenant.id 
-                }));
-                setRepos(reposWithTenant);
+                })));
             } catch (error) {
-                console.error('Failed to fetch repositories:', error);
                 toast.error('Failed to load repositories');
                 setRepos([]);
             } finally {
@@ -39,7 +37,6 @@ const Repositories = () => {
 
     return (
         <>
-            {/* Title Section */}
             <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="flex min-w-72 flex-col gap-1">
                     <p className="text-2xl lg:text-3xl font-bold leading-tight tracking-tight">Repositories</p>

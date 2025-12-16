@@ -5,9 +5,9 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiTypes
 
-from accounts.models import Tenant
+from accounts.models import Tenant, TenantMember
 from accounts.permissions import IsTenantMember, IsTenantOwner
-from repositories.models import Repository
+from repositories.models import Repository, RepositoryAssignment
 from repositories.serializers import RepositorySerializer, RepositoryCreateSerializer
 
 
@@ -23,7 +23,17 @@ class RepositoryListView(APIView):
         tenant = get_object_or_404(Tenant, id=tenant_id)
         self.check_object_permissions(request, tenant)
         
-        repositories = tenant.repositories.filter(is_active=True)
+        try:
+            member = TenantMember.objects.get(user=request.user, tenant=tenant)
+            if member.role == TenantMember.ROLE_DEVELOPER:
+                assignments = RepositoryAssignment.objects.filter(member=member)
+                repository_ids = [a.repository.id for a in assignments]
+                repositories = tenant.repositories.filter(id__in=repository_ids, is_active=True)
+            else:
+                repositories = tenant.repositories.filter(is_active=True)
+        except TenantMember.DoesNotExist:
+            repositories = tenant.repositories.filter(is_active=True)
+        
         serializer = RepositorySerializer(repositories, many=True)
         
         return Response({'repositories': serializer.data}, status=status.HTTP_200_OK)
