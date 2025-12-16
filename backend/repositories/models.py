@@ -1,5 +1,5 @@
 from django.db import models
-from accounts.models import Tenant
+from accounts.models import Tenant, TenantMember
 from cryptography.fernet import Fernet
 from django.conf import settings
 import base64
@@ -161,7 +161,6 @@ class Repository(models.Model):
     default_branch = models.CharField(max_length=100, default='main')
     description = models.TextField(null=True, blank=True)
     
-    # Link to credential for private repository access
     credential = models.ForeignKey(
         TenantCredential,
         on_delete=models.SET_NULL,
@@ -185,3 +184,43 @@ class Repository(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.tenant.name})"
+
+
+class RepositoryAssignment(models.Model):
+    """Assigns repositories to developers within a tenant."""
+    
+    repository = models.ForeignKey(
+        Repository,
+        on_delete=models.CASCADE,
+        related_name='assignments',
+        db_index=True
+    )
+    
+    member = models.ForeignKey(
+        TenantMember,
+        on_delete=models.CASCADE,
+        related_name='repository_assignments',
+        db_index=True,
+        help_text="Developer assigned to this repository"
+    )
+    
+    assigned_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_repositories',
+        help_text="User who assigned this repository"
+    )
+    
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'repository_assignments'
+        verbose_name = 'Repository Assignment'
+        verbose_name_plural = 'Repository Assignments'
+        unique_together = ('repository', 'member')
+        ordering = ['-assigned_at']
+    
+    def __str__(self):
+        return f"{self.member.user.email} → {self.repository.name}"
