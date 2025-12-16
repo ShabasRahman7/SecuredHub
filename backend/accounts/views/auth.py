@@ -151,7 +151,7 @@ class LoginView(APIView):
         # Manually verify user credentials so we can distinguish between
         # "invalid credentials" and "account blocked / disabled".
         user = User.objects.filter(email=email).first()
-
+        
         if not user or not user.check_password(password):
             return Response({
                 "success": False,
