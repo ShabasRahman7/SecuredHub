@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Github, GitBranch, Server, Key, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -11,6 +11,9 @@ const CredentialsPage = () => {
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState(null);
+    const [githubOAuthProcessing, setGithubOAuthProcessing] = useState(false);
+    const oauthMessageReceivedRef = useRef(false);
+    const oauthWindowRef = useRef(null);
 
     // Provider configurations
     const providers = [
@@ -74,23 +77,62 @@ const CredentialsPage = () => {
 
     useEffect(() => {
         fetchCredentials();
+        
+        // Check for localStorage fallback (in case postMessage doesn't work)
+        const checkLocalStorage = () => {
+            const success = localStorage.getItem('github_oauth_success');
+            const error = localStorage.getItem('github_oauth_error');
+            
+            if (success === 'true') {
+                localStorage.removeItem('github_oauth_success');
+                setGithubOAuthProcessing(false);
+                toast.success('GitHub connected successfully!');
+                fetchCredentials();
+            } else if (error) {
+                localStorage.removeItem('github_oauth_error');
+                setGithubOAuthProcessing(false);
+                toast.error(`GitHub connection failed: ${error}`);
+                fetchCredentials();
+            }
+        };
+        
+        // Check on mount and on focus
+        checkLocalStorage();
+        window.addEventListener('focus', checkLocalStorage);
+        
+        // Listen for messages from OAuth window
+        const handleMessage = (event) => {
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+            
+            if (event.data.type === 'github_oauth_success') {
+                oauthMessageReceivedRef.current = true;
+                setGithubOAuthProcessing(false);
+                toast.success('GitHub connected successfully!');
+                fetchCredentials();
+            } else if (event.data.type === 'github_oauth_error') {
+                oauthMessageReceivedRef.current = true;
+                setGithubOAuthProcessing(false);
+                toast.error(`GitHub connection failed: ${event.data.message || 'Unknown error'}`);
+                fetchCredentials();
+            }
+        };
+        
+        window.addEventListener('message', handleMessage);
+        
+        return () => {
+            window.removeEventListener('message', handleMessage);
+            window.removeEventListener('focus', checkLocalStorage);
+        };
     }, []);
 
     const fetchCredentials = async () => {
         try {
             setLoading(true);
             const response = await credentialsApi.listCredentials(tenant.id);
-            console.log('Credentials API Response:', response);
-            console.log('Credentials data:', response.credentials);
-
-            // Log each credential's repository count for debugging
-            response.credentials?.forEach(cred => {
-                console.log(`Credential "${cred.name}" - Repositories: ${cred.repositories_count}`);
-            });
-
             setCredentials(response.credentials || []);
         } catch (error) {
-            console.error('Error fetching credentials:', error);
             toast.error('Failed to load credentials');
             setCredentials([]);
         } finally {
@@ -105,6 +147,19 @@ const CredentialsPage = () => {
         }
 
         if (provider.id === 'github') {
+            // Check if GitHub credential already exists
+            const existingGitHubCredential = credentials.find(
+                cred => cred.provider === 'github' && cred.is_active
+            );
+            
+            if (existingGitHubCredential) {
+                toast.warning(
+                    `A GitHub credential "${existingGitHubCredential.name}" is already connected. Please delete it first before connecting a new one.`,
+                    { autoClose: 5000 }
+                );
+                return;
+            }
+            
             handleGitHubOAuth();
         } else {
             // For future providers, show modal
@@ -124,17 +179,11 @@ const CredentialsPage = () => {
 
         if (!clientId || clientId === 'your_github_client_id') {
             toast.error('GitHub OAuth is not configured. Please set VITE_GITHUB_CLIENT_ID in your .env file.');
-            console.error('GitHub OAuth Setup Required:', {
-                message: 'Please configure GitHub OAuth',
-                steps: [
-                    '1. Create a GitHub OAuth App at https://github.com/settings/developers',
-                    '2. Set VITE_GITHUB_CLIENT_ID in frontend/.env',
-                    '3. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in backend/.env',
-                    '4. Restart both servers'
-                ]
-            });
             return;
         }
+
+        // Show processing modal
+        setGithubOAuthProcessing(true);
 
         // Redirect to GitHub OAuth
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1';
@@ -144,8 +193,44 @@ const CredentialsPage = () => {
 
         const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}`;
 
-        toast.info('Redirecting to GitHub for authorization...');
-        window.location.href = githubAuthUrl;
+        // Reset message received flag
+        oauthMessageReceivedRef.current = false;
+        
+        // Open GitHub OAuth in a new window
+        const oauthWindow = window.open(githubAuthUrl, '_blank');
+        oauthWindowRef.current = oauthWindow;
+        
+        // Check if window was blocked
+        if (!oauthWindow) {
+            setGithubOAuthProcessing(false);
+            toast.error('Please allow popups for this site to connect GitHub');
+            return;
+        }
+        
+        // Only check for manual close after a delay (to allow postMessage to arrive first)
+        setTimeout(() => {
+            const checkClosed = setInterval(() => {
+                if (oauthWindow.closed && !oauthMessageReceivedRef.current) {
+                    clearInterval(checkClosed);
+                    setGithubOAuthProcessing(false);
+                    toast.error('GitHub authorization was cancelled');
+                } else if (oauthMessageReceivedRef.current) {
+                    clearInterval(checkClosed);
+                }
+            }, 1000);
+            
+            // Cleanup after 5 minutes
+            setTimeout(() => {
+                clearInterval(checkClosed);
+                setGithubOAuthProcessing((prev) => {
+                    if (prev && !oauthMessageReceivedRef.current) {
+                        toast.error('GitHub authorization timed out');
+                        return false;
+                    }
+                    return prev;
+                });
+            }, 300000);
+        }, 3000); // Wait 3 seconds before checking for manual close
     };
 
     const handleAddCredential = async (e) => {
@@ -158,7 +243,6 @@ const CredentialsPage = () => {
             setNewCredential({ name: '', provider: '', access_token: '' });
             fetchCredentials();
         } catch (error) {
-            console.error('Error adding credential:', error);
             const errorMessage = error.response?.data?.error || 'Failed to add credential';
             toast.error(errorMessage);
         }
@@ -192,10 +276,6 @@ const CredentialsPage = () => {
 
             fetchCredentials();
         } catch (error) {
-            console.error('Error deleting credential:', error);
-            console.error('Error status:', error.response?.status);
-            console.error('Error response data:', error.response?.data);
-            console.error('Full error response:', JSON.stringify(error.response?.data, null, 2));
             const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to delete credential';
             toast.error(errorMessage);
         }
@@ -233,15 +313,21 @@ const CredentialsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {providers.map((provider) => {
                         const IconComponent = provider.icon;
+                        const existingGitHubCredential = provider.id === 'github' 
+                            ? credentials.find(cred => cred.provider === 'github' && cred.is_active)
+                            : null;
+                        const isGitHubAlreadyConnected = provider.id === 'github' && existingGitHubCredential;
+                        const isDisabled = !provider.available || isGitHubAlreadyConnected;
+                        
                         return (
                             <div
                                 key={provider.id}
-                                onClick={() => handleProviderSelect(provider)}
+                                onClick={() => !isDisabled && handleProviderSelect(provider)}
                                 className={`
-                                    relative p-6 rounded-xl border cursor-pointer transition-all duration-200
-                                    ${provider.available
-                                        ? `${provider.color} border-transparent hover:scale-105 hover:shadow-lg`
-                                        : 'bg-[#0A0F16] border-white/10 hover:bg-white/5 cursor-not-allowed opacity-75'
+                                    relative p-6 rounded-xl border transition-all duration-200
+                                    ${isDisabled
+                                        ? 'bg-[#0A0F16] border-white/10 hover:bg-white/5 cursor-not-allowed opacity-75'
+                                        : `${provider.color} border-transparent hover:scale-105 hover:shadow-lg cursor-pointer`
                                     }
                                 `}
                             >
@@ -252,23 +338,45 @@ const CredentialsPage = () => {
                                         </span>
                                     </div>
                                 )}
+                                
+                                {isGitHubAlreadyConnected && (
+                                    <div className="absolute top-2 right-2">
+                                        <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                                            Connected
+                                        </span>
+                                    </div>
+                                )}
 
                                 <div className="flex flex-col items-center text-center">
-                                    <IconComponent className={`w-8 h-8 mb-3 ${provider.available ? provider.textColor : 'text-gray-400'}`} />
-                                    <h3 className={`font-semibold mb-2 ${provider.available ? provider.textColor : 'text-gray-400'}`}>
+                                    <IconComponent className={`w-8 h-8 mb-3 ${isDisabled ? 'text-gray-400' : provider.textColor}`} />
+                                    <h3 className={`font-semibold mb-2 ${isDisabled ? 'text-gray-400' : provider.textColor}`}>
                                         {provider.name}
                                     </h3>
-                                    <p className={`text-sm mb-3 ${provider.available ? 'text-gray-200' : 'text-gray-500'}`}>
+                                    <p className={`text-sm mb-3 ${isDisabled ? 'text-gray-500' : 'text-gray-200'}`}>
                                         {provider.description}
                                     </p>
                                     {provider.available && provider.id === 'github' && (
-                                        <button className="btn btn-sm btn-outline text-white border-white hover:bg-white hover:text-gray-900">
-                                            Connect GitHub
+                                        <button 
+                                            disabled={isGitHubAlreadyConnected}
+                                            className={`
+                                                btn btn-sm btn-outline transition-all
+                                                ${isGitHubAlreadyConnected
+                                                    ? 'text-gray-400 border-gray-600 cursor-not-allowed opacity-50'
+                                                    : 'text-white border-white hover:bg-white hover:text-gray-900'
+                                                }
+                                            `}
+                                        >
+                                            {isGitHubAlreadyConnected ? 'Already Connected' : 'Connect GitHub'}
                                         </button>
                                     )}
                                     {provider.available && provider.id === 'github' && (!import.meta.env.VITE_GITHUB_CLIENT_ID || import.meta.env.VITE_GITHUB_CLIENT_ID === 'your_github_client_id') && (
                                         <p className="text-xs text-yellow-400 mt-2">
                                             OAuth not configured
+                                        </p>
+                                    )}
+                                    {isGitHubAlreadyConnected && (
+                                        <p className="text-xs text-gray-400 mt-2">
+                                            Delete existing credential to connect another
                                         </p>
                                     )}
                                 </div>
@@ -337,6 +445,23 @@ const CredentialsPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* GitHub OAuth Processing Modal */}
+            {githubOAuthProcessing && (
+                <div className="modal modal-open">
+                    <div className="modal-box dark:bg-[#1a1d21] border dark:border-[#282f39]">
+                        <div className="flex flex-col items-center justify-center py-8">
+                            <div className="loading loading-spinner loading-lg text-primary mb-4"></div>
+                            <h3 className="font-bold text-lg mb-2 text-white">Connecting to GitHub</h3>
+                            <p className="text-gray-400 text-sm text-center">
+                                Please complete the authorization in the new window.
+                                <br />
+                                This window will close automatically when done.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* OAuth Info Modal - for non-GitHub providers */}
             {showAddModal && selectedProvider && selectedProvider.id !== 'github' && (

@@ -26,6 +26,7 @@ import ProtectedRoute from './ProtectedRoute';
 import GuestRoute from './GuestRoute';
 import PublicRoute from './PublicRoute';
 import LandingPage from '../pages/LandingPage';
+import GitHubCallback from '../pages/auth/GitHubCallback';
 import Layout from '../layouts/Layout';
 import AdminLayout from '../layouts/AdminLayout';
 import TenantLayout from '../layouts/TenantLayout';
@@ -44,6 +45,9 @@ const AppRoutes = () => {
             {/* Invite-Only Registration (Token Required) */}
             <Route path="/register" element={<Register />} />
             <Route path="/accept-invite/:token" element={<AcceptInvite />} />
+            
+            {/* GitHub OAuth Callback */}
+            <Route path="/auth/github/callback" element={<GitHubCallback />} />
 
             {/* Admin Layout Routes */}
             <Route

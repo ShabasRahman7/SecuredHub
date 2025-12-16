@@ -161,7 +161,7 @@ class MemberListView(APIView):
     def get(self, request, tenant_id):
         tenant = get_object_or_404(Tenant, id=tenant_id)
         self.check_object_permissions(request, tenant)
-
+        
         include_deleted = request.query_params.get('include_deleted', 'false').lower() == 'true'
 
         if include_deleted:
@@ -200,11 +200,11 @@ class MemberRemoveView(APIView):
         """
         tenant = get_object_or_404(Tenant, id=tenant_id)
         self.check_object_permissions(request, tenant)
-
+        
         hard_delete = request.query_params.get('hard_delete', 'false').lower() == 'true'
 
         member = get_object_or_404(TenantMember, id=member_id, tenant=tenant)
-
+        
         if member.user == request.user:
             return Response(
                 {
@@ -216,7 +216,7 @@ class MemberRemoveView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        
         if hard_delete:
             user_email = member.user.email
             # Hard delete: permanently remove the underlying user account
@@ -263,7 +263,7 @@ class MemberRestoreView(APIView):
         )
 
         member.restore()
-
+        
         return Response(
             {
                 "success": True,
