@@ -38,13 +38,15 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',  # Must be first for ASGI
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
     # Third party apps
     'rest_framework',
     'rest_framework_simplejwt',
@@ -301,3 +303,18 @@ CACHES = {
 # If CELERY_RESULT_BACKEND not explicitly set, reuse REDIS_URL when provided
 if not os.getenv('CELERY_RESULT_BACKEND') and REDIS_URL:
     CELERY_RESULT_BACKEND = REDIS_URL
+
+# Django Channels Configuration
+ASGI_APPLICATION = 'core.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(
+                os.getenv('REDIS_HOST', 'redis'),
+                int(os.getenv('REDIS_PORT', 6379))
+            )],
+        },
+    },
+}
