@@ -10,6 +10,7 @@ from accounts.permissions import IsTenantMember
 from repositories.models import Repository
 from .models import Scan
 from .serializers import ScanSerializer, ScanFindingSerializer
+from .tasks import run_security_scan
 
 
 class TriggerScanView(APIView):
@@ -25,14 +26,23 @@ class TriggerScanView(APIView):
         repo = get_object_or_404(Repository, id=repo_id)
         self.check_object_permissions(request, repo.tenant)
         
+        # Create scan record
         scan = Scan.objects.create(
             repository=repo,
             triggered_by=request.user,
             status="queued",
             branch=repo.default_branch
         )
-
-        return Response(ScanSerializer(scan).data, status=status.HTTP_201_CREATED)
+        
+        # Queue the scan task
+        task = run_security_scan.delay(scan.id)
+        
+        # Serialize and return
+        serializer = ScanSerializer(scan)
+        return Response({
+            **serializer.data,
+            'task_id': task.id
+        }, status=status.HTTP_201_CREATED)
 
 
 class ListScansView(APIView):

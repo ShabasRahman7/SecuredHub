@@ -269,18 +269,35 @@ REPOSITORY_ENCRYPTION_KEY = os.getenv('REPOSITORY_ENCRYPTION_KEY', 'xmcC6B0bOp_L
 GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
 GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
 
-# Redis Cache Configuration
+# Redis Cache / Result Backend Configuration (supports Upstash via REDIS_URL)
+REDIS_URL = os.getenv('REDIS_URL', '')
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
 
+if REDIS_URL:
+    redis_location = REDIS_URL
+else:
+    REDIS_SCHEME = 'redis'
+    REDIS_AUTH = f":{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
+    redis_location = f"{REDIS_SCHEME}://{REDIS_AUTH}{REDIS_HOST}:{REDIS_PORT}/0"
+
+redis_options = {
+    "CLIENT_CLASS": "django_redis.client.DefaultClient",
+}
+
+# Upstash and other managed providers commonly use rediss://
+if redis_location.startswith("rediss://"):
+    redis_options["SSL_CERT_REQS"] = None
+
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"rediss://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS": {"ssl_cert_reqs": None}
-        }
+        "LOCATION": redis_location,
+        "OPTIONS": redis_options,
     }
 }
+
+# If CELERY_RESULT_BACKEND not explicitly set, reuse REDIS_URL when provided
+if not os.getenv('CELERY_RESULT_BACKEND') and REDIS_URL:
+    CELERY_RESULT_BACKEND = REDIS_URL

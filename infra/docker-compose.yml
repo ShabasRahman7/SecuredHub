@@ -53,6 +53,8 @@ services:
     environment:
       - DB_HOST=db
       - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - RABBITMQ_USER=guest
       - RABBITMQ_PASSWORD=guest
       - EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
@@ -73,6 +75,18 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - secured_hub_network
+
+  # Redis (result backend / cache)
+  redis:
+    image: redis:7-alpine
+    container_name: secured_hub_redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
     networks:
       - secured_hub_network
 
