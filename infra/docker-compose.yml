@@ -91,11 +91,19 @@ services:
       - secured_hub_network
 
   # ============================================
-  # WEEK 2+ SERVICES (Uncomment when needed)
+  # WEEK 2+ SERVICES (Uncomment when ready)
   # ============================================
-
+  #
+  # NOTE (Week 1):
+  # - For now, all Celery scan tasks run on the main backend worker
+  #   that you start manually inside the `secured_hub_api` container:
+  #     celery -A core worker --loglevel=info
+  # - The dedicated scanner-worker below is part of the long‑term
+  #   architecture and will be enabled in Week 2 once the separate
+  #   `worker/` service is ready.
+  #
   # Scanner Service - Week 2 Day 3
-  # Uncomment after fixing worker/requirements.txt
+  # Uncomment after fixing worker/requirements.txt and wiring scanner code
   # scanner-worker:
   #   build:
   #     context: ../worker
