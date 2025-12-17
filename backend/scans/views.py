@@ -4,13 +4,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiTypes
+from celery import current_app
 
 from accounts.models import Tenant
 from accounts.permissions import IsTenantMember
 from repositories.models import Repository
 from .models import Scan
 from .serializers import ScanSerializer, ScanFindingSerializer
-from .tasks import run_security_scan
 
 
 class TriggerScanView(APIView):
@@ -34,8 +34,8 @@ class TriggerScanView(APIView):
             branch=repo.default_branch
         )
         
-        # Queue the scan task
-        task = run_security_scan.delay(scan.id)
+        # Queue the scan task (calls standalone worker)
+        task = current_app.send_task("scans.tasks.run_security_scan", args=[scan.id])
         
         # Serialize and return
         serializer = ScanSerializer(scan)

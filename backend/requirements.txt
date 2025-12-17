@@ -8,9 +8,10 @@ drf-spectacular
 drf-spectacular-sidecar
 django-redis
 redis
-drf-spectacular
-drf-spectacular-sidecar
 celery==5.3.6
 eventlet==0.33.3
 cryptography==41.0.7
 requests==2.31.0
+channels==4.2.0
+channels-redis==4.2.1
+daphne==4.1.2

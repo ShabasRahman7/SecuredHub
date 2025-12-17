@@ -1,12 +1,20 @@
 import logging
 import time
+import os
+import sys
+from pathlib import Path
+
+backend_path = Path(__file__).resolve().parent.parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
+
+import django
+django.setup()
 
 from asgiref.sync import async_to_sync
-from celery import shared_task
 from channels.layers import get_channel_layer
-from django.utils import timezone
-
-from .models import Scan
+from .celery_app import app
+from .db import get_scan, update_scan_status
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +28,16 @@ def _send_ws_update(channel_layer, group_name, payload):
     )
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def run_security_scan(self, scan_id):
-    """Execute security scan and broadcast progress via WebSocket."""
+@app.task(bind=True, name="scans.tasks.run_security_scan", max_retries=3, default_retry_delay=60)
+def run_security_scan(self, scan_id: int):
     channel_layer = get_channel_layer()
     group_name = f"scan_{scan_id}"
-
+    
     try:
-        scan = Scan.objects.get(id=scan_id)
+        scan = get_scan(scan_id)
+        if not scan:
+            logger.error(f"Scan {scan_id} not found")
+            raise ValueError(f"Scan {scan_id} not found")
 
         _send_ws_update(channel_layer, group_name, {
             "scan_id": scan_id,
@@ -35,10 +45,7 @@ def run_security_scan(self, scan_id):
             "message": "Scan started",
             "progress": 0,
         })
-
-        scan.status = "running"
-        scan.started_at = timezone.now()
-        scan.save()
+        update_scan_status(scan_id, "running")
 
         logger.info(f"Starting scan {scan_id} for repository {scan.repository.name}")
 
@@ -53,12 +60,7 @@ def run_security_scan(self, scan_id):
 
         time.sleep(6)
 
-        scan.status = "completed"
-        scan.completed_at = timezone.now()
-        scan.save()
-
-        logger.info(f"Scan {scan_id} completed successfully")
-
+        update_scan_status(scan_id, "completed")
         _send_ws_update(channel_layer, group_name, {
             "scan_id": scan_id,
             "status": "completed",
@@ -67,28 +69,20 @@ def run_security_scan(self, scan_id):
             "findings_count": 0,
         })
 
+        logger.info(f"Scan {scan_id} completed successfully")
+
         return {"scan_id": scan_id, "status": "completed", "findings_count": 0}
 
-    except Scan.DoesNotExist:
-        logger.error(f"Scan {scan_id} not found")
-        raise
     except Exception as exc:
         logger.error(f"Scan {scan_id} failed: {str(exc)}")
-
-        try:
-            scan = Scan.objects.get(id=scan_id)
-            scan.status = "failed"
-            scan.error_message = str(exc)
-            scan.completed_at = timezone.now()
-            scan.save()
-        except Exception:
-            pass
-
-        _send_ws_update(channel_layer, group_name, {
-            "scan_id": scan_id,
-            "status": "failed",
-            "message": str(exc),
-            "progress": None,
-        })
-
+        update_scan_status(scan_id, "failed", error_message=str(exc))
+        
+        if channel_layer:
+            _send_ws_update(channel_layer, group_name, {
+                "scan_id": scan_id,
+                "status": "failed",
+                "message": str(exc),
+                "progress": None,
+            })
+        
         raise self.retry(exc=exc)
