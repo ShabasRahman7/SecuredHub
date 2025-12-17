@@ -5,17 +5,17 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 from .models import Scan
 
-SKIP_AUTH = True  # Set False in production
+SKIP_AUTH = False  # Set True only for wscat testing
 
 
 class ScanConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.scan_id = self.scope['url_route']['kwargs']['scan_id']
         self.group_name = f'scan_{self.scan_id}'
-        self.user = self.scope['user']
+        self.user = self.scope.get('user')
 
         if not SKIP_AUTH:
-            if not self.user.is_authenticated:
+            if not self.user or not self.user.is_authenticated:
                 await self.close()
                 return
 
@@ -73,7 +73,7 @@ class ScanConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def check_permission(self, scan):
-        if not self.user.is_authenticated:
+        if not self.user or not self.user.is_authenticated:
             return False
         if self.user.is_staff:
             return True

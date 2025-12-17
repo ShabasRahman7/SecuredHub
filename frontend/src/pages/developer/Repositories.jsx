@@ -1,13 +1,111 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { ExternalLink, Play, Shield } from 'lucide-react';
+import { ExternalLink, Play, Shield, Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
+import useWebSocket from '../../hooks/useWebSocket';
+
+const ScanButton = ({ repo, tenantId, onScanComplete }) => {
+    const [scanning, setScanning] = useState(false);
+    const [scanId, setScanId] = useState(null);
+    const [progress, setProgress] = useState(0);
+    const [scanStatus, setScanStatus] = useState(null);
+
+    // Check for running scans on mount
+    useEffect(() => {
+        const checkRunningScan = async () => {
+            try {
+                const response = await api.get(`/repos/${repo.id}/scans/`);
+                const scans = response.data || [];
+                const runningScan = scans.find(s => s.status === 'queued' || s.status === 'running');
+                if (runningScan) {
+                    setScanId(runningScan.id);
+                    setScanStatus(runningScan.status);
+                    setScanning(true);
+                }
+            } catch (err) {
+                // No scans or error - ignore
+            }
+        };
+        checkRunningScan();
+    }, [repo.id]);
+
+    useWebSocket(scanId, {
+        onMessage: (data) => {
+            if (data.status) {
+                setScanStatus(data.status);
+            }
+            if (data.progress !== undefined) {
+                setProgress(data.progress);
+            }
+            if (data.status === 'completed' || data.status === 'failed') {
+                setScanning(false);
+                setScanId(null);
+                onScanComplete?.(repo.id, data.status);
+                if (data.status === 'completed') {
+                    toast.success(`Scan completed for ${repo.name}`);
+                } else {
+                    toast.error(`Scan failed for ${repo.name}`);
+                }
+            }
+        }
+    });
+
+    const handleTriggerScan = async () => {
+        try {
+            setScanning(true);
+            setProgress(0);
+            setScanStatus('queued');
+            
+            const response = await api.post(`/repos/${repo.id}/scans/trigger/`);
+            const newScanId = response.data.id;
+            setScanId(newScanId);
+            toast.info(`Scan started for ${repo.name}`);
+        } catch (error) {
+            setScanning(false);
+            setScanStatus(null);
+            toast.error(error.response?.data?.error || 'Failed to trigger scan');
+        }
+    };
+
+    if (scanning) {
+        return (
+            <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                    <span className="text-sm text-blue-400">
+                        {scanStatus === 'queued' && 'Queued...'}
+                        {scanStatus === 'running' && `${progress}%`}
+                    </span>
+                </div>
+                {progress > 0 && (
+                    <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-blue-500 transition-all duration-300"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <button
+            className="btn btn-sm bg-primary hover:bg-primary/80 border-none text-white"
+            onClick={handleTriggerScan}
+        >
+            <Play className="w-4 h-4 mr-1" />
+            Scan
+        </button>
+    );
+};
 
 const Repositories = () => {
     const { tenant } = useAuth();
     const [repos, setRepos] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [lastScanResults, setLastScanResults] = useState({});
 
     useEffect(() => {
         const fetchRepos = async () => {
@@ -31,8 +129,34 @@ const Repositories = () => {
         fetchRepos();
     }, [tenant]);
 
-    const handleScan = () => {
-        toast.info('Scan functionality coming in Week 2');
+    const handleScanComplete = (repoId, status) => {
+        setLastScanResults(prev => ({
+            ...prev,
+            [repoId]: { status, timestamp: new Date() }
+        }));
+    };
+
+    const getLastScanBadge = (repoId) => {
+        const result = lastScanResults[repoId];
+        if (!result) return null;
+
+        if (result.status === 'completed') {
+            return (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded text-xs">
+                    <CheckCircle className="w-3 h-3" />
+                    Scanned
+                </span>
+            );
+        }
+        if (result.status === 'failed') {
+            return (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded text-xs">
+                    <XCircle className="w-3 h-3" />
+                    Failed
+                </span>
+            );
+        }
+        return null;
     };
 
     return (
@@ -41,7 +165,7 @@ const Repositories = () => {
                 <div className="flex min-w-72 flex-col gap-1">
                     <p className="text-2xl lg:text-3xl font-bold leading-tight tracking-tight">Repositories</p>
                     <p className="text-[#6b7280] dark:text-[#9da8b9] text-sm lg:text-base font-normal">
-                        View your assigned repositories.
+                        View your assigned repositories and trigger security scans.
                     </p>
                 </div>
             </div>
@@ -68,6 +192,7 @@ const Repositories = () => {
                                         }`}>
                                             {repo.visibility}
                                         </span>
+                                        {getLastScanBadge(repo.id)}
                                     </div>
                                     <p className="text-xs text-gray-500 mb-1">Organization: {repo.orgName}</p>
                                     {repo.description && (
@@ -102,15 +227,11 @@ const Repositories = () => {
                                             Added {new Date(repo.created_at).toLocaleDateString()}
                                         </div>
                                     </div>
-                                    <button
-                                        className="btn btn-sm bg-gray-700 border-gray-600 text-gray-400 cursor-not-allowed"
-                                        onClick={handleScan}
-                                        disabled
-                                        title="Scan functionality coming in Week 2"
-                                    >
-                                        <Play className="w-4 h-4 mr-1" />
-                                        Coming Soon
-                                    </button>
+                                    <ScanButton 
+                                        repo={repo} 
+                                        tenantId={tenant?.id}
+                                        onScanComplete={handleScanComplete}
+                                    />
                                 </div>
                             </div>
                         ))}
@@ -131,5 +252,3 @@ const Repositories = () => {
 };
 
 export default Repositories;
-
-

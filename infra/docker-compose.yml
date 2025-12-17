@@ -1,6 +1,5 @@
 # Docker Compose for SecuredHub
-# Week 1: Only essential services (db, rabbitmq, api)
-# Week 2+: Uncomment worker services as needed
+# All services enabled for Week 2+
 
 services:
   # PostgreSQL Database
@@ -28,8 +27,8 @@ services:
     env_file:
       - .env
     ports:
-      - "5672:5672" # AMQP port
-      - "15672:15672" # Management UI
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -41,13 +40,23 @@ services:
     networks:
       - secured_hub_network
 
-  # Django API Service
+  # Redis (result backend / cache / channels)
+  redis:
+    image: redis:7-alpine
+    container_name: secured_hub_redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    networks:
+      - secured_hub_network
+
+  # Django API Service (HTTP + WebSocket only)
   api:
     build:
       context: ../backend
       dockerfile: Dockerfile
     container_name: secured_hub_api
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8001"
+    command: sh -c "python manage.py migrate && daphne -b 0.0.0.0 -p 8001 core.asgi:application"
     env_file:
       - .env
     environment:
@@ -80,106 +89,56 @@ services:
     networks:
       - secured_hub_network
 
-  # Redis (result backend / cache)
-  redis:
-    image: redis:7-alpine
-    container_name: secured_hub_redis
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    ports:
-      - "6379:6379"
+  # Scanner Worker Service (Standalone Celery)
+  scanner-worker:
+    build:
+      context: ../worker
+      dockerfile: Dockerfile
+    container_name: secured_hub_scanner
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ../backend:/app/backend
+      - ../worker:/app
+      - scanner_workspace:/tmp/scanner_workspace
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - secured_hub_network
+    restart: unless-stopped
 
   # ============================================
-  # WEEK 2+ SERVICES (Uncomment when ready)
+  # WEEK 3 SERVICES (Uncomment when ready)
   # ============================================
-  #
-  # NOTE (Week 1):
-  # - For now, all Celery scan tasks run on the main backend worker
-  #   that you start manually inside the `secured_hub_api` container:
-  #     celery -A core worker --loglevel=info
-  # - The dedicated scanner-worker below is part of the long‑term
-  #   architecture and will be enabled in Week 2 once the separate
-  #   `worker/` service is ready.
-  #
-  # Scanner Service - Week 2 Day 3
-  # Uncomment after fixing worker/requirements.txt and wiring scanner code
-  # scanner-worker:
-  #   build:
-  #     context: ../worker
-  #     dockerfile: Dockerfile
-  #   container_name: secured_hub_scanner
-  #   command: celery -A app.config:app worker -Q scans,scanner_tasks -l info --concurrency=4
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-  #     - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-  #     - CELERY_RESULT_BACKEND=redis://redis:6379/0
-  #     - REDIS_PASSWORD=${REDIS_PASSWORD}
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - scanner_workspace:/tmp/scanner_workspace
-  #   networks:
-  #     - scanner_isolated
-  #     - secured_hub_network
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '2'
-  #         memory: 2G
-  #   restart: unless-stopped
-
+  
   # RAG Service - Week 3
-  # Uncomment when implementing AI/RAG features
   # rag-worker:
   #   build:
   #     context: ../rag_service
   #     dockerfile: Dockerfile
   #   container_name: secured_hub_rag
-  #   command: celery -A app.config:app worker -Q ai_analysis,rag_tasks -l info --concurrency=2
   #   env_file:
   #     - .env
   #   environment:
-  #     - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  #     - DB_HOST=db
+  #     - DB_PORT=5432
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
   #     - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
   #     - CELERY_RESULT_BACKEND=redis://redis:6379/0
-  #     - OPENAI_API_KEY=${OPENAI_API_KEY}
-  #     - REDIS_PASSWORD=${REDIS_PASSWORD}
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - rag_cache:/app/.cache
-  #   networks:
-  #     - secured_hub_network
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 4G
-  #   restart: unless-stopped
-
-  # Orchestrator Service - Week 2 Day 5
-  # Uncomment when implementing webhook handling
-  # orchestrator-worker:
-  #   build:
-  #     context: ../orchestrator-service
-  #     dockerfile: Dockerfile
-  #   container_name: secured_hub_orchestrator
-  #   command: celery -A app.config:app worker -Q webhooks,notifications,default -l info --concurrency=2
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-  #     - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-  #     - CELERY_RESULT_BACKEND=redis://redis:6379/0
-  #     - REDIS_PASSWORD=${REDIS_PASSWORD}
+  #     - GEMINI_API_KEY=${GEMINI_API_KEY}
   #   depends_on:
   #     db:
   #       condition: service_healthy
@@ -187,26 +146,14 @@ services:
   #       condition: service_healthy
   #   networks:
   #     - secured_hub_network
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 512M
   #   restart: unless-stopped
 
 volumes:
   postgres_data:
   rabbitmq_data:
-  media_volume:
   scanner_workspace:
-  rag_cache:
-
 
 networks:
   secured_hub_network:
     driver: bridge
     name: secured_hub_network
-  scanner_isolated:
-    driver: bridge
-    name: scanner_isolated
-    internal: false # Set to true in production for complete isolation
-
