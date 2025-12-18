@@ -35,4 +35,9 @@ export const API_ENDPOINTS = {
   ADMIN_ACCESS_REQUESTS: '/admin/access-requests/',
   ADMIN_APPROVE_REQUEST: (id) => `/admin/access-requests/${id}/approve/`,
   ADMIN_REJECT_REQUEST: (id) => `/admin/access-requests/${id}/reject/`,
+  
+  // Monitoring
+  WORKER_HEALTH: '/admin/workers/health/',
+  QUEUE_STATUS: '/admin/workers/queue/',
+  ACTIVE_TASKS: '/admin/workers/tasks/',
 };

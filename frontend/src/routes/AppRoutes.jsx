@@ -7,6 +7,7 @@ import AcceptInvite from '../pages/AcceptInvite';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import AccessRequests from '../pages/admin/AccessRequests';
 import Tenants from '../pages/admin/Tenants';
+import WorkerMonitoring from '../pages/admin/WorkerMonitoring';
 import AdminPlaceholder from '../pages/admin/AdminPlaceholder';
 import TenantDashboard from '../pages/tenant/Dashboard';
 import TenantRepositories from '../pages/tenant/Repositories';
@@ -32,24 +33,21 @@ import AdminLayout from '../layouts/AdminLayout';
 import TenantLayout from '../layouts/TenantLayout';
 import DeveloperLayout from '../layouts/DeveloperLayout';
 
+// Main application router wiring up auth, admin, tenant, and developer areas.
 const AppRoutes = () => {
     return (
         <Routes>
-            {/* Auth Routes (No Layout) */}
             <Route element={<GuestRoute />}>
                 <Route path="/login" element={<Login />} />
                 <Route path="/request-access" element={<RequestAccess />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
             </Route>
 
-            {/* Invite-Only Registration (Token Required) */}
             <Route path="/register" element={<Register />} />
             <Route path="/accept-invite/:token" element={<AcceptInvite />} />
             
-            {/* GitHub OAuth Callback */}
             <Route path="/auth/github/callback" element={<GitHubCallback />} />
 
-            {/* Admin Layout Routes */}
             <Route
                 path="/admin"
                 element={
@@ -62,16 +60,14 @@ const AppRoutes = () => {
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="access-requests" element={<AccessRequests />} />
                 <Route path="tenants" element={<Tenants />} />
-                <Route path="workers" element={<AdminPlaceholder />} />
+                <Route path="workers" element={<WorkerMonitoring />} />
                 <Route path="ai" element={<AdminPlaceholder />} />
                 <Route path="audit-logs" element={<AdminPlaceholder />} />
                 <Route path="settings" element={<AdminPlaceholder />} />
             </Route>
 
-            {/* Legacy admin routes - redirect to new structure */}
             <Route path="/admin-dashboard" element={<Navigate to="/admin/dashboard" replace />} />
 
-            {/* Tenant Layout Routes */}
             <Route
                 path="/tenant-dashboard"
                 element={
@@ -90,7 +86,6 @@ const AppRoutes = () => {
                 <Route path="profile" element={<TenantProfile />} />
             </Route>
 
-            {/* Developer Layout Routes */}
             <Route
                 path="/dev-dashboard"
                 element={
@@ -107,12 +102,10 @@ const AppRoutes = () => {
                 <Route path="profile" element={<DevProfile />} />
             </Route>
 
-            {/* Public Layout Routes */}
             <Route path="/" element={<Layout />}>
                 <Route index element={<PublicRoute><LandingPage /></PublicRoute>} />
             </Route>
 
-            {/* 404 */}
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );

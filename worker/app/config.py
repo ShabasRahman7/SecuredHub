@@ -1,10 +1,6 @@
 import os
-import sys
-from pathlib import Path
 
-backend_path = Path(__file__).resolve().parent.parent.parent / "backend"
-sys.path.insert(0, str(backend_path))
-
+# Load Celery connection details from the worker's Django settings.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
 import django

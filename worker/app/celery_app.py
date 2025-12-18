@@ -1,9 +1,6 @@
 import os
-import sys
-from pathlib import Path
 
-backend_path = Path(__file__).resolve().parent.parent.parent / "backend"
-sys.path.insert(0, str(backend_path))
+# Point Celery at the worker's dedicated Django settings module.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
 import django
@@ -33,4 +30,5 @@ app.conf.update(
     },
 )
 
-app.autodiscover_tasks(["app", "scans"])
+# Only load tasks from the worker app; the scans module here only defines models.
+app.autodiscover_tasks(["app"])

@@ -1,11 +1,8 @@
 import logging
 import time
 import os
-import sys
-from pathlib import Path
 
-backend_path = Path(__file__).resolve().parent.parent.parent / "backend"
-sys.path.insert(0, str(backend_path))
+# Bootstrap Django so Celery tasks can use ORM and channels.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
 import django
@@ -20,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def _send_ws_update(channel_layer, group_name, payload):
+    """Send a scan progress update over the WebSocket channel layer."""
     if not channel_layer:
         return
     async_to_sync(channel_layer.group_send)(
@@ -47,7 +45,7 @@ def run_security_scan(self, scan_id: int):
         })
         update_scan_status(scan_id, "running")
 
-        logger.info(f"Starting scan {scan_id} for repository {scan.repository.name}")
+        logger.info(f"Starting scan {scan_id} for repository ID {scan.repository_id}")
 
         for progress in [25, 50, 75]:
             time.sleep(6)

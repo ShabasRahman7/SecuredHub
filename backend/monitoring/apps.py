@@ -1,0 +1,5 @@
+class MonitoringConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'monitoring'
+    verbose_name = "System Monitoring"
+
