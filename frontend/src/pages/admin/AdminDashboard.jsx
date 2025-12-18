@@ -1,27 +1,45 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StatCard from '../../components/shared/StatCard';
-import ChartCard from '../../components/shared/ChartCard';
 import WorkerHealthCard from '../../components/shared/WorkerHealthCard';
 import TableCard from '../../components/shared/TableCard';
 import { Download } from 'lucide-react';
 import Swal from 'sweetalert2';
 import api from '../../api/axios';
+import useWorkerHealth from '../../hooks/useWorkerHealth';
 
+// High-level view of platform health, onboarding, and recent admin activity.
 const AdminDashboard = () => {
     const { user } = useAuth();
     const [tenants, setTenants] = useState([]);
+    const [pendingAccessRequests, setPendingAccessRequests] = useState(0);
+    const [pendingTenantInvites, setPendingTenantInvites] = useState(0);
     const [loading, setLoading] = useState(true);
 
-    // Fetch Data
+    const {
+        data: workerHealth,
+        loading: workerLoading,
+        error: workerError,
+    } = useWorkerHealth({ auto: true });
+
+    // Fetch summary data for admin
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const res = await api.get('/auth/admin/tenants/');
-                setTenants(res.data.tenants || []);
+                const [tenantsRes, invitesRes, accessRes] = await Promise.all([
+                    api.get('/auth/admin/tenants/'),
+                    api.get('/auth/admin/tenant-invites/'),
+                    api.get('/auth/admin/access-requests/'),
+                ]);
+
+                setTenants(tenantsRes.data.tenants || tenantsRes.data.results || []);
+                // Tenant invites: use unverified_count as pending onboarding
+                setPendingTenantInvites(invitesRes.data?.unverified_count ?? 0);
+                // Access requests: count field from AdminAccessRequestListView
+                setPendingAccessRequests(accessRes.data?.count ?? 0);
             } catch (error) {
-                console.error('Failed to fetch admin data', error);
+                console.error('Failed to fetch admin dashboard data', error);
             } finally {
                 setLoading(false);
             }
@@ -30,6 +48,7 @@ const AdminDashboard = () => {
         fetchData();
     }, []);
 
+    // Trigger a simple fake download flow for the platform report.
     const handleDownloadReport = () => {
         Swal.fire({
             title: 'Generating Report...',
@@ -55,7 +74,6 @@ const AdminDashboard = () => {
 
     return (
         <>
-            {/* Title Section */}
             <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
                 <div className="flex items-center gap-4">
                     <div className="flex flex-col gap-1">
@@ -72,8 +90,7 @@ const AdminDashboard = () => {
                 </button>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 <StatCard
                     title="Total Tenants"
                     value={tenants.length}
@@ -82,39 +99,38 @@ const AdminDashboard = () => {
                     trendDirection="up"
                 />
                 <StatCard
-                    title="Total Repositories"
-                    value="1,452"
-                    trend={true}
-                    trendValue="+5% this month"
-                    trendDirection="up"
-                />
-                <StatCard
-                    title="RabbitMQ Queue Size"
-                    value="1,204"
-                    subtext="messages pending"
+                    title="Pending Onboarding"
+                    value={pendingTenantInvites + pendingAccessRequests}
+                    subtext="Tenant invites + access requests"
                 />
                 <StatCard
                     title="Active Workers"
-                    value="48 / 50"
+                    value={
+                        workerHealth
+                            ? `${workerHealth.workers?.online ?? 0} online`
+                            : workerLoading
+                            ? 'Loading…'
+                            : '0 online'
+                    }
                     trend={true}
-                    trendValue="96% capacity"
+                    trendValue={
+                        workerHealth
+                            ? `${workerHealth.workers?.active_tasks ?? 0} active tasks`
+                            : workerError
+                            ? 'Failed to load'
+                            : workerLoading
+                            ? 'Fetching…'
+                            : '0 tasks'
+                    }
                     trendDirection="up"
                 />
                         </div>
 
-            {/* Charts & Health Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <ChartCard
-                    title="Scans Per Day"
-                    subtitle="Last 30 days"
-                    value="2,345"
-                />
+            <div className="mt-6">
                 <WorkerHealthCard />
-                        </div>
+            </div>
 
-            {/* Tables Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Organization Management */}
                 <TableCard
                     title="Tenant Management"
                     subtitle="View and manage all tenants."
@@ -156,7 +172,6 @@ const AdminDashboard = () => {
                     </table>
                 </TableCard>
 
-                {/* Recent Audit Logs */}
                 <TableCard
                     title="Recent Audit Logs"
                     subtitle="Platform-wide administrative actions."
