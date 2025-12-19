@@ -1,11 +1,7 @@
-import os
-
-# Initialise Django using the worker's settings module.
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
-
-import django
-django.setup()
-
+"""
+Utility functions for scans app.
+Database operations and helper functions.
+"""
 from scans.models import Scan
 from django.utils import timezone
 
@@ -34,3 +30,4 @@ def update_scan_status(scan_id: int, status: str, error_message: str = None):
         scan.save()
     except Scan.DoesNotExist:
         pass
+

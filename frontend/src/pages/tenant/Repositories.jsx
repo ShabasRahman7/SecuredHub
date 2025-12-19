@@ -17,6 +17,9 @@ const Repositories = () => {
     const [showRepoModal, setShowRepoModal] = useState(false);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [selectedRepoForAssign, setSelectedRepoForAssign] = useState(null);
+    const [assignSearch, setAssignSearch] = useState('');
+    const [assignSelectedMemberIds, setAssignSelectedMemberIds] = useState([]);
+    const [assignSaving, setAssignSaving] = useState(false);
     const [ghRepos, setGhRepos] = useState([]);
     const [filteredGhRepos, setFilteredGhRepos] = useState([]);
     const [loadingGhRepos, setLoadingGhRepos] = useState(false);
@@ -284,6 +287,9 @@ const Repositories = () => {
                                                         className="btn btn-sm btn-ghost text-blue-400 hover:bg-blue-500/10"
                                                         onClick={() => {
                                                             setSelectedRepoForAssign(repo);
+                                                            const currentAssigned = assignments[repo.id] || [];
+                                                            setAssignSelectedMemberIds(currentAssigned);
+                                                            setAssignSearch('');
                                                             setShowAssignModal(true);
                                                         }}
                                                         title="Manage Assignments"
@@ -392,8 +398,11 @@ const Repositories = () => {
                             <button
                                 className="btn btn-sm btn-circle btn-ghost"
                                 onClick={() => {
+                                    if (assignSaving) return;
                                     setShowAssignModal(false);
                                     setSelectedRepoForAssign(null);
+                                    setAssignSearch('');
+                                    setAssignSelectedMemberIds([]);
                                 }}
                             >
                                 <X className="w-4 h-4" />
@@ -401,79 +410,165 @@ const Repositories = () => {
                         </div>
 
                         <div className="space-y-4">
-                            <div>
-                                <h4 className="text-sm font-semibold text-gray-400 mb-3">Assign Developers</h4>
-                                {members.length === 0 ? (
-                                    <p className="text-sm text-gray-500">No developers available</p>
-                                ) : (
-                                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                                        {members.map(member => {
-                                            const isAssigned = (assignments[selectedRepoForAssign.id] || []).includes(member.id);
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-semibold text-gray-400">
+                                    Assign Developers
+                                </h4>
+                                <span className="text-xs text-gray-500">
+                                    Selected: {assignSelectedMemberIds.length}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 mb-2 bg-[#101822] border border-white/10 rounded px-3 py-2">
+                                <Search className="w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search developers by email..."
+                                    className="bg-transparent w-full outline-none text-white text-sm"
+                                    value={assignSearch}
+                                    onChange={(e) => setAssignSearch(e.target.value)}
+                                />
+                            </div>
+
+                            {members.length === 0 ? (
+                                <p className="text-sm text-gray-500">No developers available</p>
+                            ) : (
+                                <div className="space-y-2 max-h-64 overflow-y-auto">
+                                    {members
+                                        .filter((member) => {
+                                            const q = assignSearch.trim().toLowerCase();
+                                            if (!q) return true;
                                             return (
-                                                <div
+                                                (member.email || '').toLowerCase().includes(q) ||
+                                                (member.first_name || '').toLowerCase().includes(q) ||
+                                                (member.last_name || '').toLowerCase().includes(q)
+                                            );
+                                        })
+                                        .slice(0, 10)
+                                        .map((member) => {
+                                            const isChecked = assignSelectedMemberIds.includes(member.id);
+                                            return (
+                                                <label
                                                     key={member.id}
-                                                    className="flex items-center justify-between p-3 rounded border border-white/10 bg-[#0A0F16]"
+                                                    className="flex items-center justify-between p-3 rounded border border-white/10 bg-[#0A0F16] cursor-pointer gap-3"
                                                 >
-                                                    <div>
-                                                        <div className="font-medium text-white">{member.email}</div>
-                                                        <div className="text-xs text-gray-400">{member.role}</div>
+                                                    <div className="flex items-center gap-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="checkbox checkbox-sm"
+                                                            checked={isChecked}
+                                                            onChange={() => {
+                                                                setAssignSelectedMemberIds((prev) =>
+                                                                    isChecked
+                                                                        ? prev.filter((id) => id !== member.id)
+                                                                        : [...prev, member.id]
+                                                                );
+                                                            }}
+                                                            disabled={assignSaving}
+                                                        />
+                                                        <div>
+                                                            <div className="font-medium text-white text-sm">
+                                                                {member.email}
+                                                            </div>
+                                                            <div className="text-xs text-gray-400">
+                                                                {member.first_name} {member.last_name} • {member.role}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    {isAssigned ? (
-                                                        <button
-                                                            className="btn btn-sm btn-ghost text-red-400 hover:bg-red-500/10"
-                                                            onClick={async () => {
-                                                                try {
-                                                                    const assignRes = await api.get(`/tenants/${currentTenant.id}/repositories/${selectedRepoForAssign.id}/assignments/`);
-                                                                    const assignment = assignRes.data.assignments.find(a => a.member_id === member.id);
-                                                                    if (assignment) {
-                                                                        await api.delete(`/tenants/${currentTenant.id}/repositories/${selectedRepoForAssign.id}/assignments/${assignment.id}/unassign/`);
-                                                                        toast.success(`Unassigned ${member.email}`);
-                                                                        fetchRepositories();
-                                                                    }
-                                                                } catch (error) {
-                                                                    toast.error('Failed to unassign developer');
-                                                                }
-                                                            }}
-                                                        >
-                                                            <UserMinus className="w-4 h-4 mr-1" />
-                                                            Unassign
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            className="btn btn-sm btn-primary"
-                                                            onClick={async () => {
-                                                                try {
-                                                                    await api.post(`/tenants/${currentTenant.id}/repositories/${selectedRepoForAssign.id}/assign/`, {
-                                                                        member_id: member.id
-                                                                    });
-                                                                    toast.success(`Assigned ${member.email}`);
-                                                                    fetchRepositories();
-                                                                } catch (error) {
-                                                                    toast.error(error.response?.data?.error || 'Failed to assign developer');
-                                                                }
-                                                            }}
-                                                        >
-                                                            <UserPlus className="w-4 h-4 mr-1" />
-                                                            Assign
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                </label>
                                             );
                                         })}
-                                    </div>
-                                )}
-                            </div>
+                                </div>
+                            )}
+                            {members.length > 0 && (
+                                <p className="text-[11px] text-gray-500">
+                                    Showing at most 10 matching developers. Refine your search to narrow down.
+                                </p>
+                            )}
                         </div>
 
                         <div className="modal-action mt-6">
-                            <button 
-                                className="btn btn-ghost" 
+                            <button
+                                className="btn btn-ghost"
                                 onClick={() => {
+                                    if (assignSaving) return;
                                     setShowAssignModal(false);
                                     setSelectedRepoForAssign(null);
+                                    setAssignSearch('');
+                                    setAssignSelectedMemberIds([]);
+                                }}
+                                disabled={assignSaving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn-primary bg-primary border-none disabled:opacity-50"
+                                disabled={assignSaving}
+                                onClick={async () => {
+                                    if (!selectedRepoForAssign) return;
+                                    try {
+                                        setAssignSaving(true);
+                                        const repoId = selectedRepoForAssign.id;
+                                        const currentAssignedIds = assignments[repoId] || [];
+                                        const newAssignedIds = assignSelectedMemberIds;
+
+                                        const toAssign = newAssignedIds.filter(
+                                            (id) => !currentAssignedIds.includes(id)
+                                        );
+                                        const toUnassign = currentAssignedIds.filter(
+                                            (id) => !newAssignedIds.includes(id)
+                                        );
+
+                                        // Fetch current assignments once to resolve assignment IDs for unassignment
+                                        let assignmentMap = {};
+                                        if (toUnassign.length > 0) {
+                                            const assignRes = await api.get(
+                                                `/tenants/${currentTenant.id}/repositories/${repoId}/assignments/`
+                                            );
+                                            (assignRes.data.assignments || []).forEach((a) => {
+                                                assignmentMap[a.member_id] = a.id;
+                                            });
+                                        }
+
+                                        // Perform unassignments
+                                        for (const memberId of toUnassign) {
+                                            const assignmentId = assignmentMap[memberId];
+                                            if (assignmentId) {
+                                                await api.delete(
+                                                    `/tenants/${currentTenant.id}/repositories/${repoId}/assignments/${assignmentId}/unassign/`
+                                                );
+                                            }
+                                        }
+
+                                        // Perform assignments
+                                        for (const memberId of toAssign) {
+                                            await api.post(
+                                                `/tenants/${currentTenant.id}/repositories/${repoId}/assign/`,
+                                                { member_id: memberId }
+                                            );
+                                        }
+
+                                        toast.success('Assignments updated successfully');
+                                        await fetchRepositories();
+                                        setShowAssignModal(false);
+                                        setSelectedRepoForAssign(null);
+                                        setAssignSearch('');
+                                        setAssignSelectedMemberIds([]);
+                                    } catch (error) {
+                                        toast.error(
+                                            error.response?.data?.error ||
+                                            'Failed to update assignments'
+                                        );
+                                    } finally {
+                                        setAssignSaving(false);
+                                    }
                                 }}
                             >
-                                Close
+                                {assignSaving ? (
+                                    <span className="loading loading-spinner loading-sm" />
+                                ) : (
+                                    'Save'
+                                )}
                             </button>
                         </div>
                     </div>

@@ -1,3 +1,7 @@
+"""
+Celery tasks for scans app.
+All scan-related async tasks are defined here.
+"""
 import logging
 import time
 import os
@@ -10,8 +14,8 @@ django.setup()
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from .celery_app import app
-from .db import get_scan, update_scan_status
+from core.celery_app import app
+from scans.utils import get_scan, update_scan_status
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +32,10 @@ def _send_ws_update(channel_layer, group_name, payload):
 
 @app.task(bind=True, name="scans.tasks.run_security_scan", max_retries=3, default_retry_delay=60)
 def run_security_scan(self, scan_id: int):
+    """
+    Run a security scan for a repository.
+    This is a placeholder task that will be replaced by GitHub import logic.
+    """
     channel_layer = get_channel_layer()
     group_name = f"scan_{scan_id}"
     
@@ -84,3 +92,4 @@ def run_security_scan(self, scan_id: int):
             })
         
         raise self.retry(exc=exc)
+
