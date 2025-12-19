@@ -13,16 +13,16 @@ Independent Django microservice for processing security scans via Celery.
 
 ```
 worker/
-├── app/              # Celery application
-│   ├── celery_app.py # Celery configuration
-│   ├── tasks.py      # Scan tasks
-│   ├── db.py         # Database operations
-│   └── config.py     # Configuration helpers
-├── core/             # Django project settings
-│   └── settings.py   # Independent Django configuration
-├── scans/            # Django app (models only)
-│   ├── models.py     # Scan models (managed=False)
-│   └── apps.py       # Django app config
+├── core/                    # Django project (like backend/core/)
+│   ├── settings.py          # Django settings
+│   └── celery_app.py        # Celery configuration
+├── scans/                   # Django app (like backend/scans/)
+│   ├── models.py            # Scan models (managed=False)
+│   ├── tasks.py             # Celery tasks
+│   ├── services/            # Business logic services
+│   │   └── github_security_api.py  # GitHub API client
+│   └── utils.py             # Helper functions
+├── manage.py                # Django manage.py
 ├── Dockerfile
 ├── requirements.txt
 └── README.md
@@ -48,7 +48,7 @@ export DB_NAME=secured_hub_db
 # ... other env vars
 
 # Run Celery worker
-celery -A app.celery_app worker --loglevel=info -Q celery,scans
+celery -A core.celery_app worker --loglevel=info -Q celery,scans
 ```
 
 ## Docker

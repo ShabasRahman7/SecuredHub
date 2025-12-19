@@ -25,10 +25,10 @@ app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_routes={
-        "worker.tasks.*": {"queue": "scans"},
         "scans.tasks.*": {"queue": "scans"},
     },
 )
 
-# Only load tasks from the worker app; the scans module here only defines models.
-app.autodiscover_tasks(["app"])
+# Autodiscover tasks from scans app (Django app pattern)
+app.autodiscover_tasks(["scans"])
+
