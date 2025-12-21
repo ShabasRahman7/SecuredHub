@@ -8,45 +8,6 @@ from ..utils.email import verify_tenant_invite_token as verify_tenant_invite_tok
 from ..utils.redis_invites import RedisInviteManager
 
 
-class VerifyTenantInviteTokenView(APIView):
-    permission_classes = [AllowAny]
-
-    @extend_schema(
-        summary="Verify Tenant Invite Token",
-        request={"application/json": {"token": "string"}},
-        responses={200: OpenApiTypes.OBJECT},
-        tags=["Authentication"]
-    )
-    def post(self, request):
-        token = request.data.get('token')
-        
-        if not token:
-            return Response({
-                "success": False,
-                "error": {
-                    "message": "Token is required",
-                    "details": "Please provide an invitation token"
-                }
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        invite, error_message = verify_tenant_invite_token(token)
-        
-        if error_message:
-            return Response({
-                "success": False,
-                "error": {
-                    "message": "Invalid invitation",
-                    "details": error_message
-                }
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        return Response({
-            "success": True,
-            "message": "Invitation is valid",
-            "email": invite.email,
-            "expires_at": invite.expires_at.isoformat()
-        }, status=status.HTTP_200_OK)
-
 
 class VerifyInviteTokenGetView(APIView):
     permission_classes = [AllowAny]
@@ -119,5 +80,4 @@ class VerifyInviteTokenGetView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-verify_tenant_invite_token_view = VerifyTenantInviteTokenView.as_view()
 verify_invite_token_get = VerifyInviteTokenGetView.as_view()

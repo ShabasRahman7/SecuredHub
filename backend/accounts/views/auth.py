@@ -401,46 +401,6 @@ class ProfileView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
-class AdminListUsersView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(
-        summary="Admin List Users",
-        responses={200: UserSerializer(many=True)},
-        tags=["Admin"]
-    )
-    def get(self, request):
-        if not request.user.is_superuser:
-            return Response({
-                "success": False,
-                "error": {
-                    "message": "Permission denied",
-                    "details": "Only administrators can view all users"
-                }
-            }, status=status.HTTP_403_FORBIDDEN)
-
-        users = User.objects.filter(
-            tenant_membership__role=TenantMember.ROLE_DEVELOPER
-        ).distinct().order_by('-date_joined')
-        
-        users_data = []
-        for user in users:
-            user_dict = UserSerializer(user).data
-            memberships = TenantMember.objects.filter(user=user).select_related('tenant')
-            tenants = [{
-                'id': m.tenant.id,
-                'name': m.tenant.name,
-                'role': m.role
-            } for m in memberships]
-            user_dict['tenants'] = tenants
-            users_data.append(user_dict)
-        
-        return Response({
-            "success": True,
-            "count": users.count(),
-            "users": users_data
-        }, status=status.HTTP_200_OK)
-
 
 class RequestAccessView(APIView):
     permission_classes = [AllowAny]
@@ -458,7 +418,7 @@ class RequestAccessView(APIView):
         cache_key = f"request_access_rate_limit_{ip}"
         requests_count = cache.get(cache_key, 0)
         
-        if requests_count >= 5:
+        if requests_count >= 1:
             return Response({
                 "success": False,
                 "error": {
@@ -493,5 +453,4 @@ send_otp = SendOTPView.as_view()
 verify_otp = VerifyOTPView.as_view()
 reset_password = ResetPasswordView.as_view()
 profile = ProfileView.as_view()
-admin_list_users = AdminListUsersView.as_view()
 request_access = RequestAccessView.as_view()

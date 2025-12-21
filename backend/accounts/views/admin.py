@@ -19,65 +19,6 @@ from ..utils.redis_tokens import InviteTokenManager
 User = get_user_model()
 
 
-class AdminDeleteUserView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-    @extend_schema(
-        summary="Admin Delete User",
-        responses={200: OpenApiTypes.OBJECT},
-        tags=["Admin"]
-    )
-    def delete(self, request, user_id):
-        user = get_object_or_404(User, id=user_id)
-        
-        if user.id == request.user.id:
-            return Response({
-                "success": False,
-                "error": {
-                    "message": "Cannot delete self",
-                    "details": "You cannot delete your own account via this endpoint"
-                }
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        user.delete()
-        return Response({
-            "success": True,
-            "message": "User deleted successfully"
-        }, status=status.HTTP_200_OK)
-
-
-class AdminUpdateUserView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-    @extend_schema(
-        summary="Admin Update User",
-        request=UserSerializer,
-        responses={200: UserSerializer},
-        tags=["Admin"]
-    )
-    def put(self, request, user_id):
-        user = get_object_or_404(User, id=user_id)
-        
-        serializer = UserSerializer(user, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({
-                "success": True,
-                "message": "User updated successfully",
-                "user": serializer.data
-            }, status=status.HTTP_200_OK)
-            
-        return Response({
-            "success": False,
-            "error": {
-                "message": "Failed to update user",
-                "details": serializer.errors
-            }
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    def patch(self, request, user_id):
-        return self.put(request, user_id)
-
 
 class AdminDeleteTenantView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
@@ -200,38 +141,6 @@ class AdminDeleteTenantView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-class AdminUpdateTenantView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-    @extend_schema(
-        summary="Admin Update Tenant",
-        request=TenantUpdateSerializer,
-        responses={200: TenantSerializer},
-        tags=["Admin"]
-    )
-    def put(self, request, tenant_id):
-        tenant = get_object_or_404(Tenant, id=tenant_id)
-        
-        serializer = TenantUpdateSerializer(tenant, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({
-                "success": True,
-                "message": "Tenant updated successfully",
-                "tenant": TenantSerializer(tenant, context={'request': request}).data
-            }, status=status.HTTP_200_OK)
-            
-        return Response({
-            "success": False,
-            "error": {
-                "message": "Failed to update tenant",
-                "details": serializer.errors
-            }
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    def patch(self, request, tenant_id):
-        return self.put(request, tenant_id)
 
 
 class AdminBlockTenantView(APIView):
@@ -675,10 +584,7 @@ class AdminDeleteAccessRequestView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-admin_delete_user = AdminDeleteUserView.as_view()
-admin_update_user = AdminUpdateUserView.as_view()
 admin_delete_tenant = AdminDeleteTenantView.as_view()
-admin_update_tenant = AdminUpdateTenantView.as_view()
 admin_block_tenant = AdminBlockTenantView.as_view()
 admin_restore_tenant = AdminRestoreTenantView.as_view()
 admin_list_tenants = AdminListTenantsView.as_view()

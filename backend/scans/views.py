@@ -61,26 +61,6 @@ class ListScansView(APIView):
         return Response(ScanSerializer(scans, many=True).data, status=status.HTTP_200_OK)
 
 
-class ScanDetailsView(APIView):
-    permission_classes = [IsAuthenticated, IsTenantMember]
-
-    @extend_schema(
-        summary="Scan Details",
-        responses={200: OpenApiTypes.OBJECT},
-        tags=["Scans"]
-    )
-    def get(self, request, scan_id):
-        scan = get_object_or_404(Scan, id=scan_id)
-        self.check_object_permissions(request, scan.repository.tenant)
-
-        data = {
-            "scan": ScanSerializer(scan).data,
-            "findings": ScanFindingSerializer(scan.findings.all(), many=True).data
-        }
-
-        return Response(data, status=status.HTTP_200_OK)
-
 
 trigger_scan = TriggerScanView.as_view()
 list_scans = ListScansView.as_view()
-scan_details = ScanDetailsView.as_view()

@@ -8,8 +8,6 @@ urlpatterns = [
     # Repository endpoints
     path('', repositories.list_repositories, name='list_repositories'),
     path('create/', repositories.create_repository, name='create_repository'),
-    path('<int:repo_id>/', repositories.get_repository, name='get_repository'),
-    path('<int:repo_id>/delete/', repositories.delete_repository, name='delete_repository'),
     
     # Repository assignment endpoints
     path('<int:repo_id>/assignments/', assignments.list_repository_assignments, name='list_repository_assignments'),
