@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
                     const userTenants = tenantsRes.data.tenants || [];
                     const userTenant = userTenants.length > 0 ? userTenants[0] : null;
                     setTenant(userTenant);
-                    
+
                     // Check if tenant is blocked
                     if (userTenant && !userTenant.is_active) {
                         // Tenant is blocked, logout user
@@ -111,10 +111,21 @@ export const AuthProvider = ({ children }) => {
         return response;
     };
 
-    const logout = () => {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        setUser(null);
+    const logout = async () => {
+        try {
+            // Call backend logout endpoint
+            await api.post('/auth/logout/');
+        } catch (error) {
+            // Continue with logout even if backend call fails
+            console.error('Logout API call failed:', error);
+        } finally {
+            // Clear local storage and state
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            setUser(null);
+            setTenant(null);
+            navigate('/login');
+        }
     };
 
     // Derive role directly from user object

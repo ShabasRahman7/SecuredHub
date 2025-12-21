@@ -71,46 +71,6 @@ class RepositoryCreateView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-class RepositoryDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsTenantMember]
-
-    @extend_schema(
-        summary="Get Repository Details",
-        responses={200: RepositorySerializer},
-        tags=["Repositories"]
-    )
-    def get(self, request, tenant_id, repo_id):
-        tenant = get_object_or_404(Tenant, id=tenant_id)
-        self.check_object_permissions(request, tenant)
-        
-        repository = get_object_or_404(Repository, id=repo_id, tenant=tenant)
-        serializer = RepositorySerializer(repository)
-        
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class RepositoryDeleteView(APIView):
-    permission_classes = [IsAuthenticated, IsTenantOwner]
-
-    @extend_schema(
-        summary="Delete Repository",
-        responses={200: OpenApiTypes.OBJECT},
-        tags=["Repositories"]
-    )
-    def delete(self, request, tenant_id, repo_id):
-        tenant = get_object_or_404(Tenant, id=tenant_id)
-        self.check_object_permissions(request, tenant)
-        
-        repository = get_object_or_404(Repository, id=repo_id, tenant=tenant)
-        repository.delete()
-        
-        return Response({
-            "success": True,
-            "message": "Repository deleted successfully"
-        }, status=status.HTTP_200_OK)
-
 
 list_repositories = RepositoryListView.as_view()
 create_repository = RepositoryCreateView.as_view()
-get_repository = RepositoryDetailView.as_view()
-delete_repository = RepositoryDeleteView.as_view()

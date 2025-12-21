@@ -43,111 +43,6 @@ class TenantListView(APIView):
         )
 
 
-class TenantCreateView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(
-        summary="Create Tenant",
-        request=TenantCreateSerializer,
-        responses={201: TenantSerializer},
-        tags=["Tenants"]
-    )
-    def post(self, request):
-        serializer = TenantCreateSerializer(data=request.data, context={'request': request})
-        
-        if not serializer.is_valid():
-            return Response(
-                {
-                    "success": False,
-                    "error": {
-                        "message": "Validation failed",
-                        "details": serializer.errors
-                    }
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            tenant = serializer.save()
-            return Response(
-                {
-                    "success": True,
-                    "message": "Tenant created successfully",
-                    "tenant": TenantSerializer(tenant, context={'request': request}).data
-                },
-                status=status.HTTP_201_CREATED
-            )
-        except IntegrityError:
-            return Response(
-                {
-                    "success": False,
-                    "error": {
-                        "message": "Tenant creation failed",
-                        "details": "A tenant with this name may already exist."
-                    }
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-
-class TenantDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsTenantMember]
-
-    @extend_schema(
-        summary="Get Tenant Details",
-        responses={200: TenantSerializer},
-        tags=["Tenants"]
-    )
-    def get(self, request, tenant_id):
-        tenant = get_object_or_404(Tenant, id=tenant_id)
-        self.check_object_permissions(request, tenant)
-        
-        serializer = TenantSerializer(tenant, context={'request': request})
-        
-        return Response(
-            {
-                "success": True,
-                "tenant": serializer.data
-            },
-            status=status.HTTP_200_OK
-        )
-
-    @extend_schema(
-        summary="Update Tenant",
-        request=TenantUpdateSerializer,
-        responses={200: TenantSerializer},
-        tags=["Tenants"]
-    )
-    def put(self, request, tenant_id):
-        tenant = get_object_or_404(Tenant, id=tenant_id)
-        self.check_object_permissions(request, tenant)
-        
-        serializer = TenantUpdateSerializer(tenant, data=request.data, partial=True)
-        
-        if not serializer.is_valid():
-            return Response(
-                {
-                    "success": False,
-                    "error": {
-                        "message": "Validation failed",
-                        "details": serializer.errors
-                    }
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        serializer.save()
-        return Response(
-            {
-                "success": True,
-                "message": "Tenant updated successfully",
-                "tenant": TenantSerializer(tenant, context={'request': request}).data
-            },
-            status=status.HTTP_200_OK
-        )
-
-    def patch(self, request, tenant_id):
-        return self.put(request, tenant_id)
 
 
 class MemberListView(APIView):
@@ -647,10 +542,49 @@ class AcceptInviteView(APIView):
             )
 
 
+class TenantUpdateView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantMember]
+
+    @extend_schema(
+        summary="Update Tenant",
+        request=TenantUpdateSerializer,
+        responses={200: TenantSerializer},
+        tags=["Tenants"]
+    )
+    def put(self, request, tenant_id):
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        self.check_object_permissions(request, tenant)
+        
+        serializer = TenantUpdateSerializer(tenant, data=request.data, partial=True)
+        
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "message": "Validation failed",
+                        "details": serializer.errors
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer.save()
+        return Response(
+            {
+                "success": True,
+                "message": "Tenant updated successfully",
+                "tenant": TenantSerializer(tenant, context={'request': request}).data
+            },
+            status=status.HTTP_200_OK
+        )
+
+    def patch(self, request, tenant_id):
+        return self.put(request, tenant_id)
+
+
 list_tenants = TenantListView.as_view()
-create_tenant = TenantCreateView.as_view()
-get_tenant = TenantDetailView.as_view()
-update_tenant = TenantDetailView.as_view()
+update_tenant = TenantUpdateView.as_view()
 list_members = MemberListView.as_view()
 remove_member = MemberRemoveView.as_view()
 restore_member = MemberRestoreView.as_view()
