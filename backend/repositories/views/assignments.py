@@ -7,6 +7,7 @@ from drf_spectacular.utils import extend_schema, OpenApiTypes
 
 from accounts.models import Tenant, TenantMember
 from accounts.permissions import IsTenantOwner
+from accounts.notifications import send_notification
 from repositories.models import Repository, RepositoryAssignment
 
 
@@ -92,6 +93,19 @@ class RepositoryAssignmentCreateView(APIView):
             assigned_by=request.user
         )
         
+        # Send notification to the developer
+        send_notification(
+            user_id=member.user.id,
+            notification_type='repo_assigned',
+            title='Repository Assigned',
+            message=f'You have been assigned to repository "{repository.name}"',
+            data={
+                'repository_id': repository.id,
+                'repository_name': repository.name,
+                'assigned_by': request.user.email,
+            }
+        )
+        
         return Response({
             'success': True,
             'message': f'Repository assigned to {member.user.email}',
@@ -120,8 +134,22 @@ class RepositoryAssignmentDeleteView(APIView):
         repository = get_object_or_404(Repository, id=repo_id, tenant=tenant)
         assignment = get_object_or_404(RepositoryAssignment, id=assignment_id, repository=repository)
         
+        member_user_id = assignment.member.user.id
         member_email = assignment.member.user.email
+        repo_name = repository.name
         assignment.delete()
+        
+        # Send notification to the developer
+        send_notification(
+            user_id=member_user_id,
+            notification_type='repo_unassigned',
+            title='Repository Unassigned',
+            message=f'You have been unassigned from repository "{repo_name}"',
+            data={
+                'repository_id': repo_id,
+                'repository_name': repo_name,
+            }
+        )
         
         return Response({
             'success': True,

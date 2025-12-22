@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import DeveloperSidebar from '../components/navs/DeveloperSidebar';
-import { Menu, Bell, HelpCircle, Search } from 'lucide-react';
+import NotificationBell from '../components/shared/NotificationBell';
+import { Menu, HelpCircle, Search } from 'lucide-react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -26,7 +27,7 @@ const DeveloperLayout = () => {
   return (
     <div className="flex h-screen w-full bg-[#05080C] text-white font-sans overflow-hidden">
       {/* Sidebar */}
-      <DeveloperSidebar 
+      <DeveloperSidebar
         logout={handleLogout}
         user={user}
         isOpen={sidebarOpen}
@@ -62,9 +63,7 @@ const DeveloperLayout = () => {
                 <input className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-transparent h-full placeholder:text-gray-500 pl-2 text-base outline-none border-none text-white" placeholder="Search my repositories..." />
               </div>
             </label>
-            <button className="hidden sm:flex cursor-pointer items-center justify-center rounded-full h-10 w-10 text-gray-400 hover:bg-white/10 hover:text-primary border border-transparent hover:border-white/10 transition-all">
-              <Bell className="w-5 h-5" />
-            </button>
+            <NotificationBell />
             <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 bg-primary/20 flex items-center justify-center text-primary font-bold">
               {user?.first_name?.[0] || 'D'}
             </div>

@@ -16,6 +16,7 @@ from ..models import TenantInvite, TenantMember, Tenant, AccessRequest
 from ..utils.otp import send_otp_email, verify_otp_code
 from ..utils.redis_invites import RedisInviteManager
 from ..utils.email import verify_tenant_invite_token
+from ..notifications import send_notification, notify_admins, notify_tenant_owners
 
 User = get_user_model()
 
@@ -113,11 +114,39 @@ class RegisterView(APIView):
                 tenant = Tenant.objects.get(id=validated_invite['tenant_id'])
                 TenantMember.objects.create(tenant=tenant, user=user, role=validated_invite['role'])
                 RedisInviteManager.delete_invite(invite_token)
+                
+                # Notify tenant owners that a developer joined
+                notify_tenant_owners(
+                    tenant_id=tenant.id,
+                    notification_type='member_joined',
+                    title='New Developer Joined',
+                    message=f'{user.email} has joined your organization',
+                    data={
+                        'user_id': user.id,
+                        'user_email': user.email,
+                        'user_name': user.get_full_name() or user.email,
+                        'role': validated_invite['role'],
+                    }
+                )
             elif validated_invite.is_valid():
                 TenantMember.objects.create(
                     tenant=validated_invite.tenant, user=user, role=validated_invite.role
                 )
                 validated_invite.mark_accepted()
+                
+                # Notify tenant owners that a developer joined
+                notify_tenant_owners(
+                    tenant_id=validated_invite.tenant.id,
+                    notification_type='member_joined',
+                    title='New Developer Joined',
+                    message=f'{user.email} has joined your organization',
+                    data={
+                        'user_id': user.id,
+                        'user_email': user.email,
+                        'user_name': user.get_full_name() or user.email,
+                        'role': validated_invite.role,
+                    }
+                )
         elif is_tenant_signup:
             # Prefer company name from approved access request, fallback to user info
             tenant_name = None
@@ -431,7 +460,21 @@ class RequestAccessView(APIView):
         
         serializer = AccessRequestSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            access_request = serializer.save()
+            
+            # Notify all admins about the new access request
+            notify_admins(
+                notification_type='access_request',
+                title='New Access Request',
+                message=f'{access_request.full_name} from {access_request.company_name} requested access',
+                data={
+                    'request_id': access_request.id,
+                    'email': access_request.email,
+                    'full_name': access_request.full_name,
+                    'company_name': access_request.company_name,
+                }
+            )
+            
             return Response({
                 "success": True,
                 "message": "Request received. We will contact you shortly."

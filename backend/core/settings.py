@@ -173,7 +173,7 @@ REST_FRAMEWORK = {
 
 # Celery Configuration
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
+# CELERY_RESULT_BACKEND is set below after Redis configuration
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -274,20 +274,24 @@ REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
 
+# Detect if using Upstash (contains 'upstash' in hostname) - requires TLS
+IS_UPSTASH = 'upstash' in REDIS_HOST.lower()
+
 if REDIS_URL:
     redis_location = REDIS_URL
 else:
-    REDIS_SCHEME = 'redis'
-    REDIS_AUTH = f":{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
+    # Use rediss:// (TLS) for Upstash, redis:// for local
+    REDIS_SCHEME = 'rediss' if IS_UPSTASH else 'redis'
+    REDIS_AUTH = f"default:{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
     redis_location = f"{REDIS_SCHEME}://{REDIS_AUTH}{REDIS_HOST}:{REDIS_PORT}/0"
 
 redis_options = {
     "CLIENT_CLASS": "django_redis.client.DefaultClient",
 }
 
-# Upstash and other managed providers commonly use rediss://
-if redis_location.startswith("rediss://"):
-    redis_options["SSL_CERT_REQS"] = None
+# Upstash and other managed providers commonly use rediss:// (TLS)
+if redis_location.startswith("rediss://") or IS_UPSTASH:
+    redis_options["CONNECTION_POOL_KWARGS"] = {"ssl_cert_reqs": None}
 
 CACHES = {
     "default": {
@@ -297,21 +301,33 @@ CACHES = {
     }
 }
 
-# If CELERY_RESULT_BACKEND not explicitly set, reuse REDIS_URL when provided
-if not os.getenv('CELERY_RESULT_BACKEND') and REDIS_URL:
-    CELERY_RESULT_BACKEND = REDIS_URL
+# Set Celery result backend to use the same Redis location
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', redis_location)
 
 # Django Channels Configuration
 ASGI_APPLICATION = 'core.asgi.application'
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [(
-                os.getenv('REDIS_HOST', 'redis'),
-                int(os.getenv('REDIS_PORT', 6379))
-            )],
+# Build channel layer config based on Redis setup
+if IS_UPSTASH or REDIS_PASSWORD:
+    # Upstash/authenticated Redis requires URL format with TLS
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [redis_location],
+            },
         },
-    },
-}
+    }
+else:
+    # Local Redis without authentication
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [(
+                    os.getenv('REDIS_HOST', 'redis'),
+                    int(os.getenv('REDIS_PORT', 6379))
+                )],
+            },
+        },
+    }

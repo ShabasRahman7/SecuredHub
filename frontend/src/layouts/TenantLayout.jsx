@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import TenantSidebar from '../components/navs/TenantSidebar';
-import { Menu, Bell, HelpCircle, Search } from 'lucide-react';
+import NotificationBell from '../components/shared/NotificationBell';
+import { Menu, HelpCircle, Search } from 'lucide-react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -26,7 +27,7 @@ const TenantLayout = () => {
   return (
     <div className="flex h-screen w-full bg-[#05080C] text-white font-sans overflow-hidden">
       {/* Sidebar */}
-      <TenantSidebar 
+      <TenantSidebar
         logout={handleLogout}
         user={user}
         tenantName={tenant?.name}
@@ -63,9 +64,7 @@ const TenantLayout = () => {
             </label>
           </div>
           <div className="flex flex-1 justify-end gap-3 lg:gap-4 items-center">
-            <button className="hidden sm:flex cursor-pointer items-center justify-center rounded-full h-10 w-10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
-              <Bell className="w-5 h-5" />
-            </button>
+            <NotificationBell />
             <button className="hidden sm:flex cursor-pointer items-center justify-center rounded-full h-10 w-10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
               <HelpCircle className="w-5 h-5" />
             </button>

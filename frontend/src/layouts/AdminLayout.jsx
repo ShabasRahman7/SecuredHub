@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/navs/AdminSidebar';
-import { Menu, Bell, HelpCircle } from 'lucide-react';
+import NotificationBell from '../components/shared/NotificationBell';
+import { Menu, HelpCircle } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -38,9 +39,7 @@ const AdminLayout = () => {
             </div>
           </div>
           <div className="flex flex-1 justify-end gap-3 lg:gap-4 items-center">
-            <button className="hidden sm:flex cursor-pointer items-center justify-center rounded-full h-10 w-10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
-              <Bell className="w-5 h-5" />
-            </button>
+            <NotificationBell />
             <button className="hidden sm:flex cursor-pointer items-center justify-center rounded-full h-10 w-10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
               <HelpCircle className="w-5 h-5" />
             </button>
