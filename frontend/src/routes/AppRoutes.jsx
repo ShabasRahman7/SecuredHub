@@ -19,7 +19,7 @@ import TenantSettings from '../pages/tenant/Settings';
 import TenantProfile from '../pages/tenant/Profile';
 import DevDashboard from '../pages/developer/Dashboard';
 import DevRepositories from '../pages/developer/Repositories';
-import DevVulnerabilities from '../pages/developer/Vulnerabilities';
+import DevEvaluationResults from '../pages/developer/EvaluationResults';
 import DevAIAssistant from '../pages/developer/AIAssistant';
 import DevSettings from '../pages/developer/Settings';
 import DevProfile from '../pages/developer/Profile';
@@ -99,7 +99,7 @@ const AppRoutes = () => {
             >
                 <Route index element={<DevDashboard />} />
                 <Route path="repositories" element={<DevRepositories />} />
-                <Route path="vulnerabilities" element={<DevVulnerabilities />} />
+                <Route path="evaluations" element={<DevEvaluationResults />} />
                 <Route path="ai-assistant" element={<DevAIAssistant />} />
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="settings" element={<DevSettings />} />

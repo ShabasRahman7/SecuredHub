@@ -1,37 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { ExternalLink, Play, Shield, Loader2, CheckCircle, XCircle, Award, Settings } from 'lucide-react';
+import { ExternalLink, Shield, Loader2, Clock, Play } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
 import useWebSocket from '../../hooks/useWebSocket';
 
-const getGradeColor = (grade) => {
-    switch (grade) {
-        case 'A': return 'text-green-400 bg-green-500/10 border-green-500/20';
-        case 'B': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
-        case 'C': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
-        case 'D': return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
-        case 'F': return 'text-red-400 bg-red-500/10 border-red-500/20';
-        default: return 'text-gray-400 bg-gray-500/10 border-gray-500/20';
-    }
-};
-
-const getScoreGrade = (score) => {
-    if (score >= 90) return 'A';
-    if (score >= 80) return 'B';
-    if (score >= 70) return 'C';
-    if (score >= 60) return 'D';
-    return 'F';
-};
-
-const EvaluateButton = ({ repo, tenantId, onEvaluationComplete }) => {
+const EvaluateButton = ({ repo, onStart }) => {
     const [evaluating, setEvaluating] = useState(false);
     const [evaluationId, setEvaluationId] = useState(null);
     const [progress, setProgress] = useState(0);
     const [evalStatus, setEvalStatus] = useState(null);
-    const [latestScore, setLatestScore] = useState(null);
 
-    // Check for running evaluations and get latest score on mount
+    // Check for running evaluations on mount
     useEffect(() => {
         const checkRunningEvaluation = async () => {
             try {
@@ -43,11 +23,6 @@ const EvaluateButton = ({ repo, tenantId, onEvaluationComplete }) => {
                     setEvalStatus(runningEval.status);
                     setEvaluating(true);
                 }
-                // Get latest completed evaluation
-                const completed = evals.find(e => e.status === 'completed');
-                if (completed?.score) {
-                    setLatestScore(completed.score);
-                }
             } catch (err) {
                 // No evaluations or error - ignore
             }
@@ -57,22 +32,17 @@ const EvaluateButton = ({ repo, tenantId, onEvaluationComplete }) => {
 
     useWebSocket(evaluationId, {
         onMessage: (data) => {
-            if (data.status) {
-                setEvalStatus(data.status);
-            }
-            if (data.progress !== undefined) {
-                setProgress(data.progress);
-            }
+            if (data.status) setEvalStatus(data.status);
+            if (data.progress !== undefined) setProgress(data.progress);
             if (data.status === 'completed' || data.status === 'failed') {
                 setEvaluating(false);
                 setEvaluationId(null);
-                if (data.score) setLatestScore(data.score);
-                onEvaluationComplete?.(repo.id, data.status, data.score);
                 if (data.status === 'completed') {
                     toast.success(`Evaluation completed for ${repo.name}: ${data.score?.toFixed(1)}%`);
                 } else {
                     toast.error(`Evaluation failed for ${repo.name}`);
                 }
+                onStart?.(); // Trigger refresh
             }
         }
     });
@@ -88,7 +58,6 @@ const EvaluateButton = ({ repo, tenantId, onEvaluationComplete }) => {
                 return;
             }
 
-            // Use the first assigned standard
             const standardId = assignedStandards[0].standard;
 
             setEvaluating(true);
@@ -104,15 +73,11 @@ const EvaluateButton = ({ repo, tenantId, onEvaluationComplete }) => {
             if (response.data.already_evaluated) {
                 setEvaluating(false);
                 setEvalStatus(null);
-                if (response.data.score) {
-                    setLatestScore(response.data.score);
-                }
-                toast.info(`Already evaluated at current commit (${response.data.score?.toFixed(0)}%). No changes detected.`);
+                toast.info(`Already up-to-date at current commit. View results in Evaluation Results.`);
                 return;
             }
 
-            const newEvalId = response.data.id;
-            setEvaluationId(newEvalId);
+            setEvaluationId(response.data.id);
             toast.info(`Evaluation started for ${repo.name}`);
         } catch (error) {
             setEvaluating(false);
@@ -124,16 +89,14 @@ const EvaluateButton = ({ repo, tenantId, onEvaluationComplete }) => {
 
     if (evaluating) {
         return (
-            <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                    <span className="text-sm text-blue-400">
-                        {evalStatus === 'pending' && 'Queued...'}
-                        {evalStatus === 'running' && `${progress}%`}
-                    </span>
-                </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                <span className="text-sm text-blue-400">
+                    {evalStatus === 'pending' && 'Queued...'}
+                    {evalStatus === 'running' && `${progress}%`}
+                </span>
                 {progress > 0 && (
-                    <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                         <div
                             className="h-full bg-blue-500 transition-all duration-300"
                             style={{ width: `${progress}%` }}
@@ -145,20 +108,13 @@ const EvaluateButton = ({ repo, tenantId, onEvaluationComplete }) => {
     }
 
     return (
-        <div className="flex items-center gap-2">
-            {latestScore !== null && (
-                <span className={`px-2 py-1 rounded text-xs font-bold border ${getGradeColor(getScoreGrade(latestScore))}`}>
-                    {getScoreGrade(latestScore)} {latestScore.toFixed(0)}%
-                </span>
-            )}
-            <button
-                className="btn btn-sm bg-primary hover:bg-primary/80 border-none text-white"
-                onClick={handleTriggerEvaluation}
-            >
-                <Shield className="w-4 h-4 mr-1" />
-                Evaluate
-            </button>
-        </div>
+        <button
+            className="btn btn-sm bg-primary hover:bg-primary/80 border-none text-white gap-1"
+            onClick={handleTriggerEvaluation}
+        >
+            <Play className="w-4 h-4" />
+            Evaluate
+        </button>
     );
 };
 
@@ -166,59 +122,51 @@ const Repositories = () => {
     const { tenant } = useAuth();
     const [repos, setRepos] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [lastEvalResults, setLastEvalResults] = useState({});
+    const [lastEvalDates, setLastEvalDates] = useState({});
+
+    const fetchRepos = async () => {
+        if (!tenant) return;
+        setLoading(true);
+        try {
+            const response = await api.get(`/tenants/${tenant.id}/repositories/`);
+            const repositories = response.data.repositories || [];
+            setRepos(repositories.map(r => ({
+                ...r,
+                orgName: tenant.name,
+                orgId: tenant.id
+            })));
+
+            // Fetch last evaluation date for each repo
+            const evalDates = {};
+            for (const repo of repositories) {
+                try {
+                    const evalRes = await api.get(`/compliance/repositories/${repo.id}/evaluations/`);
+                    const evals = evalRes.data || [];
+                    const lastCompleted = evals.find(e => e.status === 'completed');
+                    if (lastCompleted?.completed_at) {
+                        evalDates[repo.id] = lastCompleted.completed_at;
+                    }
+                } catch {
+                    // Ignore errors
+                }
+            }
+            setLastEvalDates(evalDates);
+        } catch (error) {
+            toast.error('Failed to load repositories');
+            setRepos([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchRepos = async () => {
-            if (!tenant) return;
-            setLoading(true);
-            try {
-                const response = await api.get(`/tenants/${tenant.id}/repositories/`);
-                const repositories = response.data.repositories || [];
-                setRepos(repositories.map(r => ({
-                    ...r,
-                    orgName: tenant.name,
-                    orgId: tenant.id
-                })));
-            } catch (error) {
-                toast.error('Failed to load repositories');
-                setRepos([]);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchRepos();
     }, [tenant]);
 
-    const handleEvaluationComplete = (repoId, status, score) => {
-        setLastEvalResults(prev => ({
-            ...prev,
-            [repoId]: { status, score, timestamp: new Date() }
-        }));
-    };
-
-    const getLastEvalBadge = (repoId) => {
-        const result = lastEvalResults[repoId];
-        if (!result) return null;
-
-        if (result.status === 'completed') {
-            const grade = getScoreGrade(result.score || 0);
-            return (
-                <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${getGradeColor(grade)}`}>
-                    <Award className="w-3 h-3" />
-                    {grade} - {(result.score || 0).toFixed(0)}%
-                </span>
-            );
-        }
-        if (result.status === 'failed') {
-            return (
-                <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded text-xs">
-                    <XCircle className="w-3 h-3" />
-                    Failed
-                </span>
-            );
-        }
-        return null;
+    const formatDate = (dateStr) => {
+        if (!dateStr) return 'Never';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString();
     };
 
     return (
@@ -253,11 +201,10 @@ const Repositories = () => {
                                             }`}>
                                             {repo.visibility}
                                         </span>
-                                        {getLastEvalBadge(repo.id)}
                                     </div>
                                     <p className="text-xs text-gray-500 mb-1">Organization: {repo.orgName}</p>
                                     {repo.description && (
-                                        <p className="text-sm text-gray-400 mb-2">{repo.description}</p>
+                                        <p className="text-sm text-gray-400 mb-2 line-clamp-2">{repo.description}</p>
                                     )}
                                     <div className="flex items-center gap-4 mb-2">
                                         {repo.primary_language && (
@@ -276,21 +223,17 @@ const Repositories = () => {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <div className="text-right">
-                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                            repo.validation_status === 'invalid' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                                repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
-                                                    'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                                            }`}>
-                                            {repo.validation_status ? repo.validation_status.replace('_', ' ').toUpperCase() : 'Pending'}
-                                        </span>
-                                        <div className="text-xs text-gray-500 mt-1">
+                                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                                            <Clock className="w-3 h-3" />
+                                            Last evaluated: {formatDate(lastEvalDates[repo.id])}
+                                        </div>
+                                        <div className="text-xs text-gray-600 mt-1">
                                             Added {new Date(repo.created_at).toLocaleDateString()}
                                         </div>
                                     </div>
                                     <EvaluateButton
                                         repo={repo}
-                                        tenantId={tenant?.id}
-                                        onEvaluationComplete={handleEvaluationComplete}
+                                        onStart={fetchRepos}
                                     />
                                 </div>
                             </div>
