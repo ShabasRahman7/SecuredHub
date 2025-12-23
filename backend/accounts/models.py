@@ -430,3 +430,71 @@ class AccessRequest(models.Model):
         
     def __str__(self):
         return f"{self.email} - {self.company_name} ({self.status})"
+
+
+class Notification(models.Model):
+    """
+    Persistent notification for users.
+    
+    Notifications are stored in DB so offline users receive them on next login.
+    WebSocket is used for real-time delivery when user is online.
+    """
+    
+    # Notification types
+    TYPE_REPO_ASSIGNED = 'repo_assigned'
+    TYPE_REPO_UNASSIGNED = 'repo_unassigned'
+    TYPE_MEMBER_JOINED = 'member_joined'
+    TYPE_MEMBER_LEFT = 'member_left'
+    TYPE_EVALUATION_COMPLETED = 'evaluation_completed'
+    TYPE_EVALUATION_FAILED = 'evaluation_failed'
+    TYPE_ACCESS_REQUEST = 'access_request'
+    TYPE_TENANT_INVITE = 'tenant_invite'
+    TYPE_SYSTEM = 'system'
+    
+    TYPE_CHOICES = (
+        (TYPE_REPO_ASSIGNED, 'Repository Assigned'),
+        (TYPE_REPO_UNASSIGNED, 'Repository Unassigned'),
+        (TYPE_MEMBER_JOINED, 'Member Joined'),
+        (TYPE_MEMBER_LEFT, 'Member Left'),
+        (TYPE_EVALUATION_COMPLETED, 'Evaluation Completed'),
+        (TYPE_EVALUATION_FAILED, 'Evaluation Failed'),
+        (TYPE_ACCESS_REQUEST, 'Access Request'),
+        (TYPE_TENANT_INVITE, 'Tenant Invite'),
+        (TYPE_SYSTEM, 'System'),
+    )
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    notification_type = models.CharField(
+        max_length=50,
+        choices=TYPE_CHOICES,
+        default=TYPE_SYSTEM,
+        db_index=True
+    )
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    data = models.JSONField(default=dict, blank=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'notifications'
+        verbose_name = 'Notification'
+        verbose_name_plural = 'Notifications'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_read', '-created_at']),
+        ]
+    
+    def __str__(self):
+        status = '✓' if self.is_read else '○'
+        return f"[{status}] {self.title} → {self.user.email}"
+    
+    def mark_as_read(self):
+        """Mark notification as read."""
+        if not self.is_read:
+            self.is_read = True
+            self.save(update_fields=['is_read'])

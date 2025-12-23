@@ -64,20 +64,17 @@ REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
 # Detect if using Upstash (contains 'upstash' in hostname) - requires TLS
 IS_UPSTASH = 'upstash' in REDIS_HOST.lower()
 
-# Build Redis URL for Celery result backend
+# Build Redis URL for Django Channels
 REDIS_SCHEME = 'rediss' if IS_UPSTASH else 'redis'
 REDIS_AUTH = f"default:{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
 redis_location = f"{REDIS_SCHEME}://{REDIS_AUTH}{REDIS_HOST}:{REDIS_PORT}/0"
 
-# For Upstash/TLS, add SSL parameters for Celery
-if IS_UPSTASH or REDIS_PASSWORD:
-    redis_location_celery = f"{redis_location}?ssl_cert_reqs=CERT_NONE"
-else:
-    redis_location_celery = redis_location
-
 # Celery Configuration
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', redis_location_celery)
+
+# Result backend - DISABLED
+# Worker uses API callbacks to backend instead of storing results in Redis
+CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'

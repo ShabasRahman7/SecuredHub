@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Box, Shield, BarChart3, Users, Settings, LogOut, UserCircle, X, KeyRound } from 'lucide-react';
+import { LayoutDashboard, Box, Shield, BarChart3, Users, Settings, LogOut, UserCircle, X, KeyRound, Bell } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 const TenantSidebar = ({ logout, user, tenantName, isOpen, onClose }) => {
@@ -11,6 +11,7 @@ const TenantSidebar = ({ logout, user, tenantName, isOpen, onClose }) => {
         { id: 'compliance', label: 'Compliance', icon: Shield, path: '/tenant-dashboard/compliance' },
         { id: 'reports', label: 'Reports', icon: BarChart3, path: '/tenant-dashboard/reports' },
         { id: 'developers', label: 'Developers', icon: Users, path: '/tenant-dashboard/developers' },
+        { id: 'notifications', label: 'Notifications', icon: Bell, path: '/tenant-dashboard/notifications' },
         { id: 'credentials', label: 'Credentials', icon: KeyRound, path: '/tenant-dashboard/credentials' },
         { id: 'settings', label: 'Settings', icon: Settings, path: '/tenant-dashboard/settings' },
     ];

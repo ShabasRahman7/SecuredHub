@@ -8,6 +8,7 @@ Provides WebSocket-based notifications for all user types:
 """
 import json
 import logging
+from django.db import models
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
@@ -93,6 +94,10 @@ def send_notification(user_id: int, notification_type: str, title: str, message:
     """
     Send a notification to a specific user.
     
+    This function:
+    1. Saves notification to database (persistence)
+    2. Sends via WebSocket for real-time delivery
+    
     Args:
         user_id: Target user's ID
         notification_type: Type of notification (e.g., 'repo_assigned', 'member_joined')
@@ -101,11 +106,27 @@ def send_notification(user_id: int, notification_type: str, title: str, message:
         data: Additional data payload
     """
     from django.utils import timezone
+    from .models import Notification
     
+    # 1. Save to database for persistence
+    try:
+        notification = Notification.objects.create(
+            user_id=user_id,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            data=data or {},
+        )
+        logger.info(f"Notification saved to DB: {notification.id} for user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to save notification to DB for user {user_id}: {e}")
+        notification = None
+    
+    # 2. Send via WebSocket for real-time delivery
     channel_layer = get_channel_layer()
     if not channel_layer:
-        logger.warning("Channel layer not available, skipping notification")
-        return
+        logger.warning("Channel layer not available, skipping WebSocket notification")
+        return notification
     
     group_name = f'notifications_user_{user_id}'
     
@@ -119,16 +140,23 @@ def send_notification(user_id: int, notification_type: str, title: str, message:
                 'message': message,
                 'data': data or {},
                 'timestamp': timezone.now().isoformat(),
+                'notification_id': notification.id if notification else None,
             }
         )
-        logger.info(f"Notification sent to user {user_id}: {notification_type}")
+        logger.info(f"WebSocket notification sent to user {user_id}: {notification_type}")
     except Exception as e:
-        logger.error(f"Failed to send notification to user {user_id}: {e}")
+        logger.error(f"Failed to send WebSocket notification to user {user_id}: {e}")
+    
+    return notification
 
 
 def notify_admins(notification_type: str, title: str, message: str, data: dict = None):
     """
     Broadcast notification to all admin users.
+    
+    This function:
+    1. Saves notification to DB for each admin user
+    2. Sends via WebSocket for real-time delivery
     
     Args:
         notification_type: Type of notification
@@ -136,28 +164,23 @@ def notify_admins(notification_type: str, title: str, message: str, data: dict =
         message: Notification message
         data: Additional data payload
     """
-    from django.utils import timezone
+    from .models import User
     
-    channel_layer = get_channel_layer()
-    if not channel_layer:
-        logger.warning("Channel layer not available, skipping admin notification")
-        return
+    # Get all admin users (staff or superuser)
+    admin_users = User.objects.filter(
+        is_active=True
+    ).filter(
+        models.Q(is_staff=True) | models.Q(is_superuser=True)
+    )
     
-    try:
-        async_to_sync(channel_layer.group_send)(
-            'notifications_admins',
-            {
-                'type': 'notification',
-                'notification_type': notification_type,
-                'title': title,
-                'message': message,
-                'data': data or {},
-                'timestamp': timezone.now().isoformat(),
-            }
+    for admin in admin_users:
+        send_notification(
+            user_id=admin.id,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            data=data
         )
-        logger.info(f"Admin notification sent: {notification_type}")
-    except Exception as e:
-        logger.error(f"Failed to send admin notification: {e}")
 
 
 def notify_tenant_owners(tenant_id: int, notification_type: str, title: str, message: str, data: dict = None):

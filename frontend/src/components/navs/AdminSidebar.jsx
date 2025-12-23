@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Building2, Activity, Bot, FileText, Settings, LogOut, Shield, X } from 'lucide-react';
+import { LayoutDashboard, Building2, Activity, Bot, FileText, Settings, LogOut, Shield, X, Bell } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -15,6 +15,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         { icon: Activity, label: 'Worker Monitoring', path: '/admin/workers' },
         { icon: Bot, label: 'AI Management', path: '/admin/ai' },
         { icon: FileText, label: 'Audit Logs', path: '/admin/audit-logs' },
+        { icon: Bell, label: 'Notifications', path: '/admin/notifications' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
     ];
 

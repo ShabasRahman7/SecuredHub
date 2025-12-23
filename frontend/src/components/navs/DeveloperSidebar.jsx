@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Code, Bug, Bot, Settings, LogOut, UserCircle, X } from 'lucide-react';
+import { LayoutDashboard, Code, Bug, Bot, Settings, LogOut, UserCircle, X, Bell } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 const DeveloperSidebar = ({ logout, user, isOpen, onClose }) => {
@@ -10,6 +10,7 @@ const DeveloperSidebar = ({ logout, user, isOpen, onClose }) => {
         { id: 'repositories', label: 'Repositories', icon: Code, path: '/dev-dashboard/repositories' },
         { id: 'vulnerabilities', label: 'Vulnerabilities', icon: Bug, path: '/dev-dashboard/vulnerabilities' },
         { id: 'ai-assistant', label: 'AI Assistant', icon: Bot, path: '/dev-dashboard/ai-assistant' },
+        { id: 'notifications', label: 'Notifications', icon: Bell, path: '/dev-dashboard/notifications' },
         { id: 'settings', label: 'Settings', icon: Settings, path: '/dev-dashboard/settings' },
     ];
 

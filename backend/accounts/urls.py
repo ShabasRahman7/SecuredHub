@@ -57,4 +57,18 @@ admin_urlpatterns = [
     path('admin/access-requests/<int:request_id>/reject/', admin_reject_access_request, name='admin_reject_access_request'),
 ]
 
-urlpatterns = auth_urlpatterns + tenant_urlpatterns + admin_urlpatterns
+# Notification URLs
+from .views.notifications import (
+    NotificationListView, NotificationDetailView,
+    ClearAllNotificationsView, UnreadCountView
+)
+
+notification_urlpatterns = [
+    path('notifications/', NotificationListView.as_view(), name='notification_list'),
+    path('notifications/<int:pk>/', NotificationDetailView.as_view(), name='notification_detail'),
+    path('notifications/clear-all/', ClearAllNotificationsView.as_view(), name='notification_clear_all'),
+    path('notifications/unread-count/', UnreadCountView.as_view(), name='notification_unread_count'),
+]
+
+urlpatterns = auth_urlpatterns + tenant_urlpatterns + admin_urlpatterns + notification_urlpatterns
+

@@ -186,6 +186,9 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 50
 
+# Celery result expiration - disabled since we use API callbacks instead of result retrieval
+# CELERY_RESULT_EXPIRES = 3600
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'SecuredHub API',
     'DESCRIPTION': 'Multi-tenant DevSecOps platform API documentation',
@@ -306,13 +309,10 @@ CACHES = {
     }
 }
 
-# Set Celery result backend to use the same Redis location
-# For Upstash/TLS, add SSL parameters
-if IS_UPSTASH or redis_location.startswith("rediss://"):
-    celery_redis_location = f"{redis_location}?ssl_cert_reqs=CERT_NONE"
-else:
-    celery_redis_location = redis_location
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', celery_redis_location)
+# Celery result backend - DISABLED
+# We use API callbacks from worker → backend instead of Redis result storage.
+# This prevents Redis bloat and aligns with our single-source-of-truth architecture.
+CELERY_RESULT_BACKEND = None
 
 # Django Channels Configuration
 ASGI_APPLICATION = 'core.asgi.application'

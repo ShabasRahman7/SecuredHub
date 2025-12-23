@@ -23,6 +23,7 @@ import DevVulnerabilities from '../pages/developer/Vulnerabilities';
 import DevAIAssistant from '../pages/developer/AIAssistant';
 import DevSettings from '../pages/developer/Settings';
 import DevProfile from '../pages/developer/Profile';
+import Notifications from '../pages/shared/Notifications';
 import ProtectedRoute from './ProtectedRoute';
 import GuestRoute from './GuestRoute';
 import PublicRoute from './PublicRoute';
@@ -63,6 +64,7 @@ const AppRoutes = () => {
                 <Route path="workers" element={<WorkerMonitoring />} />
                 <Route path="ai" element={<AdminPlaceholder />} />
                 <Route path="audit-logs" element={<AdminPlaceholder />} />
+                <Route path="notifications" element={<Notifications />} />
                 <Route path="settings" element={<AdminPlaceholder />} />
             </Route>
 
@@ -81,6 +83,7 @@ const AppRoutes = () => {
                 <Route path="compliance" element={<TenantCompliance />} />
                 <Route path="reports" element={<TenantReports />} />
                 <Route path="developers" element={<TenantDevelopers />} />
+                <Route path="notifications" element={<Notifications />} />
                 <Route path="credentials" element={<TenantCredentials />} />
                 <Route path="settings" element={<TenantSettings />} />
                 <Route path="profile" element={<TenantProfile />} />
@@ -98,6 +101,7 @@ const AppRoutes = () => {
                 <Route path="repositories" element={<DevRepositories />} />
                 <Route path="vulnerabilities" element={<DevVulnerabilities />} />
                 <Route path="ai-assistant" element={<DevAIAssistant />} />
+                <Route path="notifications" element={<Notifications />} />
                 <Route path="settings" element={<DevSettings />} />
                 <Route path="profile" element={<DevProfile />} />
             </Route>
@@ -112,3 +116,4 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
+
