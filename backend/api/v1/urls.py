@@ -19,7 +19,12 @@ urlpatterns = [
     # Tenant endpoints and nested tenant resources
     path("", include((tenant_urlpatterns, "tenants"))),
     path("tenants/<int:tenant_id>/repositories/", include("repositories.urls")),
-
-    # Scan-related endpoints
-    path("", include("scans.urls")),
+    
+    # Compliance platform endpoints
+    path("standards/", include("standards.urls")),
+    path("compliance/", include("compliance.urls")),
+    
+    # Internal API for worker → backend communication
+    path("internal/", include("compliance.internal_urls")),
 ]
+

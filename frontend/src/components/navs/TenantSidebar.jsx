@@ -8,7 +8,7 @@ const TenantSidebar = ({ logout, user, tenantName, isOpen, onClose }) => {
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/tenant-dashboard' },
         { id: 'repositories', label: 'Repositories', icon: Box, path: '/tenant-dashboard/repositories' },
-        { id: 'scans', label: 'Scans', icon: Shield, path: '/tenant-dashboard/scans' },
+        { id: 'compliance', label: 'Compliance', icon: Shield, path: '/tenant-dashboard/compliance' },
         { id: 'reports', label: 'Reports', icon: BarChart3, path: '/tenant-dashboard/reports' },
         { id: 'developers', label: 'Developers', icon: Users, path: '/tenant-dashboard/developers' },
         { id: 'credentials', label: 'Credentials', icon: KeyRound, path: '/tenant-dashboard/credentials' },

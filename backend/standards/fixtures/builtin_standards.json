@@ -1,0 +1,233 @@
+[
+    {
+        "model": "standards.compliancestandard",
+        "pk": 1,
+        "fields": {
+            "name": "Startup Best Practices",
+            "slug": "startup-best-practices",
+            "description": "Essential engineering best practices for startup and small team projects. Covers documentation, security files, development hygiene, and CI/CD configuration.",
+            "version": "1.0",
+            "is_builtin": true,
+            "organization": null,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 1,
+        "fields": {
+            "standard": 1,
+            "name": "README.md exists",
+            "description": "Every repository must have a README.md file that documents the project purpose, setup instructions, and usage.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "README.md"
+            },
+            "weight": 10,
+            "severity": "high",
+            "remediation_hint": "Create a README.md file in the repository root with project description, installation steps, and usage examples.",
+            "order": 1,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 2,
+        "fields": {
+            "standard": 1,
+            "name": "LICENSE file exists",
+            "description": "Repository must have a LICENSE file specifying the terms under which the code can be used.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "LICENSE"
+            },
+            "weight": 8,
+            "severity": "medium",
+            "remediation_hint": "Add a LICENSE file to the repository root. Common choices: MIT, Apache 2.0, or GPL for open source projects.",
+            "order": 2,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 3,
+        "fields": {
+            "standard": 1,
+            "name": "SECURITY.md exists",
+            "description": "Repository should have a SECURITY.md file explaining how to report security vulnerabilities.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "SECURITY.md"
+            },
+            "weight": 7,
+            "severity": "medium",
+            "remediation_hint": "Create a SECURITY.md file with instructions for responsible disclosure, including contact email and expected response time.",
+            "order": 3,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 4,
+        "fields": {
+            "standard": 1,
+            "name": "CONTRIBUTING.md exists",
+            "description": "Repository should have contribution guidelines for new contributors.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "CONTRIBUTING.md"
+            },
+            "weight": 5,
+            "severity": "low",
+            "remediation_hint": "Add a CONTRIBUTING.md file with guidelines for how to contribute, coding standards, and pull request process.",
+            "order": 4,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 5,
+        "fields": {
+            "standard": 1,
+            "name": "No .env file committed",
+            "description": "Environment files containing secrets should never be committed to the repository.",
+            "rule_type": "file_forbidden",
+            "check_config": {
+                "path": ".env"
+            },
+            "weight": 10,
+            "severity": "critical",
+            "remediation_hint": "Remove .env from the repository using 'git rm --cached .env' and add it to .gitignore. Never commit secrets!",
+            "order": 5,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 6,
+        "fields": {
+            "standard": 1,
+            "name": ".gitignore exists",
+            "description": "Repository must have a .gitignore file to prevent accidental commits of unwanted files.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": ".gitignore"
+            },
+            "weight": 9,
+            "severity": "high",
+            "remediation_hint": "Create a .gitignore file appropriate for your project type. Include common patterns like node_modules/, *.pyc, .env, etc.",
+            "order": 6,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 7,
+        "fields": {
+            "standard": 1,
+            "name": "GitHub Actions configured",
+            "description": "Repository should have CI/CD configured using GitHub Actions.",
+            "rule_type": "folder_exists",
+            "check_config": {
+                "path": ".github/workflows"
+            },
+            "weight": 8,
+            "severity": "medium",
+            "remediation_hint": "Create a .github/workflows directory with at least one workflow file (e.g., ci.yml) for automated testing.",
+            "order": 7,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 8,
+        "fields": {
+            "standard": 1,
+            "name": "Tests directory exists",
+            "description": "Repository should have a dedicated tests directory for organized test files.",
+            "rule_type": "folder_exists",
+            "check_config": {
+                "path": "tests",
+                "alternatives": [
+                    "test",
+                    "spec",
+                    "__tests__"
+                ]
+            },
+            "weight": 7,
+            "severity": "medium",
+            "remediation_hint": "Create a tests/ directory and add unit tests for your code. Consider using pytest (Python), Jest (JavaScript), or your language's standard test framework.",
+            "order": 8,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 9,
+        "fields": {
+            "standard": 1,
+            "name": "No secrets in repository",
+            "description": "Check for common secret patterns that should not be committed.",
+            "rule_type": "file_forbidden",
+            "check_config": {
+                "patterns": [
+                    "*.key",
+                    "*.pem",
+                    "secrets.json",
+                    "credentials.json",
+                    ".env.local",
+                    ".env.production"
+                ]
+            },
+            "weight": 10,
+            "severity": "critical",
+            "remediation_hint": "Remove any secret files from the repository and add them to .gitignore. Use environment variables or secret management tools instead.",
+            "order": 9,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 10,
+        "fields": {
+            "standard": 1,
+            "name": ".env.example template exists",
+            "description": "Repository should have an .env.example file documenting required environment variables.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": ".env.example",
+                "alternatives": [
+                    ".env.template",
+                    ".env.sample"
+                ]
+            },
+            "weight": 6,
+            "severity": "low",
+            "remediation_hint": "Create an .env.example file listing all required environment variables with placeholder values or descriptions.",
+            "order": 10,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    }
+]

@@ -55,7 +55,9 @@ INSTALLED_APPS = [
     'api',
     'accounts.apps.AccountsConfig',           # Custom authentication
     'repositories.apps.RepositoriesConfig',   # Repository management
-    'scans.apps.ScansConfig',                 # Scanning system
+    'standards.apps.StandardsConfig',         # Compliance standards framework
+    'compliance.apps.ComplianceConfig',       # Compliance evaluations
+    'audits.apps.AuditsConfig',               # Audit logging and evidence
     'monitoring',                             # System / worker monitoring
 ]
 
@@ -261,12 +263,15 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
 # Repository Encryption Configuration
-# For production, use a secure 32-byte key from environment variable
-REPOSITORY_ENCRYPTION_KEY = os.getenv('REPOSITORY_ENCRYPTION_KEY', 'xmcC6B0bOp_Ldsurx5DAKQ6pGKcaPDfOMN6vE7qIbJc=')
+# Required in production - set REPOSITORY_ENCRYPTION_KEY in environment
+REPOSITORY_ENCRYPTION_KEY = os.getenv('REPOSITORY_ENCRYPTION_KEY')
 
 # GitHub OAuth Configuration
 GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
 GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
+
+# Internal Service Authentication (worker → backend)
+INTERNAL_SERVICE_TOKEN = os.getenv('INTERNAL_SERVICE_TOKEN', '')
 
 # Redis Cache / Result Backend Configuration (supports Upstash via REDIS_URL)
 REDIS_URL = os.getenv('REDIS_URL', '')
@@ -302,7 +307,12 @@ CACHES = {
 }
 
 # Set Celery result backend to use the same Redis location
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', redis_location)
+# For Upstash/TLS, add SSL parameters
+if IS_UPSTASH or redis_location.startswith("rediss://"):
+    celery_redis_location = f"{redis_location}?ssl_cert_reqs=CERT_NONE"
+else:
+    celery_redis_location = redis_location
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', celery_redis_location)
 
 # Django Channels Configuration
 ASGI_APPLICATION = 'core.asgi.application'

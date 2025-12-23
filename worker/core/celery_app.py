@@ -24,11 +24,15 @@ app.conf.update(
     task_track_started=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    broker_connection_retry_on_startup=True,
+    redis_backend_health_check_interval=25,
+    redis_socket_connect_timeout=5,
+    redis_socket_timeout=5,
+    redis_retry_on_timeout=True,
     task_routes={
-        "scans.tasks.*": {"queue": "scans"},
+        "compliance.tasks.*": {"queue": "compliance"},
     },
 )
 
-# Autodiscover tasks from scans app (Django app pattern)
-app.autodiscover_tasks(["scans"])
-
+# Autodiscover tasks from compliance module
+app.autodiscover_tasks(["compliance"])

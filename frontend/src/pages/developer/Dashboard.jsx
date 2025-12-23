@@ -41,10 +41,10 @@ const Dashboard = () => {
             try {
                 const response = await api.get(`/tenants/${tenant.id}/repositories/`);
                 const repositories = response.data.repositories || [];
-                const reposWithTenant = repositories.map(r => ({ 
-                    ...r, 
+                const reposWithTenant = repositories.map(r => ({
+                    ...r,
                     orgName: tenant.name,
-                    orgId: tenant.id 
+                    orgId: tenant.id
                 }));
                 setRepos(reposWithTenant);
             } catch (error) {
@@ -58,9 +58,6 @@ const Dashboard = () => {
         fetchRepos();
     }, [tenant]);
 
-    const handleScan = () => {
-        toast.info('Scan functionality coming in Week 2');
-    };
 
     const chartOptions = {
         responsive: true,
@@ -139,11 +136,11 @@ const Dashboard = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left Column (2/3) */}
                     <div className="lg:col-span-2 flex flex-col gap-6">
-                        {/* Recent Scans Table */}
+                        {/* Recent Evaluations Table */}
                         <div className="bg-[#0A0F16] border border-white/10 rounded-xl overflow-hidden">
                             <div className="flex justify-between items-center px-6 py-4 border-b border-white/10">
-                                <h2 className="text-lg font-semibold text-white">Recent Scans on My Repositories</h2>
-                                <button onClick={() => navigate('/dev-dashboard/repositories')} className="text-sm font-medium text-primary hover:underline">View All Scans</button>
+                                <h2 className="text-lg font-semibold text-white">Recent Evaluations on My Repositories</h2>
+                                <button onClick={() => navigate('/dev-dashboard/repositories')} className="text-sm font-medium text-primary hover:underline">View All Evaluations</button>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
@@ -169,12 +166,11 @@ const Dashboard = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                        repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400' :
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400' :
                                                         repo.validation_status === 'invalid' ? 'bg-red-500/10 text-red-400' :
-                                                        repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400' :
-                                                        'bg-gray-500/10 text-gray-400'
-                                                    }`}>
+                                                            repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400' :
+                                                                'bg-gray-500/10 text-gray-400'
+                                                        }`}>
                                                         {repo.validation_status ? repo.validation_status.replace('_', ' ').toUpperCase() : 'Pending'}
                                                     </span>
                                                 </td>
@@ -195,9 +191,9 @@ const Dashboard = () => {
                                                     {repo.created_at ? new Date(repo.created_at).toLocaleDateString() : 'Unknown'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <a 
-                                                        href={repo.url} 
-                                                        target="_blank" 
+                                                    <a
+                                                        href={repo.url}
+                                                        target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="text-primary hover:text-blue-400 flex items-center gap-1"
                                                     >
@@ -245,7 +241,7 @@ const Dashboard = () => {
                                 <ProgressBar label="Low" count={0} color="bg-blue-400" width="0%" />
                             </div>
                             <p className="text-xs text-gray-500 mt-4 text-center">
-                                Real data coming in Week 2
+                                Vulnerability data coming soon
                             </p>
                         </div>
 

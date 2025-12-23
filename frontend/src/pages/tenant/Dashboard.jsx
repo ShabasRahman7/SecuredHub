@@ -123,8 +123,8 @@ const Dashboard = () => {
                                 <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">90%</div>
                             </div>
                             <div>
-                                <p className="font-bold text-white">Codebase Scanned</p>
-                                <p className="text-xs text-gray-500">The AI has processed most of your connected repositories.</p>
+                                <p className="font-bold text-white">Repositories Evaluated</p>
+                                <p className="text-xs text-gray-500">AI has analyzed most of your connected repositories.</p>
                             </div>
                         </div>
 

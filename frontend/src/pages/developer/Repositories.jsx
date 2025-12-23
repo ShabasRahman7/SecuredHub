@@ -1,86 +1,140 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { ExternalLink, Play, Shield, Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ExternalLink, Play, Shield, Loader2, CheckCircle, XCircle, Award, Settings } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
 import useWebSocket from '../../hooks/useWebSocket';
 
-const ScanButton = ({ repo, tenantId, onScanComplete }) => {
-    const [scanning, setScanning] = useState(false);
-    const [scanId, setScanId] = useState(null);
-    const [progress, setProgress] = useState(0);
-    const [scanStatus, setScanStatus] = useState(null);
+const getGradeColor = (grade) => {
+    switch (grade) {
+        case 'A': return 'text-green-400 bg-green-500/10 border-green-500/20';
+        case 'B': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+        case 'C': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+        case 'D': return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
+        case 'F': return 'text-red-400 bg-red-500/10 border-red-500/20';
+        default: return 'text-gray-400 bg-gray-500/10 border-gray-500/20';
+    }
+};
 
-    // Check for running scans on mount
+const getScoreGrade = (score) => {
+    if (score >= 90) return 'A';
+    if (score >= 80) return 'B';
+    if (score >= 70) return 'C';
+    if (score >= 60) return 'D';
+    return 'F';
+};
+
+const EvaluateButton = ({ repo, tenantId, onEvaluationComplete }) => {
+    const [evaluating, setEvaluating] = useState(false);
+    const [evaluationId, setEvaluationId] = useState(null);
+    const [progress, setProgress] = useState(0);
+    const [evalStatus, setEvalStatus] = useState(null);
+    const [latestScore, setLatestScore] = useState(null);
+
+    // Check for running evaluations and get latest score on mount
     useEffect(() => {
-        const checkRunningScan = async () => {
+        const checkRunningEvaluation = async () => {
             try {
-                const response = await api.get(`/repos/${repo.id}/scans/`);
-                const scans = response.data || [];
-                const runningScan = scans.find(s => s.status === 'queued' || s.status === 'running');
-                if (runningScan) {
-                    setScanId(runningScan.id);
-                    setScanStatus(runningScan.status);
-                    setScanning(true);
+                const response = await api.get(`/compliance/repositories/${repo.id}/evaluations/`);
+                const evals = response.data || [];
+                const runningEval = evals.find(e => e.status === 'pending' || e.status === 'running');
+                if (runningEval) {
+                    setEvaluationId(runningEval.id);
+                    setEvalStatus(runningEval.status);
+                    setEvaluating(true);
+                }
+                // Get latest completed evaluation
+                const completed = evals.find(e => e.status === 'completed');
+                if (completed?.score) {
+                    setLatestScore(completed.score);
                 }
             } catch (err) {
-                // No scans or error - ignore
+                // No evaluations or error - ignore
             }
         };
-        checkRunningScan();
+        checkRunningEvaluation();
     }, [repo.id]);
 
-    useWebSocket(scanId, {
+    useWebSocket(evaluationId, {
         onMessage: (data) => {
             if (data.status) {
-                setScanStatus(data.status);
+                setEvalStatus(data.status);
             }
             if (data.progress !== undefined) {
                 setProgress(data.progress);
             }
             if (data.status === 'completed' || data.status === 'failed') {
-                setScanning(false);
-                setScanId(null);
-                onScanComplete?.(repo.id, data.status);
+                setEvaluating(false);
+                setEvaluationId(null);
+                if (data.score) setLatestScore(data.score);
+                onEvaluationComplete?.(repo.id, data.status, data.score);
                 if (data.status === 'completed') {
-                    toast.success(`Scan completed for ${repo.name}`);
+                    toast.success(`Evaluation completed for ${repo.name}: ${data.score?.toFixed(1)}%`);
                 } else {
-                    toast.error(`Scan failed for ${repo.name}`);
+                    toast.error(`Evaluation failed for ${repo.name}`);
                 }
             }
         }
     });
 
-    const handleTriggerScan = async () => {
+    const handleTriggerEvaluation = async () => {
         try {
-            setScanning(true);
+            // First, get assigned standards for this repo
+            const standardsRes = await api.get(`/standards/repositories/${repo.id}/`);
+            const assignedStandards = standardsRes.data || [];
+
+            if (assignedStandards.length === 0) {
+                toast.warning(`No standards assigned to ${repo.name}. Ask an owner to assign a standard.`);
+                return;
+            }
+
+            // Use the first assigned standard
+            const standardId = assignedStandards[0].standard;
+
+            setEvaluating(true);
             setProgress(0);
-            setScanStatus('queued');
-            
-            const response = await api.post(`/repos/${repo.id}/scans/trigger/`);
-            const newScanId = response.data.id;
-            setScanId(newScanId);
-            toast.info(`Scan started for ${repo.name}`);
+            setEvalStatus('pending');
+
+            const response = await api.post('/compliance/evaluations/trigger/', {
+                repository_id: repo.id,
+                standard_id: standardId
+            });
+
+            // Handle already evaluated response
+            if (response.data.already_evaluated) {
+                setEvaluating(false);
+                setEvalStatus(null);
+                if (response.data.score) {
+                    setLatestScore(response.data.score);
+                }
+                toast.info(`Already evaluated at current commit (${response.data.score?.toFixed(0)}%). No changes detected.`);
+                return;
+            }
+
+            const newEvalId = response.data.id;
+            setEvaluationId(newEvalId);
+            toast.info(`Evaluation started for ${repo.name}`);
         } catch (error) {
-            setScanning(false);
-            setScanStatus(null);
-            toast.error(error.response?.data?.error || 'Failed to trigger scan');
+            setEvaluating(false);
+            setEvalStatus(null);
+            const errorMsg = error.response?.data?.error || 'Failed to trigger evaluation';
+            toast.error(errorMsg);
         }
     };
 
-    if (scanning) {
+    if (evaluating) {
         return (
             <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                     <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
                     <span className="text-sm text-blue-400">
-                        {scanStatus === 'queued' && 'Queued...'}
-                        {scanStatus === 'running' && `${progress}%`}
+                        {evalStatus === 'pending' && 'Queued...'}
+                        {evalStatus === 'running' && `${progress}%`}
                     </span>
                 </div>
                 {progress > 0 && (
                     <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
-                        <div 
+                        <div
                             className="h-full bg-blue-500 transition-all duration-300"
                             style={{ width: `${progress}%` }}
                         />
@@ -91,13 +145,20 @@ const ScanButton = ({ repo, tenantId, onScanComplete }) => {
     }
 
     return (
-        <button
-            className="btn btn-sm bg-primary hover:bg-primary/80 border-none text-white"
-            onClick={handleTriggerScan}
-        >
-            <Play className="w-4 h-4 mr-1" />
-            Scan
-        </button>
+        <div className="flex items-center gap-2">
+            {latestScore !== null && (
+                <span className={`px-2 py-1 rounded text-xs font-bold border ${getGradeColor(getScoreGrade(latestScore))}`}>
+                    {getScoreGrade(latestScore)} {latestScore.toFixed(0)}%
+                </span>
+            )}
+            <button
+                className="btn btn-sm bg-primary hover:bg-primary/80 border-none text-white"
+                onClick={handleTriggerEvaluation}
+            >
+                <Shield className="w-4 h-4 mr-1" />
+                Evaluate
+            </button>
+        </div>
     );
 };
 
@@ -105,7 +166,7 @@ const Repositories = () => {
     const { tenant } = useAuth();
     const [repos, setRepos] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [lastScanResults, setLastScanResults] = useState({});
+    const [lastEvalResults, setLastEvalResults] = useState({});
 
     useEffect(() => {
         const fetchRepos = async () => {
@@ -114,10 +175,10 @@ const Repositories = () => {
             try {
                 const response = await api.get(`/tenants/${tenant.id}/repositories/`);
                 const repositories = response.data.repositories || [];
-                setRepos(repositories.map(r => ({ 
-                    ...r, 
+                setRepos(repositories.map(r => ({
+                    ...r,
                     orgName: tenant.name,
-                    orgId: tenant.id 
+                    orgId: tenant.id
                 })));
             } catch (error) {
                 toast.error('Failed to load repositories');
@@ -129,22 +190,23 @@ const Repositories = () => {
         fetchRepos();
     }, [tenant]);
 
-    const handleScanComplete = (repoId, status) => {
-        setLastScanResults(prev => ({
+    const handleEvaluationComplete = (repoId, status, score) => {
+        setLastEvalResults(prev => ({
             ...prev,
-            [repoId]: { status, timestamp: new Date() }
+            [repoId]: { status, score, timestamp: new Date() }
         }));
     };
 
-    const getLastScanBadge = (repoId) => {
-        const result = lastScanResults[repoId];
+    const getLastEvalBadge = (repoId) => {
+        const result = lastEvalResults[repoId];
         if (!result) return null;
 
         if (result.status === 'completed') {
+            const grade = getScoreGrade(result.score || 0);
             return (
-                <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded text-xs">
-                    <CheckCircle className="w-3 h-3" />
-                    Scanned
+                <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${getGradeColor(grade)}`}>
+                    <Award className="w-3 h-3" />
+                    {grade} - {(result.score || 0).toFixed(0)}%
                 </span>
             );
         }
@@ -165,7 +227,7 @@ const Repositories = () => {
                 <div className="flex min-w-72 flex-col gap-1">
                     <p className="text-2xl lg:text-3xl font-bold leading-tight tracking-tight">Repositories</p>
                     <p className="text-[#6b7280] dark:text-[#9da8b9] text-sm lg:text-base font-normal">
-                        View your assigned repositories and trigger security scans.
+                        View your assigned repositories and run compliance evaluations.
                     </p>
                 </div>
             </div>
@@ -187,12 +249,11 @@ const Repositories = () => {
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-2">
                                         <h3 className="font-bold text-lg text-white">{repo.name}</h3>
-                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                            repo.visibility === 'private' ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'
-                                        }`}>
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${repo.visibility === 'private' ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'
+                                            }`}>
                                             {repo.visibility}
                                         </span>
-                                        {getLastScanBadge(repo.id)}
+                                        {getLastEvalBadge(repo.id)}
                                     </div>
                                     <p className="text-xs text-gray-500 mb-1">Organization: {repo.orgName}</p>
                                     {repo.description && (
@@ -215,22 +276,21 @@ const Repositories = () => {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <div className="text-right">
-                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${
-                                            repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
                                             repo.validation_status === 'invalid' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                            repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
-                                            'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                                        }`}>
+                                                repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                                                    'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                                            }`}>
                                             {repo.validation_status ? repo.validation_status.replace('_', ' ').toUpperCase() : 'Pending'}
                                         </span>
                                         <div className="text-xs text-gray-500 mt-1">
                                             Added {new Date(repo.created_at).toLocaleDateString()}
                                         </div>
                                     </div>
-                                    <ScanButton 
-                                        repo={repo} 
+                                    <EvaluateButton
+                                        repo={repo}
                                         tenantId={tenant?.id}
-                                        onScanComplete={handleScanComplete}
+                                        onEvaluationComplete={handleEvaluationComplete}
                                     />
                                 </div>
                             </div>

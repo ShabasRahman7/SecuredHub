@@ -15,6 +15,12 @@ asgiref==3.8.1
 # Environment
 python-dotenv==1.0.1
 
+# Cryptography for token decryption
+cryptography==41.0.7
+
+# HTTP requests for GitHub API
+requests==2.31.0
+
 # Git operations (for future scanner)
 gitpython==3.1.40
 

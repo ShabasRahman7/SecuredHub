@@ -2,11 +2,20 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8001';
 
-export function useWebSocket(scanId, options = {}) {
+/**
+ * WebSocket hook for real-time updates on compliance evaluations
+ * @param {number|string} evaluationId - The evaluation ID to connect to
+ * @param {object} options - Options object
+ * @param {function} options.onMessage - Callback when message is received
+ * @param {function} options.onConnect - Callback when connected
+ * @param {function} options.onDisconnect - Callback when disconnected
+ * @param {boolean} options.autoConnect - Auto connect on mount (default: true)
+ */
+export function useWebSocket(evaluationId, options = {}) {
     const { onMessage, onConnect, onDisconnect, autoConnect = true } = options;
-    
+
     const [status, setStatus] = useState('disconnected');
-    const [scanData, setScanData] = useState(null);
+    const [data, setData] = useState(null);
     const [error, setError] = useState(null);
     const wsRef = useRef(null);
     const callbacksRef = useRef({ onMessage, onConnect, onDisconnect });
@@ -24,15 +33,15 @@ export function useWebSocket(scanId, options = {}) {
     }, []);
 
     const connect = useCallback(() => {
-        if (!scanId) return;
-        if (wsRef.current?.readyState === WebSocket.OPEN || 
+        if (!evaluationId) return;
+        if (wsRef.current?.readyState === WebSocket.OPEN ||
             wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
         const token = localStorage.getItem('access_token');
-        const url = token 
-            ? `${WS_BASE_URL}/ws/scans/${scanId}/?token=${token}`
-            : `${WS_BASE_URL}/ws/scans/${scanId}/`;
-        
+        const url = token
+            ? `${WS_BASE_URL}/ws/evaluations/${evaluationId}/?token=${token}`
+            : `${WS_BASE_URL}/ws/evaluations/${evaluationId}/`;
+
         try {
             wsRef.current = new WebSocket(url);
             setStatus('connecting');
@@ -45,9 +54,9 @@ export function useWebSocket(scanId, options = {}) {
 
             wsRef.current.onmessage = (event) => {
                 try {
-                    const data = JSON.parse(event.data);
-                    setScanData(data);
-                    callbacksRef.current.onMessage?.(data);
+                    const parsed = JSON.parse(event.data);
+                    setData(parsed);
+                    callbacksRef.current.onMessage?.(parsed);
                 } catch (e) {
                     console.error('Failed to parse WebSocket message:', e);
                 }
@@ -67,7 +76,7 @@ export function useWebSocket(scanId, options = {}) {
             setError(e.message);
             setStatus('error');
         }
-    }, [scanId]);
+    }, [evaluationId]);
 
     const sendMessage = useCallback((message) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -76,15 +85,15 @@ export function useWebSocket(scanId, options = {}) {
     }, []);
 
     useEffect(() => {
-        if (autoConnect && scanId) {
+        if (autoConnect && evaluationId) {
             connect();
         }
         return () => disconnect();
-    }, [scanId, autoConnect, connect, disconnect]);
+    }, [evaluationId, autoConnect, connect, disconnect]);
 
     return {
         status,
-        scanData,
+        data,
         error,
         connect,
         disconnect,

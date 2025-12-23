@@ -44,7 +44,7 @@ const Tenants = () => {
                 member_count: '-',
                 repo_count: '-',
                 status: 'Pending',
-                last_scan: null,
+                last_activity: null,
                 created_at: i.invited_at,
                 type: 'invite',
                 email: i.email
@@ -213,7 +213,7 @@ const Tenants = () => {
         const action = item.is_active ? 'block' : 'unblock';
         const isConfirmed = await showConfirmDialog({
             title: `${action.charAt(0).toUpperCase() + action.slice(1)} ${item.name}?`,
-            text: action === 'block' 
+            text: action === 'block'
                 ? "This will prevent the tenant and all its members from logging in."
                 : "This will allow the tenant and its members to log in again.",
             confirmButtonText: `Yes, ${action} it!`,
@@ -254,25 +254,25 @@ const Tenants = () => {
 
     return (
         <>
-                        {/* Title Section */}
-                        <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
-                            <div className="flex items-center gap-4">
-                                <div className="flex flex-col gap-1">
-                                    <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight">Tenant Management</h1>
-                                    <p className="text-gray-400 text-sm sm:text-base font-normal leading-normal">View, search, and manage all tenants on the platform.</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => addTenantModalRef.current.showModal()}
-                                className="btn btn-primary h-10 sm:h-11 px-4 sm:px-6 rounded-lg text-sm font-medium gap-2 hover:shadow-lg hover:shadow-primary/20 border-none w-full sm:w-auto"
-                            >
-                                <Plus className="w-5 h-5" />
-                                Add Tenant
-                            </button>
-                        </div>
+            {/* Title Section */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-col gap-1">
+                        <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight">Tenant Management</h1>
+                        <p className="text-gray-400 text-sm sm:text-base font-normal leading-normal">View, search, and manage all tenants on the platform.</p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => addTenantModalRef.current.showModal()}
+                    className="btn btn-primary h-10 sm:h-11 px-4 sm:px-6 rounded-lg text-sm font-medium gap-2 hover:shadow-lg hover:shadow-primary/20 border-none w-full sm:w-auto"
+                >
+                    <Plus className="w-5 h-5" />
+                    Add Tenant
+                </button>
+            </div>
 
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-[#0A0F16] p-6">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 rounded-lg bg-primary/10 text-primary">
@@ -344,7 +344,7 @@ const Tenants = () => {
                                 <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400">Members</th>
                                 <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400">Repositories</th>
                                 <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400">Status</th>
-                                <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400">Last Scan</th>
+                                <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400">Last Activity</th>
                                 <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-400 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -379,7 +379,7 @@ const Tenants = () => {
                                             </span>
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">
-                                            {tenant.last_scan ? new Date(tenant.last_scan).toLocaleDateString() : 'Never'}
+                                            {tenant.last_activity ? new Date(tenant.last_activity).toLocaleDateString() : 'Never'}
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                                             <div className="flex items-center justify-end gap-2">
@@ -405,11 +405,10 @@ const Tenants = () => {
                                                         <button
                                                             onClick={() => handleBlock(tenant)}
                                                             disabled={actionLoading === `tenant-${tenant.id}-block`}
-                                                            className={`transition-colors text-xs ${
-                                                                tenant.is_active
+                                                            className={`transition-colors text-xs ${tenant.is_active
                                                                     ? 'text-orange-500 hover:text-orange-400'
                                                                     : 'text-green-500 hover:text-green-400'
-                                                            } disabled:opacity-50`}
+                                                                } disabled:opacity-50`}
                                                         >
                                                             {actionLoading === `tenant-${tenant.id}-block` ? <span className="loading loading-spinner loading-xs" /> : (tenant.is_active ? 'Block' : 'Unblock')}
                                                         </button>

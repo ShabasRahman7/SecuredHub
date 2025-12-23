@@ -13,7 +13,7 @@ import TenantDashboard from '../pages/tenant/Dashboard';
 import TenantRepositories from '../pages/tenant/Repositories';
 import TenantDevelopers from '../pages/tenant/Developers';
 import TenantCredentials from '../pages/tenant/CredentialsPage';
-import TenantScans from '../pages/tenant/Scans';
+import TenantCompliance from '../pages/tenant/Compliance';
 import TenantReports from '../pages/tenant/Reports';
 import TenantSettings from '../pages/tenant/Settings';
 import TenantProfile from '../pages/tenant/Profile';
@@ -45,7 +45,7 @@ const AppRoutes = () => {
 
             <Route path="/register" element={<Register />} />
             <Route path="/accept-invite/:token" element={<AcceptInvite />} />
-            
+
             <Route path="/auth/github/callback" element={<GitHubCallback />} />
 
             <Route
@@ -78,7 +78,7 @@ const AppRoutes = () => {
             >
                 <Route index element={<TenantDashboard />} />
                 <Route path="repositories" element={<TenantRepositories />} />
-                <Route path="scans" element={<TenantScans />} />
+                <Route path="compliance" element={<TenantCompliance />} />
                 <Route path="reports" element={<TenantReports />} />
                 <Route path="developers" element={<TenantDevelopers />} />
                 <Route path="credentials" element={<TenantCredentials />} />
