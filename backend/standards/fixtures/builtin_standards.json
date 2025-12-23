@@ -229,5 +229,427 @@
             "created_at": "2025-01-01T00:00:00Z",
             "updated_at": "2025-01-01T00:00:00Z"
         }
+    },
+    {
+        "model": "standards.compliancestandard",
+        "pk": 2,
+        "fields": {
+            "name": "SOC2 Security Controls",
+            "slug": "soc2-security-controls",
+            "description": "Security controls aligned with SOC2 Type II requirements. Covers access control, encryption, logging, and security policies.",
+            "version": "1.0",
+            "is_builtin": true,
+            "organization": null,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 11,
+        "fields": {
+            "standard": 2,
+            "name": "Access control policy documented",
+            "description": "Repository must have documented access control policies.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "docs/security/access-control.md",
+                "alternatives": [
+                    "SECURITY.md",
+                    "docs/ACCESS_CONTROL.md"
+                ]
+            },
+            "weight": 10,
+            "severity": "high",
+            "remediation_hint": "Create an access control policy document describing who has access to what resources and how access is managed.",
+            "order": 1,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 12,
+        "fields": {
+            "standard": 2,
+            "name": "No hardcoded secrets",
+            "description": "No hardcoded API keys, passwords, or tokens in the codebase.",
+            "rule_type": "file_forbidden",
+            "check_config": {
+                "patterns": [
+                    "*.key",
+                    "*.pem",
+                    ".env",
+                    "secrets.json",
+                    "credentials.json"
+                ]
+            },
+            "weight": 10,
+            "severity": "critical",
+            "remediation_hint": "Remove all hardcoded secrets and use environment variables or a secret management service.",
+            "order": 2,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 13,
+        "fields": {
+            "standard": 2,
+            "name": "Security scanning configured",
+            "description": "Automated security scanning should be configured in CI/CD pipeline.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": ".github/workflows/security.yml",
+                "alternatives": [
+                    ".github/workflows/codeql.yml",
+                    ".github/workflows/snyk.yml"
+                ]
+            },
+            "weight": 9,
+            "severity": "high",
+            "remediation_hint": "Add a security scanning workflow using CodeQL, Snyk, or similar tools.",
+            "order": 3,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 14,
+        "fields": {
+            "standard": 2,
+            "name": "Dependency lock file present",
+            "description": "Dependencies should be locked to specific versions for reproducible builds.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "package-lock.json",
+                "alternatives": [
+                    "yarn.lock",
+                    "poetry.lock",
+                    "Pipfile.lock",
+                    "Gemfile.lock",
+                    "go.sum"
+                ]
+            },
+            "weight": 7,
+            "severity": "medium",
+            "remediation_hint": "Generate a lock file using your package manager (npm install, yarn, poetry lock, etc.).",
+            "order": 4,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 15,
+        "fields": {
+            "standard": 2,
+            "name": "Branch protection enforced",
+            "description": "Main branch should require pull request reviews.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": ".github/CODEOWNERS"
+            },
+            "weight": 8,
+            "severity": "high",
+            "remediation_hint": "Add a CODEOWNERS file and configure branch protection rules in GitHub settings.",
+            "order": 5,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 16,
+        "fields": {
+            "standard": 2,
+            "name": "Logging configuration present",
+            "description": "Application should have structured logging configured.",
+            "rule_type": "content_contains",
+            "check_config": {
+                "files": [
+                    "*.py",
+                    "*.js",
+                    "*.ts"
+                ],
+                "patterns": [
+                    "logging",
+                    "logger",
+                    "winston",
+                    "pino",
+                    "bunyan"
+                ]
+            },
+            "weight": 6,
+            "severity": "medium",
+            "remediation_hint": "Implement structured logging using a logging library appropriate for your language.",
+            "order": 6,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 17,
+        "fields": {
+            "standard": 2,
+            "name": "Error handling documented",
+            "description": "Error handling patterns should be documented.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "docs/error-handling.md",
+                "alternatives": [
+                    "docs/errors.md",
+                    "ERROR_HANDLING.md"
+                ]
+            },
+            "weight": 5,
+            "severity": "low",
+            "remediation_hint": "Document error handling patterns and error codes used in the application.",
+            "order": 7,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 18,
+        "fields": {
+            "standard": 2,
+            "name": "Incident response plan exists",
+            "description": "Security incident response procedures should be documented.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "docs/security/incident-response.md",
+                "alternatives": [
+                    "INCIDENT_RESPONSE.md",
+                    "docs/INCIDENT_RESPONSE.md"
+                ]
+            },
+            "weight": 8,
+            "severity": "high",
+            "remediation_hint": "Create an incident response document describing steps to take when a security incident occurs.",
+            "order": 8,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancestandard",
+        "pk": 3,
+        "fields": {
+            "name": "ISO 27001 Basics",
+            "slug": "iso-27001-basics",
+            "description": "Foundational information security management controls based on ISO 27001. Covers asset management, risk assessment, and security policies.",
+            "version": "1.0",
+            "is_builtin": true,
+            "organization": null,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 19,
+        "fields": {
+            "standard": 3,
+            "name": "Information security policy",
+            "description": "Organization should have a documented information security policy.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "docs/security/policy.md",
+                "alternatives": [
+                    "SECURITY_POLICY.md",
+                    "docs/SECURITY_POLICY.md"
+                ]
+            },
+            "weight": 10,
+            "severity": "high",
+            "remediation_hint": "Create a security policy document outlining the organization's approach to information security.",
+            "order": 1,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 20,
+        "fields": {
+            "standard": 3,
+            "name": "Asset inventory documented",
+            "description": "Information assets should be identified and documented.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "docs/assets.md",
+                "alternatives": [
+                    "docs/ASSETS.md",
+                    "ASSET_INVENTORY.md"
+                ]
+            },
+            "weight": 7,
+            "severity": "medium",
+            "remediation_hint": "Create an asset inventory documenting systems, data stores, and critical components.",
+            "order": 2,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 21,
+        "fields": {
+            "standard": 3,
+            "name": "Risk assessment documented",
+            "description": "Security risks should be identified and assessed.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "docs/security/risks.md",
+                "alternatives": [
+                    "RISK_ASSESSMENT.md",
+                    "docs/RISKS.md"
+                ]
+            },
+            "weight": 8,
+            "severity": "high",
+            "remediation_hint": "Document potential security risks and their mitigation strategies.",
+            "order": 3,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 22,
+        "fields": {
+            "standard": 3,
+            "name": "Data classification defined",
+            "description": "Data should be classified based on sensitivity.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "docs/data-classification.md",
+                "alternatives": [
+                    "DATA_CLASSIFICATION.md",
+                    "docs/DATA_HANDLING.md"
+                ]
+            },
+            "weight": 7,
+            "severity": "medium",
+            "remediation_hint": "Define data classification levels and handling procedures for each level.",
+            "order": 4,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 23,
+        "fields": {
+            "standard": 3,
+            "name": "Backup procedures documented",
+            "description": "Data backup and recovery procedures should be documented.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "docs/backup-recovery.md",
+                "alternatives": [
+                    "BACKUP.md",
+                    "docs/DISASTER_RECOVERY.md"
+                ]
+            },
+            "weight": 8,
+            "severity": "high",
+            "remediation_hint": "Document backup schedules, retention policies, and recovery procedures.",
+            "order": 5,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 24,
+        "fields": {
+            "standard": 3,
+            "name": "Change management process",
+            "description": "Changes should follow a documented change management process.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": ".github/pull_request_template.md",
+                "alternatives": [
+                    "docs/CHANGE_MANAGEMENT.md",
+                    "PULL_REQUEST_TEMPLATE.md"
+                ]
+            },
+            "weight": 6,
+            "severity": "medium",
+            "remediation_hint": "Create a pull request template and document the change review process.",
+            "order": 6,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 25,
+        "fields": {
+            "standard": 3,
+            "name": "Third-party security review",
+            "description": "Third-party dependencies should be reviewed for security.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "docs/third-party-review.md",
+                "alternatives": [
+                    "THIRD_PARTY.md",
+                    "docs/VENDOR_REVIEW.md"
+                ]
+            },
+            "weight": 5,
+            "severity": "medium",
+            "remediation_hint": "Document third-party dependencies and their security review status.",
+            "order": 7,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "standards.compliancerule",
+        "pk": 26,
+        "fields": {
+            "standard": 3,
+            "name": "Business continuity plan",
+            "description": "Business continuity procedures should be documented.",
+            "rule_type": "file_exists",
+            "check_config": {
+                "path": "docs/business-continuity.md",
+                "alternatives": [
+                    "BCP.md",
+                    "docs/CONTINUITY.md"
+                ]
+            },
+            "weight": 7,
+            "severity": "medium",
+            "remediation_hint": "Create a business continuity plan documenting how operations continue during disruption.",
+            "order": 8,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
     }
 ]

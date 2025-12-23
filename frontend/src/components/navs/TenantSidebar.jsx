@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Box, Shield, BarChart3, Users, Settings, LogOut, UserCircle, X, KeyRound, Bell } from 'lucide-react';
+import { LayoutDashboard, Box, FileCheck2, ClipboardList, BarChart3, Users, Settings, LogOut, UserCircle, X, KeyRound, Bell } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 const TenantSidebar = ({ logout, user, tenantName, isOpen, onClose }) => {
@@ -8,7 +8,8 @@ const TenantSidebar = ({ logout, user, tenantName, isOpen, onClose }) => {
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/tenant-dashboard' },
         { id: 'repositories', label: 'Repositories', icon: Box, path: '/tenant-dashboard/repositories' },
-        { id: 'compliance', label: 'Compliance', icon: Shield, path: '/tenant-dashboard/compliance' },
+        { id: 'evaluations', label: 'Evaluation Results', icon: FileCheck2, path: '/tenant-dashboard/compliance' },
+        { id: 'standards', label: 'Standards', icon: ClipboardList, path: '/tenant-dashboard/standards' },
         { id: 'reports', label: 'Reports', icon: BarChart3, path: '/tenant-dashboard/reports' },
         { id: 'developers', label: 'Developers', icon: Users, path: '/tenant-dashboard/developers' },
         { id: 'notifications', label: 'Notifications', icon: Bell, path: '/tenant-dashboard/notifications' },

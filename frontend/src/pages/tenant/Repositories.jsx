@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Link as LinkIcon, Trash2, Github, Search, X, Users, UserPlus, UserMinus } from 'lucide-react';
+import { Link as LinkIcon, Trash2, Github, Search, X, Users, UserPlus, UserMinus, Shield, ClipboardList } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
 import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
 import { tenantService } from '../../api/services/tenantService';
 import { credentialsApi } from '../../services/credentialsApi';
+import { getStandards, getRepositoryStandards, assignStandard, removeStandard } from '../../api/services/standards';
 
 const Repositories = () => {
     const { tenant } = useAuth();
@@ -26,6 +27,13 @@ const Repositories = () => {
     const [selectedRepo, setSelectedRepo] = useState(null);
     const [searchRepo, setSearchRepo] = useState('');
     const [repoFormData, setRepoFormData] = useState({ name: '', url: '', visibility: 'private' });
+    // Standards assignment state
+    const [availableStandards, setAvailableStandards] = useState([]);
+    const [showStandardsModal, setShowStandardsModal] = useState(false);
+    const [selectedRepoForStandards, setSelectedRepoForStandards] = useState(null);
+    const [repoStandardAssignments, setRepoStandardAssignments] = useState({});
+    const [selectedStandardIds, setSelectedStandardIds] = useState([]);
+    const [standardsSaving, setStandardsSaving] = useState(false);
 
     useEffect(() => {
         if (tenant) {
@@ -37,8 +45,18 @@ const Repositories = () => {
         if (currentTenant) {
             fetchRepositories();
             fetchMembers();
+            fetchAvailableStandards();
         }
     }, [currentTenant]);
+
+    const fetchAvailableStandards = async () => {
+        try {
+            const data = await getStandards(currentTenant.id);
+            setAvailableStandards(data || (Array.isArray(data) ? data : []));
+        } catch (error) {
+            console.error('Failed to load standards:', error);
+        }
+    };
 
     const fetchRepositories = async () => {
         if (!currentTenant) return;
@@ -55,6 +73,19 @@ const Repositories = () => {
                 }
             }
             setAssignments(assignmentsData);
+
+            // Also fetch standard assignments for each repo
+            const standardsData = {};
+            for (const repo of res.data.repositories || []) {
+                try {
+                    const stdRes = await getRepositoryStandards(repo.id);
+                    const standards = stdRes || [];
+                    standardsData[repo.id] = standards.map(s => s.standard);
+                } catch (err) {
+                    standardsData[repo.id] = [];
+                }
+            }
+            setRepoStandardAssignments(standardsData);
         } catch (error) {
             toast.error('Failed to load repositories');
         }
@@ -107,7 +138,7 @@ const Repositories = () => {
             setSearchRepo('');
             const credsRes = await credentialsApi.listCredentials(currentTenant.id);
             const cred = (credsRes.credentials || []).find(c => c.provider === 'github');
-            
+
             if (!cred) {
                 toast.error('No GitHub credential found. Connect GitHub first.');
                 setShowGitHubModal(false);
@@ -116,13 +147,13 @@ const Repositories = () => {
 
             const response = await credentialsApi.getGitHubRepositories(currentTenant.id, cred.id);
             const repos = response.repositories || [];
-            
+
             const existingUrls = repositories.map(repo => repo.url.toLowerCase());
             const availableRepos = repos.filter(repo => {
                 const repoUrl = (repo.clone_url || repo.html_url || '').toLowerCase();
                 return !existingUrls.includes(repoUrl);
             });
-            
+
             setGhRepos(availableRepos);
             setFilteredGhRepos(availableRepos);
         } catch (err) {
@@ -139,8 +170,8 @@ const Repositories = () => {
             setFilteredGhRepos(ghRepos);
             return;
         }
-        setFilteredGhRepos(ghRepos.filter(r => 
-            (r.name || '').toLowerCase().includes(q) || 
+        setFilteredGhRepos(ghRepos.filter(r =>
+            (r.name || '').toLowerCase().includes(q) ||
             (r.full_name || '').toLowerCase().includes(q)
         ));
     };
@@ -157,7 +188,7 @@ const Repositories = () => {
                 url: selectedRepo.clone_url || selectedRepo.html_url,
                 visibility: selectedRepo.private ? 'private' : 'public',
             });
-            
+
             toast.success('Repository imported successfully!');
             fetchRepositories();
             setShowGitHubModal(false);
@@ -227,6 +258,7 @@ const Repositories = () => {
                                 <tr className="border-b border-white/10">
                                     <th className="text-gray-400 font-semibold">Repository</th>
                                     <th className="text-gray-400 font-semibold">Visibility</th>
+                                    <th className="text-gray-400 font-semibold">Standards</th>
                                     <th className="text-gray-400 font-semibold">Assigned Developers</th>
                                     <th className="text-gray-400 font-semibold">Created</th>
                                     <th className="text-gray-400 font-semibold text-right">Actions</th>
@@ -236,30 +268,40 @@ const Repositories = () => {
                                 {repositories.map(repo => {
                                     const assignedMemberIds = assignments[repo.id] || [];
                                     const assignedMembers = members.filter(m => assignedMemberIds.includes(m.id));
+                                    const assignedStandardIds = repoStandardAssignments[repo.id] || [];
+                                    const assignedStandardCount = assignedStandardIds.length;
                                     return (
                                         <tr key={repo.id} className="border-b border-white/5 hover:bg-white/5">
                                             <td>
                                                 <div>
                                                     <div className="font-semibold text-white">{repo.name}</div>
-                                                    <a 
-                                                        href={repo.url} 
-                                                        target="_blank" 
-                                                        rel="noreferrer" 
+                                                    <a
+                                                        href={repo.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
                                                         className="text-sm text-blue-400 hover:underline flex items-center gap-1 mt-1"
                                                     >
-                                                        <LinkIcon className="w-3 h-3" /> 
+                                                        <LinkIcon className="w-3 h-3" />
                                                         <span className="truncate max-w-xs">{repo.url}</span>
                                                     </a>
                                                 </div>
                                             </td>
                                             <td>
-                                                <span className={`badge badge-sm ${
-                                                    repo.visibility === 'private' 
-                                                        ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' 
-                                                        : 'bg-green-500/10 text-green-400 border-green-500/20'
-                                                } border`}>
+                                                <span className={`badge badge-sm ${repo.visibility === 'private'
+                                                    ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                                                    : 'bg-green-500/10 text-green-400 border-green-500/20'
+                                                    } border`}>
                                                     {repo.visibility}
                                                 </span>
+                                            </td>
+                                            <td>
+                                                <div className="flex items-center gap-2">
+                                                    <Shield className="w-4 h-4 text-primary" />
+                                                    <span className="text-sm text-gray-300">{assignedStandardCount}</span>
+                                                    {assignedStandardCount === 0 && (
+                                                        <span className="text-xs text-gray-500">(None)</span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td>
                                                 <div className="flex items-center gap-2">
@@ -284,6 +326,18 @@ const Repositories = () => {
                                             <td>
                                                 <div className="flex items-center justify-end gap-2">
                                                     <button
+                                                        className="btn btn-sm btn-ghost text-primary hover:bg-primary/10"
+                                                        onClick={() => {
+                                                            setSelectedRepoForStandards(repo);
+                                                            const currentStandards = repoStandardAssignments[repo.id] || [];
+                                                            setSelectedStandardIds(currentStandards);
+                                                            setShowStandardsModal(true);
+                                                        }}
+                                                        title="Manage Standards"
+                                                    >
+                                                        <ClipboardList className="w-4 h-4" />
+                                                    </button>
+                                                    <button
                                                         className="btn btn-sm btn-ghost text-blue-400 hover:bg-blue-500/10"
                                                         onClick={() => {
                                                             setSelectedRepoForAssign(repo);
@@ -292,12 +346,12 @@ const Repositories = () => {
                                                             setAssignSearch('');
                                                             setShowAssignModal(true);
                                                         }}
-                                                        title="Manage Assignments"
+                                                        title="Manage Developers"
                                                     >
                                                         <UserPlus className="w-4 h-4" />
                                                     </button>
-                                                    <button 
-                                                        className="btn btn-sm btn-ghost text-red-500 hover:bg-red-500/10" 
+                                                    <button
+                                                        className="btn btn-sm btn-ghost text-red-500 hover:bg-red-500/10"
                                                         onClick={() => handleDeleteRepository(repo.id, repo.name)}
                                                         title="Delete Repository"
                                                     >
@@ -340,13 +394,13 @@ const Repositories = () => {
 
                         <div className="max-h-80 overflow-y-auto space-y-2">
                             {loadingGhRepos && <p className="text-gray-400 text-center py-6">Loading...</p>}
-                            
+
                             {!loadingGhRepos && filteredGhRepos.length === 0 && ghRepos.length === 0 && (
                                 <p className="text-gray-500 text-center py-6">
                                     {searchRepo ? 'No repositories found matching your search.' : 'All available repositories have already been imported.'}
                                 </p>
                             )}
-                            
+
                             {!loadingGhRepos && filteredGhRepos.length === 0 && ghRepos.length > 0 && (
                                 <p className="text-gray-500 text-center py-6">No repositories found matching your search.</p>
                             )}
@@ -354,11 +408,10 @@ const Repositories = () => {
                             {!loadingGhRepos && filteredGhRepos.slice(0, 5).map((repo) => (
                                 <div
                                     key={repo.id}
-                                    className={`p-3 rounded border cursor-pointer transition ${
-                                        selectedRepo?.id === repo.id 
-                                            ? 'border-blue-500 bg-blue-500/10' 
-                                            : 'border-white/10 hover:bg-white/5'
-                                    }`}
+                                    className={`p-3 rounded border cursor-pointer transition ${selectedRepo?.id === repo.id
+                                        ? 'border-blue-500 bg-blue-500/10'
+                                        : 'border-white/10 hover:bg-white/5'
+                                        }`}
                                     onClick={() => setSelectedRepo(repo)}
                                 >
                                     <div className="flex items-center gap-3">
@@ -376,9 +429,9 @@ const Repositories = () => {
                             <button className="btn btn-ghost" onClick={() => setShowGitHubModal(false)}>
                                 Cancel
                             </button>
-                            <button 
-                                className="btn btn-primary bg-primary border-none" 
-                                disabled={!selectedRepo} 
+                            <button
+                                className="btn btn-primary bg-primary border-none"
+                                disabled={!selectedRepo}
                                 onClick={handleImportRepo}
                             >
                                 Import
@@ -613,6 +666,138 @@ const Repositories = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Standards Assignment Modal */}
+            {showStandardsModal && selectedRepoForStandards && (
+                <div className="modal modal-open">
+                    <div className="modal-box dark:bg-[#1a1d21] border dark:border-[#282f39] max-w-xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-lg text-white">
+                                Manage Standards - {selectedRepoForStandards.name}
+                            </h3>
+                            <button
+                                className="btn btn-sm btn-circle btn-ghost"
+                                onClick={() => {
+                                    if (standardsSaving) return;
+                                    setShowStandardsModal(false);
+                                    setSelectedRepoForStandards(null);
+                                    setSelectedStandardIds([]);
+                                }}
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-gray-400 mb-4">
+                            Select which compliance standards should apply to this repository.
+                        </p>
+
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {availableStandards.length === 0 ? (
+                                <p className="text-sm text-gray-500">No standards available</p>
+                            ) : (
+                                availableStandards.map((standard) => {
+                                    const isChecked = selectedStandardIds.includes(standard.id);
+                                    return (
+                                        <label
+                                            key={standard.id}
+                                            className="flex items-center justify-between p-3 rounded border border-white/10 bg-[#0A0F16] cursor-pointer gap-3"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    className="checkbox checkbox-sm checkbox-primary"
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                        setSelectedStandardIds((prev) =>
+                                                            isChecked
+                                                                ? prev.filter((id) => id !== standard.id)
+                                                                : [...prev, standard.id]
+                                                        );
+                                                    }}
+                                                    disabled={standardsSaving}
+                                                />
+                                                <div>
+                                                    <div className="font-medium text-white text-sm">
+                                                        {standard.name}
+                                                    </div>
+                                                    <div className="text-xs text-gray-400">
+                                                        {standard.is_builtin ? 'Built-in' : 'Custom'} • {standard.rule_count || 0} rules
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        <div className="modal-action mt-6">
+                            <button
+                                className="btn btn-ghost"
+                                onClick={() => {
+                                    if (standardsSaving) return;
+                                    setShowStandardsModal(false);
+                                    setSelectedRepoForStandards(null);
+                                    setSelectedStandardIds([]);
+                                }}
+                                disabled={standardsSaving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn-primary bg-primary border-none disabled:opacity-50"
+                                disabled={standardsSaving}
+                                onClick={async () => {
+                                    if (!selectedRepoForStandards) return;
+                                    try {
+                                        setStandardsSaving(true);
+                                        const repoId = selectedRepoForStandards.id;
+                                        const currentAssignedIds = repoStandardAssignments[repoId] || [];
+                                        const newAssignedIds = selectedStandardIds;
+
+                                        const toAssign = newAssignedIds.filter(
+                                            (id) => !currentAssignedIds.includes(id)
+                                        );
+                                        const toRemove = currentAssignedIds.filter(
+                                            (id) => !newAssignedIds.includes(id)
+                                        );
+
+                                        // Perform removals
+                                        for (const standardId of toRemove) {
+                                            await removeStandard(repoId, standardId);
+                                        }
+
+                                        // Perform assignments
+                                        for (const standardId of toAssign) {
+                                            await assignStandard(repoId, standardId);
+                                        }
+
+                                        toast.success('Standards updated successfully');
+                                        await fetchRepositories();
+                                        setShowStandardsModal(false);
+                                        setSelectedRepoForStandards(null);
+                                        setSelectedStandardIds([]);
+                                    } catch (error) {
+                                        toast.error(
+                                            error.response?.data?.error ||
+                                            'Failed to update standards'
+                                        );
+                                    } finally {
+                                        setStandardsSaving(false);
+                                    }
+                                }}
+                            >
+                                {standardsSaving ? (
+                                    <span className="loading loading-spinner loading-sm" />
+                                ) : (
+                                    'Save'
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

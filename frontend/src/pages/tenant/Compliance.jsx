@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Search, CheckCircle, XCircle, Loader2, RefreshCw, TrendingUp, TrendingDown, Minus, Shield, Award, Trash2, Eye, X, Clock } from 'lucide-react';
+import { Search, CheckCircle, XCircle, Loader2, RefreshCw, FileCheck2, Award, Trash2, Eye, X, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
 import { deleteEvaluation } from '../../api/services/compliance';
@@ -116,8 +116,8 @@ const EvaluationDetailModal = ({ evaluation, onClose }) => {
                                 <div
                                     key={index}
                                     className={`flex items-start gap-3 p-3 rounded-lg border ${result.passed
-                                            ? 'bg-green-500/5 border-green-500/20'
-                                            : 'bg-red-500/5 border-red-500/20'
+                                        ? 'bg-green-500/5 border-green-500/20'
+                                        : 'bg-red-500/5 border-red-500/20'
                                         }`}
                                 >
                                     {result.passed ? (
@@ -138,9 +138,9 @@ const EvaluationDetailModal = ({ evaluation, onClose }) => {
                                     </div>
                                     {result.severity && (
                                         <span className={`text-xs px-2 py-0.5 rounded ${result.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
-                                                result.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                                                    result.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                        'bg-gray-500/20 text-gray-400'
+                                            result.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
+                                                result.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                    'bg-gray-500/20 text-gray-400'
                                             }`}>
                                             {result.severity}
                                         </span>
@@ -229,13 +229,6 @@ const EvaluationRow = ({ evaluation, onUpdate, onDelete, onView, isOwner }) => {
         );
     };
 
-    const getTrendIcon = () => {
-        if (!evaluation.score_change) return null;
-        const change = evaluation.score_change;
-        if (change > 0) return <TrendingUp className="w-4 h-4 text-green-400" />;
-        if (change < 0) return <TrendingDown className="w-4 h-4 text-red-400" />;
-        return <Minus className="w-4 h-4 text-gray-400" />;
-    };
 
     return (
         <tr className="border-b border-white/5 hover:bg-white/5">
@@ -250,15 +243,6 @@ const EvaluationRow = ({ evaluation, onUpdate, onDelete, onView, isOwner }) => {
                     : evaluation.created_at
                         ? new Date(evaluation.created_at).toLocaleString()
                         : '-'}
-            </td>
-            <td className="text-gray-400 text-sm flex items-center gap-1">
-                {evaluation.passed_count !== undefined && (
-                    <>
-                        <span className="text-green-400">{evaluation.passed_count}</span>/
-                        <span className="text-gray-400">{evaluation.total_rules || (evaluation.passed_count + evaluation.failed_count)}</span>
-                        {getTrendIcon()}
-                    </>
-                )}
             </td>
             <td>
                 <div className="flex items-center gap-1">
@@ -365,8 +349,8 @@ const Compliance = () => {
             <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="flex min-w-72 flex-col gap-1">
                     <p className="text-2xl lg:text-3xl font-bold leading-tight tracking-tight flex items-center gap-2">
-                        <Shield className="w-8 h-8 text-primary" />
-                        Compliance
+                        <FileCheck2 className="w-8 h-8 text-primary" />
+                        Evaluation Results
                     </p>
                     <p className="text-[#6b7280] dark:text-[#9da8b9] text-sm lg:text-base font-normal">
                         View compliance evaluations and scores across all repositories.
@@ -418,7 +402,6 @@ const Compliance = () => {
                                     <th className="text-gray-400 font-semibold">Score</th>
                                     <th className="text-gray-400 font-semibold">Status</th>
                                     <th className="text-gray-400 font-semibold">Evaluated</th>
-                                    <th className="text-gray-400 font-semibold">Rules</th>
                                     <th className="text-gray-400 font-semibold">Actions</th>
                                 </tr>
                             </thead>

@@ -16,6 +16,7 @@ import TenantCredentials from '../pages/tenant/CredentialsPage';
 import TenantCompliance from '../pages/tenant/Compliance';
 import TenantReports from '../pages/tenant/Reports';
 import TenantSettings from '../pages/tenant/Settings';
+import TenantStandards from '../pages/tenant/Standards';
 import TenantProfile from '../pages/tenant/Profile';
 import DevDashboard from '../pages/developer/Dashboard';
 import DevRepositories from '../pages/developer/Repositories';
@@ -81,6 +82,7 @@ const AppRoutes = () => {
                 <Route index element={<TenantDashboard />} />
                 <Route path="repositories" element={<TenantRepositories />} />
                 <Route path="compliance" element={<TenantCompliance />} />
+                <Route path="standards" element={<TenantStandards />} />
                 <Route path="reports" element={<TenantReports />} />
                 <Route path="developers" element={<TenantDevelopers />} />
                 <Route path="notifications" element={<Notifications />} />

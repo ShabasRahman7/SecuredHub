@@ -41,18 +41,37 @@ class EvaluationListSerializer(serializers.ModelSerializer):
     standard_name = serializers.CharField(source='standard.name', read_only=True)
     triggered_by_email = serializers.CharField(source='triggered_by.email', read_only=True)
     score = serializers.SerializerMethodField()
+    passed_count = serializers.SerializerMethodField()
+    failed_count = serializers.SerializerMethodField()
+    total_rules = serializers.SerializerMethodField()
     
     class Meta:
         model = ComplianceEvaluation
         fields = [
             'id', 'repository', 'repository_name', 'standard', 'standard_name',
             'status', 'triggered_by', 'triggered_by_email', 'score',
+            'passed_count', 'failed_count', 'total_rules',
             'created_at', 'completed_at', 'branch', 'commit_hash'
         ]
     
     def get_score(self, obj):
         if hasattr(obj, 'score'):
             return float(obj.score.total_score)
+        return None
+    
+    def get_passed_count(self, obj):
+        if hasattr(obj, 'score'):
+            return obj.score.passed_count
+        return None
+    
+    def get_failed_count(self, obj):
+        if hasattr(obj, 'score'):
+            return obj.score.failed_count
+        return None
+    
+    def get_total_rules(self, obj):
+        if hasattr(obj, 'score'):
+            return obj.score.total_rules
         return None
 
 

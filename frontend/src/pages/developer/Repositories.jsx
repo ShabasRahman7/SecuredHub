@@ -58,27 +58,52 @@ const EvaluateButton = ({ repo, onStart }) => {
                 return;
             }
 
-            const standardId = assignedStandards[0].standard;
-
             setEvaluating(true);
             setProgress(0);
             setEvalStatus('pending');
 
-            const response = await api.post('/compliance/evaluations/trigger/', {
-                repository_id: repo.id,
-                standard_id: standardId
-            });
+            // Trigger evaluation for ALL assigned standards
+            let lastEvaluationId = null;
+            let triggeredCount = 0;
+            let alreadyEvaluatedCount = 0;
 
-            // Handle already evaluated response
-            if (response.data.already_evaluated) {
+            for (const assignment of assignedStandards) {
+                const standardId = assignment.standard;
+                try {
+                    const response = await api.post('/compliance/evaluations/trigger/', {
+                        repository_id: repo.id,
+                        standard_id: standardId
+                    });
+
+                    if (response.data.already_evaluated) {
+                        alreadyEvaluatedCount++;
+                    } else {
+                        triggeredCount++;
+                        lastEvaluationId = response.data.id;
+                    }
+                } catch (err) {
+                    // Continue with other standards even if one fails
+                    console.error(`Failed to trigger evaluation for standard ${standardId}:`, err);
+                }
+            }
+
+            if (triggeredCount === 0) {
                 setEvaluating(false);
                 setEvalStatus(null);
                 toast.info(`Already up-to-date at current commit. View results in Evaluation Results.`);
                 return;
             }
 
-            setEvaluationId(response.data.id);
-            toast.info(`Evaluation started for ${repo.name}`);
+            if (lastEvaluationId) {
+                setEvaluationId(lastEvaluationId);
+            }
+
+            // Show accurate message based on what was actually triggered
+            if (triggeredCount === 1) {
+                toast.info(`Evaluation started for ${repo.name}`);
+            } else {
+                toast.info(`Evaluation started for ${repo.name} (${triggeredCount} standards)`);
+            }
         } catch (error) {
             setEvaluating(false);
             setEvalStatus(null);
