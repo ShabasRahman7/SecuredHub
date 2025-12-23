@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from .rules.base import BaseRule, RuleResult, RuleRegistry, RepositorySnapshot
 
 # Import rules to register them
-from .rules import file_rules, folder_rules  # noqa: F401
+from .rules import file_rules, folder_rules, extended_rules  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

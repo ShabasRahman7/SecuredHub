@@ -27,7 +27,7 @@ export const getStandardRules = async (slug) => {
 
 // Create a new custom standard (tenant-specific)
 export const createStandard = async (tenantId, data) => {
-    const response = await api.post(`/standards/`, {
+    const response = await api.post(`/standards/create/`, {
         ...data,
         tenant: tenantId
     });
@@ -36,13 +36,13 @@ export const createStandard = async (tenantId, data) => {
 
 // Update a custom standard
 export const updateStandard = async (slug, data) => {
-    const response = await api.patch(`/standards/${slug}/`, data);
+    const response = await api.patch(`/standards/${slug}/update/`, data);
     return response.data;
 };
 
 // Delete a custom standard
 export const deleteStandard = async (slug) => {
-    const response = await api.delete(`/standards/${slug}/`);
+    const response = await api.delete(`/standards/${slug}/delete/`);
     return response.data;
 };
 
@@ -66,6 +66,28 @@ export const removeStandard = async (repositoryId, standardId) => {
     return response.data;
 };
 
+// =====================
+// Rule CRUD Functions
+// =====================
+
+// Add a rule to a custom standard
+export const addRule = async (slug, ruleData) => {
+    const response = await api.post(`/standards/${slug}/rules/create/`, ruleData);
+    return response.data;
+};
+
+// Update a rule in a custom standard
+export const updateRule = async (slug, ruleId, data) => {
+    const response = await api.patch(`/standards/${slug}/rules/${ruleId}/update/`, data);
+    return response.data;
+};
+
+// Delete a rule from a custom standard
+export const deleteRule = async (slug, ruleId) => {
+    const response = await api.delete(`/standards/${slug}/rules/${ruleId}/delete/`);
+    return response.data;
+};
+
 export default {
     getStandards,
     getStandard,
@@ -75,5 +97,9 @@ export default {
     deleteStandard,
     getRepositoryStandards,
     assignStandard,
-    removeStandard
+    removeStandard,
+    addRule,
+    updateRule,
+    deleteRule
 };
+

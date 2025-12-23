@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Shield, Plus, Edit2, Trash2, ChevronRight, Search, BookOpen, Building2 } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, ChevronRight, Search, BookOpen, Building2, X, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { getStandards, getStandardRules, createStandard, updateStandard, deleteStandard } from '../../api/services/standards';
+import { getStandards, getStandardRules, createStandard, updateStandard, deleteStandard, addRule, updateRule, deleteRule } from '../../api/services/standards';
 import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
 
 const Standards = () => {
@@ -17,6 +17,32 @@ const Standards = () => {
     const [loadingRules, setLoadingRules] = useState(false);
     const [formData, setFormData] = useState({ name: '', description: '' });
     const [isEditing, setIsEditing] = useState(false);
+
+    // Rule management state
+    const [showRuleModal, setShowRuleModal] = useState(false);
+    const [editingRule, setEditingRule] = useState(null);
+    const [ruleFormData, setRuleFormData] = useState({
+        name: '',
+        description: '',
+        rule_type: 'file_exists',
+        check_config: { path: '' },
+        weight: 10,
+        severity: 'medium',
+        remediation_hint: '',
+        order: 0
+    });
+    const [savingRule, setSavingRule] = useState(false);
+
+    const RULE_TYPES = [
+        { value: 'file_exists', label: 'Required File', configFields: ['path'] },
+        { value: 'file_forbidden', label: 'Forbidden File', configFields: ['path', 'pattern'] },
+        { value: 'folder_exists', label: 'Required Folder', configFields: ['path'] },
+        { value: 'pattern_match', label: 'Pattern Match', configFields: ['pattern', 'should_exist'] },
+        { value: 'config_check', label: 'Config Check', configFields: ['file', 'key', 'expected_value'] },
+        { value: 'hygiene', label: 'Repo Hygiene', configFields: ['check_type'] }
+    ];
+
+    const SEVERITY_OPTIONS = ['low', 'medium', 'high', 'critical'];
 
     useEffect(() => {
         if (tenant) {
@@ -110,6 +136,98 @@ const Standards = () => {
                 showErrorToast('Failed to delete standard');
             }
         }
+    };
+
+    // Rule handlers
+    const resetRuleForm = () => {
+        setRuleFormData({
+            name: '',
+            description: '',
+            rule_type: 'file_exists',
+            check_config: { path: '' },
+            weight: 10,
+            severity: 'medium',
+            remediation_hint: '',
+            order: standardRules.length
+        });
+        setEditingRule(null);
+    };
+
+    const handleAddRule = () => {
+        resetRuleForm();
+        setShowRuleModal(true);
+    };
+
+    const handleEditRule = (rule) => {
+        setRuleFormData({
+            name: rule.name || '',
+            description: rule.description || '',
+            rule_type: rule.rule_type || 'file_exists',
+            check_config: rule.check_config || { path: '' },
+            weight: rule.weight || 10,
+            severity: rule.severity || 'medium',
+            remediation_hint: rule.remediation_hint || '',
+            order: rule.order || 0
+        });
+        setEditingRule(rule);
+        setShowRuleModal(true);
+    };
+
+    const handleDeleteRule = async (rule) => {
+        const confirmed = await showConfirmDialog({
+            title: 'Delete Rule?',
+            text: `Delete "${rule.name}"? This cannot be undone.`,
+            icon: 'warning'
+        });
+
+        if (confirmed && selectedStandard) {
+            try {
+                await deleteRule(selectedStandard.slug, rule.id);
+                showSuccessToast('Rule deleted successfully');
+                // Refresh rules
+                const data = await getStandardRules(selectedStandard.slug);
+                setStandardRules(data.rules || (Array.isArray(data) ? data : []));
+                fetchStandards(); // Update rule count
+            } catch (error) {
+                showErrorToast('Failed to delete rule');
+            }
+        }
+    };
+
+    const handleRuleSubmit = async (e) => {
+        e.preventDefault();
+        if (!ruleFormData.name.trim()) {
+            toast.error('Rule name is required');
+            return;
+        }
+        if (!selectedStandard) return;
+
+        setSavingRule(true);
+        try {
+            if (editingRule) {
+                await updateRule(selectedStandard.slug, editingRule.id, ruleFormData);
+                showSuccessToast('Rule updated successfully');
+            } else {
+                await addRule(selectedStandard.slug, ruleFormData);
+                showSuccessToast('Rule added successfully');
+            }
+            setShowRuleModal(false);
+            // Refresh rules
+            const data = await getStandardRules(selectedStandard.slug);
+            setStandardRules(data.rules || (Array.isArray(data) ? data : []));
+            fetchStandards(); // Update rule count
+        } catch (error) {
+            showErrorToast(editingRule ? 'Failed to update rule' : 'Failed to add rule');
+        } finally {
+            setSavingRule(false);
+        }
+    };
+
+    const updateCheckConfig = (key, value) => {
+        setRuleFormData(prev => ({
+            ...prev,
+            check_config: { ...prev.check_config, [key]: value }
+        }));
     };
 
     const filteredStandards = standards.filter(s =>
@@ -315,12 +433,23 @@ const Standards = () => {
                                     <h2 className="text-xl font-bold text-white">{selectedStandard.name}</h2>
                                     <p className="text-gray-400 text-sm mt-1">{selectedStandard.description}</p>
                                 </div>
-                                <button
-                                    onClick={() => setShowRulesModal(false)}
-                                    className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                                >
-                                    ✕
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    {!selectedStandard.is_builtin && (
+                                        <button
+                                            onClick={handleAddRule}
+                                            className="flex items-center gap-1 px-3 py-1.5 bg-primary hover:bg-primary/90 text-white text-sm rounded-lg transition-colors"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                            Add Rule
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setShowRulesModal(false)}
+                                        className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div className="p-6 overflow-y-auto max-h-[calc(80vh-120px)]">
@@ -333,7 +462,14 @@ const Standards = () => {
                                     {standardRules.map((rule, index) => (
                                         <div key={rule.id || index} className="bg-[#0F1419] border border-white/10 rounded-lg p-4">
                                             <div className="flex items-start justify-between mb-2">
-                                                <h4 className="text-white font-medium">{rule.name}</h4>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="text-white font-medium">{rule.name}</h4>
+                                                        <span className="text-xs px-2 py-0.5 rounded bg-gray-500/20 text-gray-400">
+                                                            {rule.rule_type}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`text-xs px-2 py-0.5 rounded-full ${rule.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
                                                         rule.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
@@ -343,6 +479,22 @@ const Standards = () => {
                                                         {rule.severity}
                                                     </span>
                                                     <span className="text-xs text-gray-400">Weight: {rule.weight}</span>
+                                                    {!selectedStandard.is_builtin && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleEditRule(rule)}
+                                                                className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                                                            >
+                                                                <Edit2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteRule(rule)}
+                                                                className="p-1 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                             <p className="text-gray-400 text-sm">{rule.description}</p>
@@ -355,10 +507,236 @@ const Standards = () => {
                             ) : (
                                 <div className="text-center py-10">
                                     <Shield className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                                    <p className="text-gray-400">No rules defined for this standard</p>
+                                    <p className="text-gray-400 mb-4">No rules defined for this standard</p>
+                                    {!selectedStandard.is_builtin && (
+                                        <button
+                                            onClick={handleAddRule}
+                                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+                                        >
+                                            <Plus className="w-5 h-5" />
+                                            Add First Rule
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Rule Form Modal */}
+            {showRuleModal && selectedStandard && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-[#0A0F16] border border-white/10 rounded-xl w-full max-w-lg max-h-[90vh] overflow-hidden mx-4">
+                        <div className="p-6 border-b border-white/10">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-bold text-white">
+                                    {editingRule ? 'Edit Rule' : 'Add New Rule'}
+                                </h2>
+                                <button
+                                    onClick={() => setShowRuleModal(false)}
+                                    className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+                        <form onSubmit={handleRuleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+                            <div className="space-y-4">
+                                {/* Name */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Name *</label>
+                                    <input
+                                        type="text"
+                                        value={ruleFormData.name}
+                                        onChange={(e) => setRuleFormData({ ...ruleFormData, name: e.target.value })}
+                                        className="w-full px-3 py-2 bg-[#0F1419] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                                        placeholder="e.g., Require README"
+                                        required
+                                    />
+                                </div>
+
+                                {/* Description */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                                    <textarea
+                                        value={ruleFormData.description}
+                                        onChange={(e) => setRuleFormData({ ...ruleFormData, description: e.target.value })}
+                                        className="w-full px-3 py-2 bg-[#0F1419] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none resize-none"
+                                        rows={2}
+                                        placeholder="What does this rule check for?"
+                                    />
+                                </div>
+
+                                {/* Rule Type */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Rule Type *</label>
+                                    <select
+                                        value={ruleFormData.rule_type}
+                                        onChange={(e) => {
+                                            const newType = e.target.value;
+                                            setRuleFormData({
+                                                ...ruleFormData,
+                                                rule_type: newType,
+                                                check_config: {}
+                                            });
+                                        }}
+                                        className="w-full px-3 py-2 bg-[#0F1419] border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+                                    >
+                                        {RULE_TYPES.map(type => (
+                                            <option key={type.value} value={type.value}>{type.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Config Fields based on rule type */}
+                                <div className="bg-[#0F1419] border border-white/10 rounded-lg p-4">
+                                    <label className="block text-sm font-medium text-gray-300 mb-3">Configuration</label>
+                                    {ruleFormData.rule_type === 'file_exists' && (
+                                        <input
+                                            type="text"
+                                            value={ruleFormData.check_config.path || ''}
+                                            onChange={(e) => updateCheckConfig('path', e.target.value)}
+                                            className="w-full px-3 py-2 bg-[#0A0F16] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                                            placeholder="File path, e.g., README.md"
+                                        />
+                                    )}
+                                    {ruleFormData.rule_type === 'file_forbidden' && (
+                                        <input
+                                            type="text"
+                                            value={ruleFormData.check_config.pattern || ruleFormData.check_config.path || ''}
+                                            onChange={(e) => updateCheckConfig('pattern', e.target.value)}
+                                            className="w-full px-3 py-2 bg-[#0A0F16] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                                            placeholder="File pattern, e.g., *.env or .env"
+                                        />
+                                    )}
+                                    {ruleFormData.rule_type === 'folder_exists' && (
+                                        <input
+                                            type="text"
+                                            value={ruleFormData.check_config.path || ''}
+                                            onChange={(e) => updateCheckConfig('path', e.target.value)}
+                                            className="w-full px-3 py-2 bg-[#0A0F16] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                                            placeholder="Folder path, e.g., src/"
+                                        />
+                                    )}
+                                    {ruleFormData.rule_type === 'pattern_match' && (
+                                        <div className="space-y-2">
+                                            <input
+                                                type="text"
+                                                value={ruleFormData.check_config.pattern || ''}
+                                                onChange={(e) => updateCheckConfig('pattern', e.target.value)}
+                                                className="w-full px-3 py-2 bg-[#0A0F16] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                                                placeholder="Pattern to search for"
+                                            />
+                                            <label className="flex items-center gap-2 text-sm text-gray-400">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={ruleFormData.check_config.should_exist !== false}
+                                                    onChange={(e) => updateCheckConfig('should_exist', e.target.checked)}
+                                                    className="checkbox checkbox-sm checkbox-primary"
+                                                />
+                                                Pattern should exist
+                                            </label>
+                                        </div>
+                                    )}
+                                    {ruleFormData.rule_type === 'config_check' && (
+                                        <div className="space-y-2">
+                                            <input
+                                                type="text"
+                                                value={ruleFormData.check_config.file || ''}
+                                                onChange={(e) => updateCheckConfig('file', e.target.value)}
+                                                className="w-full px-3 py-2 bg-[#0A0F16] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                                                placeholder="Config file, e.g., package.json"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={ruleFormData.check_config.key || ''}
+                                                onChange={(e) => updateCheckConfig('key', e.target.value)}
+                                                className="w-full px-3 py-2 bg-[#0A0F16] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                                                placeholder="Key to check, e.g., scripts.test"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={ruleFormData.check_config.expected_value || ''}
+                                                onChange={(e) => updateCheckConfig('expected_value', e.target.value)}
+                                                className="w-full px-3 py-2 bg-[#0A0F16] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                                                placeholder="Expected value (optional)"
+                                            />
+                                        </div>
+                                    )}
+                                    {ruleFormData.rule_type === 'hygiene' && (
+                                        <select
+                                            value={ruleFormData.check_config.check_type || ''}
+                                            onChange={(e) => updateCheckConfig('check_type', e.target.value)}
+                                            className="w-full px-3 py-2 bg-[#0A0F16] border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+                                        >
+                                            <option value="">Select check type</option>
+                                            <option value="branch_protection">Branch Protection</option>
+                                            <option value="code_owners">Code Owners</option>
+                                            <option value="ci_config">CI Configuration</option>
+                                            <option value="gitignore">Gitignore Present</option>
+                                        </select>
+                                    )}
+                                </div>
+
+                                {/* Severity */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Severity</label>
+                                        <select
+                                            value={ruleFormData.severity}
+                                            onChange={(e) => setRuleFormData({ ...ruleFormData, severity: e.target.value })}
+                                            className="w-full px-3 py-2 bg-[#0F1419] border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+                                        >
+                                            {SEVERITY_OPTIONS.map(sev => (
+                                                <option key={sev} value={sev}>{sev.charAt(0).toUpperCase() + sev.slice(1)}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Weight</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="100"
+                                            value={ruleFormData.weight}
+                                            onChange={(e) => setRuleFormData({ ...ruleFormData, weight: parseInt(e.target.value) || 10 })}
+                                            className="w-full px-3 py-2 bg-[#0F1419] border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Remediation Hint */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Remediation Hint</label>
+                                    <textarea
+                                        value={ruleFormData.remediation_hint}
+                                        onChange={(e) => setRuleFormData({ ...ruleFormData, remediation_hint: e.target.value })}
+                                        className="w-full px-3 py-2 bg-[#0F1419] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none resize-none"
+                                        rows={2}
+                                        placeholder="How to fix this if it fails?"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 justify-end mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowRuleModal(false)}
+                                    className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                                    disabled={savingRule}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50"
+                                    disabled={savingRule}
+                                >
+                                    {savingRule ? 'Saving...' : (editingRule ? 'Save Changes' : 'Add Rule')}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
@@ -367,3 +745,4 @@ const Standards = () => {
 };
 
 export default Standards;
+

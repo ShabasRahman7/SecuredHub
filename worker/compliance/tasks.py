@@ -190,10 +190,14 @@ def run_compliance_evaluation(self, evaluation_id: int):
             for r in result.rule_results
         ]
         
-        api_client.create_results(
-            evaluation_id=evaluation_id,
-            results=results_data,
-        )
+        # Only call create_results if we have results (backend requires at least 1)
+        if results_data:
+            api_client.create_results(
+                evaluation_id=evaluation_id,
+                results=results_data,
+            )
+        else:
+            logger.warning(f"No results to store for evaluation {evaluation_id} (no rules matched)")
         
         # Complete evaluation via API (Backend calculates score, sends final WS update)
         completion_response = api_client.complete_evaluation(

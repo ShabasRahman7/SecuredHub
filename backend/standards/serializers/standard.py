@@ -68,3 +68,78 @@ class AssignStandardSerializer(serializers.Serializer):
         if not ComplianceStandard.objects.filter(id=value, is_active=True).exists():
             raise serializers.ValidationError("Standard not found or not active")
         return value
+
+
+class CreateStandardSerializer(serializers.ModelSerializer):
+    """Serializer for creating a new custom standard."""
+    tenant = serializers.IntegerField(write_only=True, required=False)
+    
+    class Meta:
+        model = ComplianceStandard
+        fields = ['name', 'description', 'tenant']
+    
+    def validate_name(self, value):
+        if len(value) < 3:
+            raise serializers.ValidationError("Name must be at least 3 characters")
+        return value
+    
+    def create(self, validated_data):
+        from django.utils.text import slugify
+        from accounts.models import Tenant
+        import uuid
+        
+        tenant_id = validated_data.pop('tenant', None)
+        name = validated_data.get('name')
+        
+        # Generate unique slug
+        base_slug = slugify(name)
+        slug = base_slug
+        counter = 1
+        while ComplianceStandard.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        
+        validated_data['slug'] = slug
+        validated_data['is_builtin'] = False
+        
+        if tenant_id:
+            validated_data['organization'] = Tenant.objects.get(id=tenant_id)
+        
+        return super().create(validated_data)
+
+
+class UpdateStandardSerializer(serializers.ModelSerializer):
+    """Serializer for updating a custom standard."""
+    
+    class Meta:
+        model = ComplianceStandard
+        fields = ['name', 'description', 'is_active']
+    
+    def validate(self, data):
+        if self.instance and self.instance.is_builtin:
+            raise serializers.ValidationError("Cannot modify built-in standards")
+        return data
+
+
+class CreateRuleSerializer(serializers.ModelSerializer):
+    """Serializer for creating a new rule in a custom standard."""
+    
+    class Meta:
+        model = ComplianceRule
+        fields = [
+            'name', 'description', 'rule_type', 'check_config',
+            'weight', 'severity', 'remediation_hint', 'order'
+        ]
+    
+    def validate_rule_type(self, value):
+        allowed_types = ['file_exists', 'file_forbidden', 'folder_exists', 
+                         'pattern_match', 'config_check', 'hygiene']
+        if value not in allowed_types:
+            raise serializers.ValidationError(f"Invalid rule type. Must be one of: {', '.join(allowed_types)}")
+        return value
+    
+    def validate_check_config(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("check_config must be a JSON object")
+        return value
+
