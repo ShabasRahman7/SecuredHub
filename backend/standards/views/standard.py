@@ -1,11 +1,12 @@
-"""
-API views for standards.
-"""
+"""Views for compliance standards API."""
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
+
+from accounts.permissions import IsAdmin
 
 from standards.models import ComplianceStandard, ComplianceRule, RepositoryStandard
 from standards.serializers.standard import (
@@ -19,13 +20,15 @@ from repositories.models import Repository
 from accounts.models import TenantMember
 
 
+@extend_schema_view(
+    get=extend_schema(
+        summary="List compliance standards",
+        description="List all available compliance standards including built-in and organization-specific.",
+        tags=["Standards"]
+    )
+)
 class StandardListView(generics.ListAPIView):
-    """
-    List all available compliance standards.
-    
-    Shows both built-in and organization-specific standards.
-    """
-    permission_classes = [IsAuthenticated]
+    """List available compliance standards (built-in + org-specific)."""
     serializer_class = ComplianceStandardListSerializer
     
     def get_queryset(self):
@@ -55,10 +58,7 @@ class StandardListView(generics.ListAPIView):
 
 
 class StandardDetailView(generics.RetrieveAPIView):
-    """
-    Get details of a specific compliance standard including all rules.
-    """
-    permission_classes = [IsAuthenticated]
+    """Get standard details including all rules."""
     serializer_class = ComplianceStandardDetailSerializer
     lookup_field = 'slug'
     
@@ -68,10 +68,7 @@ class StandardDetailView(generics.RetrieveAPIView):
 
 
 class StandardRulesView(generics.ListAPIView):
-    """
-    List all rules for a specific standard.
-    """
-    permission_classes = [IsAuthenticated]
+    """List rules for a specific standard."""
     serializer_class = ComplianceRuleSerializer
     
     def get_queryset(self):
@@ -83,10 +80,7 @@ class StandardRulesView(generics.ListAPIView):
 
 
 class RepositoryStandardsView(generics.ListCreateAPIView):
-    """
-    List standards assigned to a repository or assign a new standard.
-    """
-    permission_classes = [IsAuthenticated]
+    """List or assign standards to a repository."""
     serializer_class = RepositoryStandardSerializer
     
     def get_queryset(self):

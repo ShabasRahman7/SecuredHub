@@ -1,6 +1,4 @@
-"""
-API views for compliance evaluations.
-"""
+"""Views for compliance evaluation API."""
 import logging
 import requests
 from rest_framework import generics, status
@@ -9,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from celery import current_app
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 
 from compliance.models import ComplianceEvaluation, RuleResult, ComplianceScore
 from compliance.serializers.evaluation import (
@@ -59,11 +58,15 @@ def get_latest_commit_hash(repository, access_token):
     return None
 
 
+@extend_schema_view(
+    get=extend_schema(
+        summary="List repository evaluations",
+        description="List compliance evaluations for a specific repository.",
+        tags=["Compliance"]
+    )
+)
 class EvaluationListView(generics.ListAPIView):
-    """
-    List evaluations for a repository.
-    """
-    permission_classes = [IsAuthenticated]
+    """List evaluations for a repository."""
     serializer_class = EvaluationListSerializer
     
     def get_queryset(self):
@@ -77,11 +80,15 @@ class EvaluationListView(generics.ListAPIView):
         ).order_by('-created_at')[:50]  # Last 50 evaluations
 
 
+@extend_schema_view(
+    get=extend_schema(
+        summary="Get evaluation details",
+        description="Get details of a specific compliance evaluation including all rule results.",
+        tags=["Compliance"]
+    )
+)
 class EvaluationDetailView(generics.RetrieveAPIView):
-    """
-    Get details of a specific evaluation including all rule results.
-    """
-    permission_classes = [IsAuthenticated]
+    """Get evaluation details including rule results."""
     serializer_class = EvaluationDetailSerializer
     
     def get_queryset(self):
@@ -92,11 +99,15 @@ class EvaluationDetailView(generics.RetrieveAPIView):
         )
 
 
+@extend_schema(
+    summary="Trigger compliance evaluation",
+    description="Trigger a new compliance evaluation for a repository against a standard.",
+    tags=["Compliance"],
+    request=TriggerEvaluationSerializer,
+    responses={201: EvaluationDetailSerializer}
+)
 class TriggerEvaluationView(APIView):
-    """
-    Trigger a new compliance evaluation for a repository.
-    """
-    permission_classes = [IsAuthenticated]
+    """Trigger a new compliance evaluation."""
     
     def post(self, request):
         user = request.user
@@ -215,10 +226,7 @@ class TriggerEvaluationView(APIView):
 
 
 class LatestEvaluationView(APIView):
-    """
-    Get the latest completed evaluation for a repository+standard.
-    """
-    permission_classes = [IsAuthenticated]
+    """Get latest completed evaluation for a repo+standard pair."""
     
     def get(self, request, repository_id, standard_id):
         evaluation = ComplianceEvaluation.objects.filter(
@@ -242,10 +250,7 @@ class LatestEvaluationView(APIView):
 
 
 class RepositoryScoresView(APIView):
-    """
-    Get compliance scores summary for a repository across all assigned standards.
-    """
-    permission_classes = [IsAuthenticated]
+    """Get compliance scores for all standards assigned to a repository."""
     
     def get(self, request, repository_id):
         repository = get_object_or_404(Repository, id=repository_id)
@@ -295,13 +300,7 @@ class RepositoryScoresView(APIView):
 
 
 class DeleteEvaluationView(APIView):
-    """
-    Delete an evaluation.
-    
-    Only tenant owners can delete evaluations.
-    Cascades to delete RuleResults and ComplianceScore.
-    """
-    permission_classes = [IsAuthenticated]
+    """Delete an evaluation (owner only, cascades to results and scores)."""
     
     def delete(self, request, pk):
         user = request.user

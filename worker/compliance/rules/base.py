@@ -66,7 +66,11 @@ class RepositorySnapshot:
     
     def folder_exists(self, path: str) -> bool:
         """Check if a folder exists in the snapshot."""
-        normalized = path.rstrip('/').lstrip('./')
+        # Remove trailing slash and leading './' prefix (but not just '.')
+        normalized = path.rstrip('/')
+        if normalized.startswith('./'):
+            normalized = normalized[2:]
+        
         return any(
             f == normalized or f.startswith(normalized + '/')
             for f in self.folders
