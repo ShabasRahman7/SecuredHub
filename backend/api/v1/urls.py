@@ -24,6 +24,9 @@ urlpatterns = [
     path("standards/", include("standards.urls")),
     path("compliance/", include("compliance.urls")),
     
+    # Audit logs (read-only)
+    path("audits/", include("audits.urls")),
+    
     # Internal API for worker → backend communication
     path("internal/", include("compliance.internal_urls")),
 ]

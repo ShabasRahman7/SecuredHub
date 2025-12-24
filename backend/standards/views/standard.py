@@ -93,7 +93,8 @@ class RepositoryStandardsView(generics.ListCreateAPIView):
         repository_id = self.kwargs.get('repository_id')
         return RepositoryStandard.objects.filter(
             repository_id=repository_id,
-            is_active=True
+            is_active=True,
+            standard__is_active=True  # Exclude assignments to disabled standards
         ).select_related('standard', 'assigned_by')
     
     def create(self, request, repository_id):
@@ -440,3 +441,152 @@ class DeleteRuleView(generics.DestroyAPIView):
         rule.delete()
         
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# =====================
+# Admin-Only Views for Built-in Standards
+# =====================
+
+class IsAdminUser:
+    """Permission check for admin users only."""
+    
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.is_staff
+
+
+class AdminStandardListView(generics.ListAPIView):
+    """
+    List all built-in compliance standards (admin only).
+    
+    Shows all built-in standards regardless of active status,
+    allowing admins to manage the platform-wide standards.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = ComplianceStandardDetailSerializer
+    
+    def get_queryset(self):
+        if not self.request.user.is_staff:
+            return ComplianceStandard.objects.none()
+        
+        return ComplianceStandard.objects.filter(
+            is_builtin=True
+        ).prefetch_related('rules').order_by('name')
+
+
+class AdminStandardUpdateView(APIView):
+    """
+    Update a built-in compliance standard (admin only).
+    
+    Allows updating metadata like name, description, version.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def patch(self, request, slug):
+        if not request.user.is_staff:
+            return Response(
+                {'error': 'Admin access required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        standard = get_object_or_404(ComplianceStandard, slug=slug, is_builtin=True)
+        
+        # Allowed fields for update
+        allowed_fields = ['name', 'description', 'version']
+        
+        for field in allowed_fields:
+            if field in request.data:
+                setattr(standard, field, request.data[field])
+        
+        standard.save()
+        
+        serializer = ComplianceStandardDetailSerializer(standard)
+        return Response(serializer.data)
+
+
+class AdminToggleStandardView(APIView):
+    """
+    Toggle a built-in standard active/inactive (admin only).
+    
+    Inactive standards won't be visible to tenants.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, slug):
+        if not request.user.is_staff:
+            return Response(
+                {'error': 'Admin access required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        standard = get_object_or_404(ComplianceStandard, slug=slug, is_builtin=True)
+        
+        # Toggle active status
+        standard.is_active = not standard.is_active
+        standard.save()
+        
+        return Response({
+            'slug': standard.slug,
+            'name': standard.name,
+            'is_active': standard.is_active,
+            'message': f"Standard {'activated' if standard.is_active else 'deactivated'} successfully"
+        })
+
+
+class AdminRuleUpdateView(APIView):
+    """
+    Update a rule in a built-in standard (admin only).
+    
+    Allows updating weight, severity, description, remediation_hint, is_active.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def patch(self, request, slug, rule_id):
+        if not request.user.is_staff:
+            return Response(
+                {'error': 'Admin access required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        standard = get_object_or_404(ComplianceStandard, slug=slug, is_builtin=True)
+        rule = get_object_or_404(ComplianceRule, id=rule_id, standard=standard)
+        
+        # Allowed fields for update
+        allowed_fields = ['weight', 'severity', 'description', 'remediation_hint', 'is_active', 'order']
+        
+        for field in allowed_fields:
+            if field in request.data:
+                setattr(rule, field, request.data[field])
+        
+        rule.save()
+        
+        serializer = ComplianceRuleSerializer(rule)
+        return Response(serializer.data)
+
+
+class AdminRuleToggleView(APIView):
+    """
+    Toggle a rule active/inactive in a built-in standard (admin only).
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, slug, rule_id):
+        if not request.user.is_staff:
+            return Response(
+                {'error': 'Admin access required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        standard = get_object_or_404(ComplianceStandard, slug=slug, is_builtin=True)
+        rule = get_object_or_404(ComplianceRule, id=rule_id, standard=standard)
+        
+        # Toggle active status
+        rule.is_active = not rule.is_active
+        rule.save()
+        
+        return Response({
+            'id': rule.id,
+            'name': rule.name,
+            'is_active': rule.is_active,
+            'message': f"Rule {'activated' if rule.is_active else 'deactivated'} successfully"
+        })
+

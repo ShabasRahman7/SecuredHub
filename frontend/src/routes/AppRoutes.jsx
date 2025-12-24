@@ -9,6 +9,7 @@ import AccessRequests from '../pages/admin/AccessRequests';
 import Tenants from '../pages/admin/Tenants';
 import WorkerMonitoring from '../pages/admin/WorkerMonitoring';
 import AdminPlaceholder from '../pages/admin/AdminPlaceholder';
+import AdminStandards from '../pages/admin/AdminStandards';
 import TenantDashboard from '../pages/tenant/Dashboard';
 import TenantRepositories from '../pages/tenant/Repositories';
 import TenantDevelopers from '../pages/tenant/Developers';
@@ -62,6 +63,7 @@ const AppRoutes = () => {
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="access-requests" element={<AccessRequests />} />
                 <Route path="tenants" element={<Tenants />} />
+                <Route path="standards" element={<AdminStandards />} />
                 <Route path="workers" element={<WorkerMonitoring />} />
                 <Route path="ai" element={<AdminPlaceholder />} />
                 <Route path="audit-logs" element={<AdminPlaceholder />} />

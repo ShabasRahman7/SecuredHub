@@ -92,12 +92,12 @@ services:
     networks:
       - secured_hub_network
 
-  # Scanner Worker Service (Standalone Celery - Independent Django)
-  scanner-worker:
+  # Compliance Worker Service (Standalone Celery - Independent Django)
+  compliance-worker:
     build:
       context: ../worker
       dockerfile: Dockerfile
-    container_name: secured_hub_scanner
+    container_name: secured_hub_compliance_worker
     env_file:
       - .env
     environment:
@@ -111,7 +111,7 @@ services:
       # Celery result backend will be constructed in settings.py using Upstash
     volumes:
       - ../worker:/app
-      - scanner_workspace:/tmp/scanner_workspace
+      - compliance_workspace:/tmp/compliance_workspace
     depends_on:
       db:
         condition: service_healthy
@@ -152,7 +152,7 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
-  scanner_workspace:
+  compliance_workspace:
 
 
 networks:
