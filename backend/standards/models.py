@@ -2,7 +2,7 @@
 Models for compliance standards and rules.
 
 This module defines the core data structures for:
-- ComplianceStandard: Named collections of rules (e.g., "Startup Best Practices", "SOC2-like")
+- ComplianceStandard: Named collections of rules (e.g., "Startup Best Practices")
 - ComplianceRule: Individual checkable rules within a standard
 - RepositoryStandard: Assignment of standards to repositories
 """
@@ -196,6 +196,20 @@ class ComplianceRule(models.Model):
     order = models.PositiveIntegerField(
         default=0,
         help_text="Display order within the standard"
+    )
+    
+    # Framework mappings for audit traceability
+    # Example: ["CC5.2", "CC6.1"] for SOC2, ["A.8.1", "A.9.2.3"] for ISO
+    soc2_controls = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="SOC2 control codes this rule maps to (e.g., ['CC5.2', 'CC6.1'])"
+    )
+    
+    iso27001_controls = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="ISO 27001 Annex A controls this rule maps to (e.g., ['A.8.1', 'A.9.2.3'])"
     )
     
     is_active = models.BooleanField(

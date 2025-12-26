@@ -1,0 +1,116 @@
+{
+    "Branch protection enabled": {
+        "rule_name": "Branch protection enabled",
+        "soc2": [
+            "CC6.1"
+        ],
+        "iso27001": [
+            "A.9.2.3",
+            "A.14.2.2"
+        ],
+        "severity": "critical",
+        "business_impact": "Unrestricted access allows anyone to push directly to main branch, bypassing code reviews",
+        "remediation_summary": "Enable branch protection in GitHub repository settings",
+        "can_generate_fix": false,
+        "fix_type": "github_settings",
+        "estimated_impact_weight": 10
+    },
+    "CODEOWNERS file exists": {
+        "rule_name": "CODEOWNERS file exists",
+        "soc2": [
+            "CC5.2"
+        ],
+        "iso27001": [
+            "A.8.1"
+        ],
+        "severity": "medium",
+        "business_impact": "No defined code ownership means unclear review responsibilities",
+        "remediation_summary": "Create a CODEOWNERS file defining who reviews which parts of the codebase",
+        "can_generate_fix": true,
+        "fix_type": "file_template",
+        "template_name": "codeowners",
+        "estimated_impact_weight": 7
+    },
+    "Dependabot configured": {
+        "rule_name": "Dependabot configured",
+        "soc2": [
+            "CC8.1",
+            "CC7.1"
+        ],
+        "iso27001": [
+            "A.12.5.1",
+            "A.12.6.1"
+        ],
+        "severity": "high",
+        "business_impact": "Outdated dependencies may contain known security vulnerabilities",
+        "remediation_summary": "Create dependabot.yml to enable automated dependency updates",
+        "can_generate_fix": true,
+        "fix_type": "file_template",
+        "template_name": "dependabot",
+        "estimated_impact_weight": 8
+    },
+    "SECURITY.md file exists": {
+        "rule_name": "SECURITY.md file exists",
+        "soc2": [
+            "CC7.2"
+        ],
+        "iso27001": [
+            "A.16.1.1"
+        ],
+        "severity": "medium",
+        "business_impact": "No clear process for reporting security vulnerabilities",
+        "remediation_summary": "Create SECURITY.md with vulnerability disclosure policy",
+        "can_generate_fix": true,
+        "fix_type": "file_template",
+        "template_name": "security",
+        "estimated_impact_weight": 6
+    },
+    "README.md exists": {
+        "rule_name": "README.md exists",
+        "soc2": [
+            "CC5.1"
+        ],
+        "iso27001": [
+            "A.8.1"
+        ],
+        "severity": "low",
+        "business_impact": "No documentation makes onboarding and maintenance difficult",
+        "remediation_summary": "Create README.md with project documentation",
+        "can_generate_fix": true,
+        "fix_type": "file_template",
+        "template_name": "readme",
+        "estimated_impact_weight": 5
+    },
+    "LICENSE file exists": {
+        "rule_name": "LICENSE file exists",
+        "soc2": [
+            "CC9.1"
+        ],
+        "iso27001": [
+            "A.18.1.2"
+        ],
+        "severity": "medium",
+        "business_impact": "Unclear licensing creates legal and compliance risks",
+        "remediation_summary": "Add appropriate LICENSE file based on project requirements",
+        "can_generate_fix": true,
+        "fix_type": "file_template",
+        "template_name": "license",
+        "estimated_impact_weight": 5
+    },
+    ".gitignore configured": {
+        "rule_name": ".gitignore configured",
+        "soc2": [
+            "CC6.6"
+        ],
+        "iso27001": [
+            "A.9.4.1"
+        ],
+        "severity": "medium",
+        "business_impact": "Sensitive files may be accidentally committed to repository",
+        "remediation_summary": "Create .gitignore to prevent sensitive files from being tracked",
+        "can_generate_fix": true,
+        "fix_type": "file_template",
+        "template_name": "gitignore",
+        "estimated_impact_weight": 5
+    }
+}

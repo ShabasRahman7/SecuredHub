@@ -29,5 +29,8 @@ urlpatterns = [
     
     # Internal API for worker → backend communication
     path("internal/", include("compliance.internal_urls")),
+    
+    # AI Agent proxy endpoints
+    path("ai/", include("compliance.ai_urls")),
 ]
 

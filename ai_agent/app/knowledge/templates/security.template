@@ -1,0 +1,57 @@
+# Security Policy for {{repo_name}}
+
+## Supported Versions
+
+| Version | Supported          |
+| ------- | ------------------ |
+| Latest  | :white_check_mark: |
+| < 1.0   | :x:                |
+
+## Reporting a Vulnerability
+
+We take security seriously. If you discover a security vulnerability, please follow these steps:
+
+### Do NOT
+
+- Do not create a public GitHub issue for security vulnerabilities
+- Do not discuss the vulnerability publicly until it has been addressed
+
+### Do
+
+1. **Email us directly** at: security@{{organization}}.com
+   
+   Include the following in your report:
+   - Description of the vulnerability
+   - Steps to reproduce
+   - Potential impact
+   - Any suggested fixes (optional)
+
+2. **Wait for acknowledgment**
+   
+   We will acknowledge your report within 48 hours.
+
+3. **Coordinate disclosure**
+   
+   We will work with you to understand and address the issue. Please allow us time to:
+   - Investigate the vulnerability
+   - Develop and test a fix
+   - Prepare a security advisory
+
+## Security Update Process
+
+- Security patches are prioritized and released as soon as possible
+- Updates are announced via GitHub Security Advisories
+- Affected versions will be clearly documented
+
+## Security Best Practices
+
+When contributing to this repository:
+
+- Never commit secrets, API keys, or credentials
+- Use environment variables for sensitive configuration
+- Keep dependencies up to date
+- Follow secure coding guidelines
+
+## Contact
+
+For security-related inquiries: security@{{organization}}.com

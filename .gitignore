@@ -28,6 +28,8 @@ ENV/
 env.bak/
 venv.bak/
 backend/venv/
+ai_agent/venv/
+worker/venv/
 
 # Environment Variables
 .env
@@ -37,6 +39,8 @@ backend/venv/
 .env.production.local
 backend/.env
 infra/.env
+ai_agent/.env
+worker/.env
 
 # Documentation (exclude daily logs and git refactor)
 daily_logs/

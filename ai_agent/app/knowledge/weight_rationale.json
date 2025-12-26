@@ -1,0 +1,62 @@
+{
+    "_metadata": {
+        "version": "1.0",
+        "description": "Weight calibration rationale for compliance rules",
+        "note": "Weights are calibrated based on industry best practices and audit importance, not arbitrary values."
+    },
+    "weight_scale": {
+        "1-3": "Low impact - nice-to-have practices",
+        "4-6": "Medium impact - standard engineering hygiene",
+        "7-8": "High impact - security and audit-critical controls",
+        "9-10": "Critical impact - blocking controls for compliance"
+    },
+    "rationale": {
+        "Branch protection enabled": {
+            "weight": 10,
+            "rationale": "Highest weight because unrestricted branch access bypasses all code review controls. This is a foundational access control that auditors check first.",
+            "soc2_relevance": "CC6.1 - Logical access is the cornerstone of change management controls",
+            "audit_risk": "Direct commits to production can introduce vulnerabilities or malicious code"
+        },
+        "Dependabot configured": {
+            "weight": 8,
+            "rationale": "High weight because outdated dependencies are a leading source of CVEs. Automated updates demonstrate proactive vulnerability management.",
+            "soc2_relevance": "CC8.1 - Change management requires controlled updates",
+            "audit_risk": "Known vulnerabilities in dependencies can fail penetration tests"
+        },
+        "CODEOWNERS file exists": {
+            "weight": 7,
+            "rationale": "High weight because code ownership defines accountability. Auditors look for clear responsibility assignment.",
+            "soc2_relevance": "CC5.2 - Assignment of responsibility for security functions",
+            "audit_risk": "Unclear ownership leads to missed reviews and responsibility gaps"
+        },
+        "SECURITY.md file exists": {
+            "weight": 6,
+            "rationale": "Medium-high weight for incident response documentation. Required for responsible disclosure compliance.",
+            "soc2_relevance": "CC7.2 - Security incident response requires documented procedures",
+            "audit_risk": "Missing disclosure policy shows lack of incident preparedness"
+        },
+        "README.md exists": {
+            "weight": 5,
+            "rationale": "Medium weight for documentation. Important for onboarding but not directly security-impacting.",
+            "soc2_relevance": "CC5.1 - Risk assessment includes documentation completeness",
+            "audit_risk": "Low - primarily affects operational efficiency"
+        },
+        "LICENSE file exists": {
+            "weight": 5,
+            "rationale": "Medium weight for legal compliance. Important for open-source license tracking.",
+            "soc2_relevance": "CC9.1 - Third-party risk management includes license compliance",
+            "audit_risk": "Can cause legal issues if using unlicensed or incompatibly licensed code"
+        },
+        ".gitignore configured": {
+            "weight": 5,
+            "rationale": "Medium weight for secret prevention. Helps avoid accidental credential commits.",
+            "soc2_relevance": "CC6.6 - Boundary protection includes secret management",
+            "audit_risk": "Missing gitignore increases likelihood of sensitive file leaks"
+        }
+    },
+    "customization_policy": {
+        "built_in_standards": "Weights are read-only for built-in standards to ensure consistency",
+        "custom_standards": "Organizations can define custom weights based on their risk profile",
+        "recommendation": "Adjust weights based on your specific audit requirements and risk tolerance"
+    }
+}

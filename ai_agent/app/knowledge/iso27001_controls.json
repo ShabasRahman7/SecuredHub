@@ -1,0 +1,125 @@
+{
+    "A.5": {
+        "id": "A.5",
+        "category": "Information Security Policies",
+        "name": "Information Security Policies",
+        "description": "Management direction and support for information security.",
+        "controls": [
+            "A.5.1 - Policies for information security"
+        ]
+    },
+    "A.8.1": {
+        "id": "A.8.1",
+        "category": "Asset Management",
+        "name": "Responsibility for Assets",
+        "description": "Assets associated with information shall be identified and an inventory maintained.",
+        "common_failures": [
+            "No asset inventory",
+            "No code ownership"
+        ],
+        "remediation": "Maintain documentation of code assets and ownership",
+        "related_rules": [
+            "CODEOWNERS file exists",
+            "README.md exists"
+        ]
+    },
+    "A.9.2.3": {
+        "id": "A.9.2.3",
+        "category": "Access Control",
+        "name": "Management of Privileged Access Rights",
+        "description": "The allocation and use of privileged access rights shall be restricted and controlled.",
+        "common_failures": [
+            "No branch protection",
+            "Unrestricted push access"
+        ],
+        "remediation": "Enable branch protection, require PR reviews for privileged branches",
+        "related_rules": [
+            "Branch protection enabled"
+        ],
+        "business_impact": "Unrestricted access can lead to unauthorized code execution"
+    },
+    "A.9.4.1": {
+        "id": "A.9.4.1",
+        "category": "Access Control",
+        "name": "Information Access Restriction",
+        "description": "Access to information and application system functions shall be restricted.",
+        "common_failures": [
+            "Exposed secrets",
+            "Hardcoded credentials"
+        ],
+        "remediation": "Remove secrets from code, use secret management",
+        "related_rules": [
+            "No exposed credentials"
+        ]
+    },
+    "A.12.5.1": {
+        "id": "A.12.5.1",
+        "category": "Operations Security",
+        "name": "Installation of Software",
+        "description": "Rules governing the installation of software by users shall be established.",
+        "common_failures": [
+            "Uncontrolled dependencies",
+            "No Dependabot"
+        ],
+        "remediation": "Configure Dependabot for automated dependency management",
+        "related_rules": [
+            "Dependabot configured"
+        ]
+    },
+    "A.12.6.1": {
+        "id": "A.12.6.1",
+        "category": "Operations Security",
+        "name": "Management of Technical Vulnerabilities",
+        "description": "Information about technical vulnerabilities shall be obtained and evaluated.",
+        "common_failures": [
+            "No vulnerability scanning",
+            "Outdated dependencies"
+        ],
+        "remediation": "Enable security scanning, configure Dependabot alerts",
+        "related_rules": [
+            "Dependabot configured"
+        ]
+    },
+    "A.14.2.2": {
+        "id": "A.14.2.2",
+        "category": "System Development",
+        "name": "System Change Control Procedures",
+        "description": "Changes to systems shall be controlled by formal change control procedures.",
+        "common_failures": [
+            "No PR requirements",
+            "Direct commits allowed"
+        ],
+        "remediation": "Require pull requests and code reviews for all changes",
+        "related_rules": [
+            "Branch protection enabled"
+        ]
+    },
+    "A.16.1.1": {
+        "id": "A.16.1.1",
+        "category": "Incident Management",
+        "name": "Responsibilities and Procedures",
+        "description": "Management responsibilities and procedures shall ensure a quick and effective response to incidents.",
+        "common_failures": [
+            "No SECURITY.md",
+            "No incident response plan"
+        ],
+        "remediation": "Create SECURITY.md with vulnerability disclosure procedures",
+        "related_rules": [
+            "SECURITY.md file exists"
+        ]
+    },
+    "A.18.1.2": {
+        "id": "A.18.1.2",
+        "category": "Compliance",
+        "name": "Intellectual Property Rights",
+        "description": "Appropriate procedures shall be implemented to ensure compliance with legal requirements.",
+        "common_failures": [
+            "No LICENSE file",
+            "Missing license compliance"
+        ],
+        "remediation": "Add LICENSE file, ensure dependency license compliance",
+        "related_rules": [
+            "LICENSE file exists"
+        ]
+    }
+}

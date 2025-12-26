@@ -1,0 +1,119 @@
+{
+    "CC1": {
+        "id": "CC1",
+        "category": "Control Environment",
+        "name": "Control Environment",
+        "description": "The entity demonstrates a commitment to integrity and ethical values.",
+        "common_failures": [],
+        "audit_focus": "Organizational culture, ethics policies"
+    },
+    "CC5.1": {
+        "id": "CC5.1",
+        "category": "Control Activities",
+        "name": "Risk Assessment",
+        "description": "The entity identifies and assesses risks to the achievement of its objectives.",
+        "common_failures": [
+            "No documented risk assessment process"
+        ],
+        "remediation": "Document risk assessment procedures and conduct regular reviews",
+        "audit_focus": "Risk management framework"
+    },
+    "CC5.2": {
+        "id": "CC5.2",
+        "category": "Control Activities",
+        "name": "Assignment of Responsibility",
+        "description": "The entity defines and assigns responsibility for key security functions.",
+        "common_failures": [
+            "No CODEOWNERS file",
+            "Unclear code ownership"
+        ],
+        "remediation": "Create CODEOWNERS file to define code review responsibilities",
+        "audit_focus": "Clear ownership and accountability for code changes",
+        "related_rules": [
+            "CODEOWNERS file exists"
+        ]
+    },
+    "CC6.1": {
+        "id": "CC6.1",
+        "category": "Logical and Physical Access",
+        "name": "Logical Access Security",
+        "description": "The entity implements logical access security measures to protect against unauthorized access.",
+        "common_failures": [
+            "No branch protection",
+            "Direct commits to main",
+            "No MFA"
+        ],
+        "remediation": "Enable branch protection requiring PR reviews and status checks",
+        "audit_focus": "Access controls preventing unauthorized code changes",
+        "related_rules": [
+            "Branch protection enabled"
+        ],
+        "business_impact": "CRITICAL - Unauthorized code could introduce security vulnerabilities or malicious code"
+    },
+    "CC6.6": {
+        "id": "CC6.6",
+        "category": "Logical and Physical Access",
+        "name": "Boundary Protection",
+        "description": "The entity implements controls to prevent unauthorized access at system boundaries.",
+        "common_failures": [
+            "Exposed secrets in code",
+            "Hardcoded credentials"
+        ],
+        "remediation": "Use secret scanning, remove hardcoded credentials, use environment variables",
+        "audit_focus": "Protection of sensitive data and credentials"
+    },
+    "CC7.1": {
+        "id": "CC7.1",
+        "category": "System Operations",
+        "name": "Detection of Changes",
+        "description": "The entity monitors systems to detect anomalies and security violations.",
+        "common_failures": [
+            "No security scanning",
+            "No vulnerability monitoring"
+        ],
+        "remediation": "Enable Dependabot alerts and security scanning",
+        "audit_focus": "Continuous monitoring for security issues"
+    },
+    "CC7.2": {
+        "id": "CC7.2",
+        "category": "System Operations",
+        "name": "Security Incident Response",
+        "description": "The entity responds to detected security incidents and vulnerabilities.",
+        "common_failures": [
+            "No SECURITY.md",
+            "No vulnerability disclosure policy"
+        ],
+        "remediation": "Create SECURITY.md with vulnerability reporting procedures",
+        "audit_focus": "Incident response procedures",
+        "related_rules": [
+            "SECURITY.md file exists"
+        ]
+    },
+    "CC8.1": {
+        "id": "CC8.1",
+        "category": "Change Management",
+        "name": "Change Management Process",
+        "description": "The entity manages changes to system components to minimize risk.",
+        "common_failures": [
+            "No automated dependency updates",
+            "Outdated dependencies"
+        ],
+        "remediation": "Configure Dependabot for automated dependency updates",
+        "audit_focus": "Controlled and tested change processes",
+        "related_rules": [
+            "Dependabot configured"
+        ]
+    },
+    "CC9.1": {
+        "id": "CC9.1",
+        "category": "Risk Mitigation",
+        "name": "Risk Mitigation",
+        "description": "The entity identifies, assesses, and manages risks from vendor and business partner relationships.",
+        "common_failures": [
+            "No license compliance",
+            "Unknown dependency licenses"
+        ],
+        "remediation": "Implement license scanning and dependency review",
+        "audit_focus": "Third-party risk management"
+    }
+}

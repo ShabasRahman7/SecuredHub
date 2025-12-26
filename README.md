@@ -1,6 +1,8 @@
 # SecuredHub
 
-A multi-tenant compliance evaluation platform that helps organizations assess repository adherence to security standards in real-time. Connect your GitHub repositories, define custom compliance rules, and get actionable grades (A-F) with detailed scoring.
+A multi-tenant compliance governance platform that helps organizations **measure engineering discipline** against standards aligned with SOC2 and ISO-27001 control principles. Connect your GitHub repositories, define custom compliance rules, and get actionable grades (A-F) with detailed scoring.
+
+> **Note**: This platform evaluates repository hygiene and engineering best practices. It does not provide SOC2/ISO-27001 certification — that requires formal auditor attestation.
 
 ## Key Features
 
@@ -9,6 +11,7 @@ A multi-tenant compliance evaluation platform that helps organizations assess re
 - **Compliance Evaluation**: Rule-based checks for file structure, configurations, hygiene practices, and security patterns
 - **Scoring System**: Weighted compliance scores with letter grades (A-F) per evaluation
 - **Real-time Updates**: WebSocket-powered live progress during evaluations
+- **AI-Assisted Remediation**: Actionable fix recommendations with SOC2/ISO-27001 control mappings
 - **Custom Standards**: Create organization-specific compliance standards beyond built-in rules
 
 ## Tech Stack
@@ -17,6 +20,7 @@ A multi-tenant compliance evaluation platform that helps organizations assess re
 |-------|------------|
 | **Backend** | Django REST Framework, Daphne (ASGI), Django Channels |
 | **Worker** | Celery with RabbitMQ broker |
+| **AI Agent** | FastAPI, Groq/Gemini LLM, Pydantic |
 | **Frontend** | React 19, Vite, TailwindCSS 4, DaisyUI |
 | **Database** | PostgreSQL 15 |
 | **Cache/Channels** | Redis (Upstash) |
@@ -32,14 +36,18 @@ graph TB
         FE[React Frontend]
     end
 
-    subgraph API
-        DRF[Django REST API]
+    subgraph API["Django API (Authority)"]
+        DRF[REST API]
         WS[WebSocket - Channels]
     end
 
-    subgraph Workers
+    subgraph Facts["Facts Layer (Deterministic)"]
         CELERY[Celery Worker]
         EVAL[Compliance Evaluator]
+    end
+
+    subgraph Reasoning["Reasoning Layer (AI)"]
+        AGENT[FastAPI AI Agent]
     end
 
     subgraph Data
@@ -50,6 +58,7 @@ graph TB
 
     subgraph External
         GH[GitHub API]
+        LLM[Groq/Gemini LLM]
     end
 
     FE -->|REST| DRF
@@ -60,9 +69,11 @@ graph TB
     RMQ --> CELERY
     CELERY --> EVAL
     EVAL -->|Fetch Repo| GH
-    EVAL --> PG
+    EVAL -->|API Callback| DRF
     CELERY -->|Notify| WS
     WS --> REDIS
+    DRF -->|Read-Only| AGENT
+    AGENT -->|LLM Call| LLM
 ```
 
 ### Compliance Evaluation Flow
@@ -107,15 +118,18 @@ erDiagram
 ## Project Structure
 
 ```
-clone/
+SecuredHub/
 ├── backend/          # Django REST API + WebSocket
 │   ├── accounts/     # User, Tenant, Membership
 │   ├── compliance/   # Evaluations, Scores, Results
 │   ├── repositories/ # Repos, Credentials, Assignments
-│   ├── standards/    # Standards, Rules
+│   ├── standards/    # Standards, Rules (with SOC2/ISO mappings)
 │   └── api/          # Versioned API routes
 ├── worker/           # Standalone Celery worker
 │   └── compliance/   # Rule engine + GitHub collector
+├── ai_agent/         # FastAPI AI assistance service
+│   ├── tools/        # Structured AI tools
+│   └── knowledge/    # SOC2/ISO control mappings
 ├── frontend/         # React SPA
 └── infra/            # Docker Compose + env
 ```
@@ -174,7 +188,7 @@ cd infra && docker-compose exec api pytest
 cd worker && pytest -v
 ```
 
-**Test Coverage**: 163+ tests across 14 test files covering models, views, and rule engine.
+**Test Coverage**: 160+ tests across 18 test files covering models, views, rule engine, and tenant isolation.
 
 ## License
 

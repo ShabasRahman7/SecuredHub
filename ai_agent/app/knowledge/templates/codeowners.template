@@ -1,0 +1,35 @@
+# Code Owners for {{repo_name}}
+# This file defines who must review changes to specific paths.
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @{{default_owner}}
+
+# Backend/API code
+{{#if has_backend}}
+/api/ @{{default_owner}}
+/backend/ @{{default_owner}}
+/src/ @{{default_owner}}
+{{/if}}
+
+# Frontend code
+{{#if has_frontend}}
+/frontend/ @{{default_owner}}
+/src/components/ @{{default_owner}}
+/src/pages/ @{{default_owner}}
+{{/if}}
+
+# Infrastructure and deployment
+{{#if has_infra}}
+/infra/ @{{default_owner}}
+/docker* @{{default_owner}}
+/.github/ @{{default_owner}}
+{{/if}}
+
+# Documentation
+/docs/ @{{default_owner}}
+README.md @{{default_owner}}
+
+# Security-sensitive files
+SECURITY.md @{{default_owner}}
+.env* @{{default_owner}}

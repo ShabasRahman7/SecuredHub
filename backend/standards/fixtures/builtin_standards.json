@@ -31,7 +31,13 @@
             "order": 1,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC5.1"
+            ],
+            "iso27001_controls": [
+                "A.8.1"
+            ]
         }
     },
     {
@@ -51,7 +57,13 @@
             "order": 2,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC9.1"
+            ],
+            "iso27001_controls": [
+                "A.18.1.2"
+            ]
         }
     },
     {
@@ -71,7 +83,13 @@
             "order": 3,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC7.2"
+            ],
+            "iso27001_controls": [
+                "A.16.1.1"
+            ]
         }
     },
     {
@@ -91,7 +109,13 @@
             "order": 4,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC5.1"
+            ],
+            "iso27001_controls": [
+                "A.8.1"
+            ]
         }
     },
     {
@@ -111,7 +135,13 @@
             "order": 5,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC6.6"
+            ],
+            "iso27001_controls": [
+                "A.9.4.1"
+            ]
         }
     },
     {
@@ -131,7 +161,13 @@
             "order": 6,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC6.6"
+            ],
+            "iso27001_controls": [
+                "A.9.4.1"
+            ]
         }
     },
     {
@@ -151,7 +187,13 @@
             "order": 7,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC8.1"
+            ],
+            "iso27001_controls": [
+                "A.12.5.1"
+            ]
         }
     },
     {
@@ -176,7 +218,13 @@
             "order": 8,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC8.1"
+            ],
+            "iso27001_controls": [
+                "A.14.2.8"
+            ]
         }
     },
     {
@@ -203,7 +251,13 @@
             "order": 9,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC6.6"
+            ],
+            "iso27001_controls": [
+                "A.9.4.1"
+            ]
         }
     },
     {
@@ -227,7 +281,13 @@
             "order": 10,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC5.1"
+            ],
+            "iso27001_controls": [
+                "A.8.1"
+            ]
         }
     },
     {
@@ -266,7 +326,13 @@
             "order": 1,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC6.1"
+            ],
+            "iso27001_controls": [
+                "A.9.2.3"
+            ]
         }
     },
     {
@@ -292,7 +358,13 @@
             "order": 2,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC6.6"
+            ],
+            "iso27001_controls": [
+                "A.9.4.1"
+            ]
         }
     },
     {
@@ -316,7 +388,13 @@
             "order": 3,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC7.1"
+            ],
+            "iso27001_controls": [
+                "A.12.6.1"
+            ]
         }
     },
     {
@@ -343,7 +421,13 @@
             "order": 4,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC8.1"
+            ],
+            "iso27001_controls": [
+                "A.12.5.1"
+            ]
         }
     },
     {
@@ -363,7 +447,14 @@
             "order": 5,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC6.1"
+            ],
+            "iso27001_controls": [
+                "A.9.2.3",
+                "A.14.2.2"
+            ]
         }
     },
     {
@@ -394,7 +485,13 @@
             "order": 6,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC7.1"
+            ],
+            "iso27001_controls": [
+                "A.12.4.1"
+            ]
         }
     },
     {
@@ -418,7 +515,13 @@
             "order": 7,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC7.2"
+            ],
+            "iso27001_controls": [
+                "A.16.1.5"
+            ]
         }
     },
     {
@@ -442,7 +545,13 @@
             "order": 8,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC7.2"
+            ],
+            "iso27001_controls": [
+                "A.16.1.1"
+            ]
         }
     },
     {
@@ -481,7 +590,14 @@
             "order": 1,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC1.1",
+                "CC5.1"
+            ],
+            "iso27001_controls": [
+                "A.5.1.1"
+            ]
         }
     },
     {
@@ -505,7 +621,13 @@
             "order": 2,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC5.1"
+            ],
+            "iso27001_controls": [
+                "A.8.1.1"
+            ]
         }
     },
     {
@@ -529,7 +651,13 @@
             "order": 3,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC5.1"
+            ],
+            "iso27001_controls": [
+                "A.8.2.1"
+            ]
         }
     },
     {
@@ -553,7 +681,13 @@
             "order": 4,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC6.6"
+            ],
+            "iso27001_controls": [
+                "A.8.2.1"
+            ]
         }
     },
     {
@@ -577,7 +711,13 @@
             "order": 5,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC9.1"
+            ],
+            "iso27001_controls": [
+                "A.12.3.1"
+            ]
         }
     },
     {
@@ -601,7 +741,13 @@
             "order": 6,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC8.1"
+            ],
+            "iso27001_controls": [
+                "A.14.2.2"
+            ]
         }
     },
     {
@@ -625,7 +771,13 @@
             "order": 7,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC9.1"
+            ],
+            "iso27001_controls": [
+                "A.15.1.1"
+            ]
         }
     },
     {
@@ -649,7 +801,13 @@
             "order": 8,
             "is_active": true,
             "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-01T00:00:00Z"
+            "updated_at": "2025-01-01T00:00:00Z",
+            "soc2_controls": [
+                "CC9.1"
+            ],
+            "iso27001_controls": [
+                "A.17.1.1"
+            ]
         }
     }
 ]

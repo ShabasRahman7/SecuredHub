@@ -1,65 +1,54 @@
-# Worker Service - Standalone Celery Scanner
+# Worker Service - Compliance Evaluator
 
-Independent Django microservice for processing security scans via Celery.
+Independent Celery worker for processing compliance evaluations.
 
 ## Architecture
 
-- **Independent Django Project**: Has its own `core/settings.py` and Django configuration
-- **Shared Database**: Connects to the same PostgreSQL database as backend
-- **RabbitMQ Communication**: Receives tasks from backend via RabbitMQ message queue
-- **No Code Dependencies**: Does NOT import code from backend service
+- **Standalone Django Project**: Own `core/settings.py` and Celery configuration
+- **Shared Database**: Connects to PostgreSQL alongside backend
+- **RabbitMQ Queue**: Receives evaluation tasks from backend
+- **No Code Dependencies**: Does not import from backend service
 
 ## Structure
 
 ```
 worker/
-├── core/                    # Django project (like backend/core/)
-│   ├── settings.py          # Django settings
-│   └── celery_app.py        # Celery configuration
-├── scans/                   # Django app (like backend/scans/)
-│   ├── models.py            # Scan models (managed=False)
-│   ├── tasks.py             # Celery tasks
-│   ├── services/            # Business logic services
-│   │   └── github_security_api.py  # GitHub API client
-│   └── utils.py             # Helper functions
-├── manage.py                # Django manage.py
-├── Dockerfile
-├── requirements.txt
-└── README.md
+├── core/                    # Django project settings
+│   ├── settings.py
+│   └── celery_app.py
+├── compliance/              # Compliance evaluation engine
+│   ├── evaluator.py         # Main orchestrator
+│   ├── collectors/          # GitHub data fetchers
+│   └── rules/               # Rule implementations
+│       ├── base.py          # BaseRule, RuleRegistry
+│       ├── file_rules.py    # FileExists, FileForbidden
+│       ├── folder_rules.py  # FolderExists
+│       ├── config_rules.py  # ConfigCheck (JSON)
+│       ├── hygiene_rules.py # Gitignore, CI, CODEOWNERS
+│       └── pattern_rules.py # PatternMatch (glob)
+├── compliance_models/       # Read-only Django models
+├── conftest.py              # Test fixtures
+└── requirements.txt
 ```
-
-## Key Points
-
-1. **Models are `managed=False`**: Worker models reference existing database tables created by backend migrations
-2. **Communication via RabbitMQ**: Backend sends tasks using `send_task()`, worker processes them
-3. **Shared Database**: Both services access the same PostgreSQL database
-4. **Independent Deployment**: Worker can be deployed/updated independently
 
 ## Running Locally
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
 
-# Set environment variables
 export DJANGO_SETTINGS_MODULE=core.settings
 export DB_HOST=localhost
-export DB_NAME=secured_hub_db
 # ... other env vars
 
-# Run Celery worker
-celery -A core.celery_app worker --loglevel=info -Q celery,scans
+celery -A core.celery_app worker --loglevel=info -Q celery,compliance
 ```
 
 ## Docker
 
-Built and run via `infra/docker-compose.yml` as `scanner-worker` service.
+Run via `infra/docker-compose.yml` as `compliance-worker` service.
 
-## Database Tables Used
+## Testing
 
-- `scans_scan` - Scan records
-- `scans_scanfinding` - Scan findings
-- `repositories` - Repository information (read-only)
-- `users` - User information (read-only)
-
-All models are marked `managed=False` to prevent Django from creating migrations.
+```bash
+pytest -v  # 102 tests
+```

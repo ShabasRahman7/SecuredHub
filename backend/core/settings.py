@@ -276,6 +276,9 @@ GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
 # Internal Service Authentication (worker → backend)
 INTERNAL_SERVICE_TOKEN = os.getenv('INTERNAL_SERVICE_TOKEN', '')
 
+# AI Agent Configuration
+AI_AGENT_URL = os.getenv('AI_AGENT_URL', 'http://ai-agent:8002')
+
 # Redis Cache / Result Backend Configuration (supports Upstash via REDIS_URL)
 REDIS_URL = os.getenv('REDIS_URL', '')
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')

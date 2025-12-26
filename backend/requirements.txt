@@ -15,6 +15,7 @@ requests==2.31.0
 channels==4.2.0
 channels-redis==4.2.1
 daphne==4.1.2
+httpx==0.28.1
 
 # Testing
 pytest==8.3.4

@@ -24,6 +24,23 @@ from accounts.models import TenantMember
 logger = logging.getLogger(__name__)
 
 
+def get_user_tenant(user):
+    """
+    Get the tenant for a user based on their membership.
+    Returns None if user has no tenant membership.
+    Admins (is_staff) can access all tenants.
+    """
+    if user.is_staff:
+        return None  # Admins bypass tenant filtering
+    
+    membership = TenantMember.objects.filter(
+        user=user,
+        deleted_at__isnull=True
+    ).select_related('tenant').first()
+    
+    return membership.tenant if membership else None
+
+
 def get_latest_commit_hash(repository, access_token):
     """
     Fetch the latest commit hash for a repository from GitHub.
@@ -66,18 +83,31 @@ def get_latest_commit_hash(repository, access_token):
     )
 )
 class EvaluationListView(generics.ListAPIView):
-    """List evaluations for a repository."""
+    """List evaluations for a repository with tenant isolation."""
     serializer_class = EvaluationListSerializer
     
     def get_queryset(self):
         repository_id = self.kwargs.get('repository_id')
-        return ComplianceEvaluation.objects.filter(
+        user = self.request.user
+        tenant = get_user_tenant(user)
+        
+        # Build base queryset
+        queryset = ComplianceEvaluation.objects.filter(
             repository_id=repository_id
-        ).select_related(
+        )
+        
+        # Apply tenant filter for non-admin users
+        if tenant:
+            queryset = queryset.filter(repository__tenant=tenant)
+        elif not user.is_staff:
+            # User has no tenant membership and is not admin - return empty
+            return ComplianceEvaluation.objects.none()
+        
+        return queryset.select_related(
             'repository', 'standard', 'triggered_by'
         ).prefetch_related(
             'score'
-        ).order_by('-created_at')[:50]  # Last 50 evaluations
+        ).order_by('-created_at')[:50]
 
 
 @extend_schema_view(
@@ -88,15 +118,26 @@ class EvaluationListView(generics.ListAPIView):
     )
 )
 class EvaluationDetailView(generics.RetrieveAPIView):
-    """Get evaluation details including rule results."""
+    """Get evaluation details including rule results with tenant isolation."""
     serializer_class = EvaluationDetailSerializer
     
     def get_queryset(self):
-        return ComplianceEvaluation.objects.select_related(
+        user = self.request.user
+        tenant = get_user_tenant(user)
+        
+        queryset = ComplianceEvaluation.objects.select_related(
             'repository', 'standard', 'triggered_by', 'score'
         ).prefetch_related(
             'rule_results', 'rule_results__rule'
         )
+        
+        # Apply tenant filter for non-admin users
+        if tenant:
+            queryset = queryset.filter(repository__tenant=tenant)
+        elif not user.is_staff:
+            return ComplianceEvaluation.objects.none()
+        
+        return queryset
 
 
 @extend_schema(
@@ -226,14 +267,29 @@ class TriggerEvaluationView(APIView):
 
 
 class LatestEvaluationView(APIView):
-    """Get latest completed evaluation for a repo+standard pair."""
+    """Get latest completed evaluation for a repo+standard pair with tenant isolation."""
     
     def get(self, request, repository_id, standard_id):
-        evaluation = ComplianceEvaluation.objects.filter(
+        user = request.user
+        tenant = get_user_tenant(user)
+        
+        # Build queryset with tenant filter
+        queryset = ComplianceEvaluation.objects.filter(
             repository_id=repository_id,
             standard_id=standard_id,
             status=ComplianceEvaluation.STATUS_COMPLETED
-        ).select_related(
+        )
+        
+        # Apply tenant filter for non-admin users
+        if tenant:
+            queryset = queryset.filter(repository__tenant=tenant)
+        elif not user.is_staff:
+            return Response(
+                {'error': 'Access denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        evaluation = queryset.select_related(
             'repository', 'standard', 'triggered_by', 'score'
         ).prefetch_related(
             'rule_results', 'rule_results__rule'
@@ -250,10 +306,26 @@ class LatestEvaluationView(APIView):
 
 
 class RepositoryScoresView(APIView):
-    """Get compliance scores for all standards assigned to a repository."""
+    """Get compliance scores for all standards assigned to a repository with tenant isolation."""
     
     def get(self, request, repository_id):
+        user = request.user
+        tenant = get_user_tenant(user)
+        
+        # Get repository with tenant verification
         repository = get_object_or_404(Repository, id=repository_id)
+        
+        # Verify tenant access for non-admin users
+        if tenant and repository.tenant != tenant:
+            return Response(
+                {'error': 'Access denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        elif not tenant and not user.is_staff:
+            return Response(
+                {'error': 'Access denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         
         # Get all assigned standards
         assignments = RepositoryStandard.objects.filter(

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Search, CheckCircle, XCircle, Loader2, RefreshCw, FileCheck2, Award, Trash2, Eye, X, Clock } from 'lucide-react';
+import { Search, CheckCircle, XCircle, Loader2, RefreshCw, FileCheck2, Award, Trash2, Eye, X, Clock, Bot, Sparkles } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
 import { deleteEvaluation } from '../../api/services/compliance';
+import { getEvaluationRecommendations } from '../../api/services/ai';
 import useWebSocket from '../../hooks/useWebSocket';
 
 const getGradeColor = (grade) => {
@@ -28,6 +29,10 @@ const getScoreGrade = (score) => {
 const EvaluationDetailModal = ({ evaluation, onClose }) => {
     const [details, setDetails] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('results');
+    const [aiRecommendations, setAiRecommendations] = useState(null);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError] = useState(null);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -43,12 +48,35 @@ const EvaluationDetailModal = ({ evaluation, onClose }) => {
         fetchDetails();
     }, [evaluation.id]);
 
+    const fetchAIRecommendations = async () => {
+        if (aiRecommendations || aiLoading) return;
+        setAiLoading(true);
+        setAiError(null);
+        try {
+            const data = await getEvaluationRecommendations(evaluation.id);
+            setAiRecommendations(data);
+        } catch (error) {
+            console.error('Failed to fetch AI recommendations:', error);
+            setAiError(error.response?.data?.error || 'AI service unavailable');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    // Fetch AI recommendations when switching to AI tab
+    useEffect(() => {
+        if (activeTab === 'ai' && !aiRecommendations && !aiLoading) {
+            fetchAIRecommendations();
+        }
+    }, [activeTab]);
+
     const scoreData = details?.score || {};
     const results = details?.rule_results || [];
+    const failedResults = results.filter(r => !r.passed);
     const score = parseFloat(scoreData.total_score) || parseFloat(evaluation.score) || 0;
     const grade = getScoreGrade(score);
     const passedRules = scoreData.passed_count ?? results.filter(r => r.passed).length;
-    const failedRules = scoreData.failed_count ?? results.filter(r => !r.passed).length;
+    const failedRules = scoreData.failed_count ?? failedResults.length;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -92,61 +120,193 @@ const EvaluationDetailModal = ({ evaluation, onClose }) => {
                                 <Clock className="w-3 h-3" />
                                 {new Date(evaluation.completed_at || evaluation.created_at).toLocaleString()}
                             </div>
-                            {details?.commit_hash && (
-                                <div className="text-xs text-gray-600 mt-1 font-mono">
-                                    {details.commit_hash.substring(0, 7)}
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* Rules List */}
+                {/* Tabs */}
+                <div className="flex border-b border-white/10">
+                    <button
+                        onClick={() => setActiveTab('results')}
+                        className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'results'
+                                ? 'text-white border-b-2 border-primary bg-white/5'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        Rule Results
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('ai')}
+                        className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${activeTab === 'ai'
+                                ? 'text-white border-b-2 border-purple-500 bg-purple-500/10'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        AI Recommendations
+                    </button>
+                </div>
+
+                {/* Tab Content */}
                 <div className="flex-1 overflow-y-auto p-4">
-                    <h3 className="text-sm font-semibold text-gray-400 mb-3">Rule Results</h3>
-                    {loading ? (
-                        <div className="flex items-center justify-center py-8">
-                            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                        </div>
-                    ) : results.length === 0 ? (
-                        <p className="text-gray-500 text-center py-8">No rule results available</p>
+                    {activeTab === 'results' ? (
+                        <>
+                            <h3 className="text-sm font-semibold text-gray-400 mb-3">Rule Results</h3>
+                            {loading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                </div>
+                            ) : results.length === 0 ? (
+                                <p className="text-gray-500 text-center py-8">No rule results available</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {results.map((result, index) => (
+                                        <div
+                                            key={index}
+                                            className={`flex items-start gap-3 p-3 rounded-lg border ${result.passed
+                                                ? 'bg-green-500/5 border-green-500/20'
+                                                : 'bg-red-500/5 border-red-500/20'
+                                                }`}
+                                        >
+                                            {result.passed ? (
+                                                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+                                            ) : (
+                                                <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                                            )}
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-white">
+                                                    {result.rule_name || `Rule #${result.rule}`}
+                                                </p>
+                                                {result.message && (
+                                                    <p className="text-xs text-gray-400 mt-1">{result.message}</p>
+                                                )}
+                                                {result.remediation_hint && !result.passed && (
+                                                    <p className="text-xs text-yellow-400 mt-1">💡 {result.remediation_hint}</p>
+                                                )}
+                                            </div>
+                                            {result.severity && (
+                                                <span className={`text-xs px-2 py-0.5 rounded ${result.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
+                                                    result.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
+                                                        result.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                            'bg-gray-500/20 text-gray-400'
+                                                    }`}>
+                                                    {result.severity}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
                     ) : (
-                        <div className="space-y-2">
-                            {results.map((result, index) => (
-                                <div
-                                    key={index}
-                                    className={`flex items-start gap-3 p-3 rounded-lg border ${result.passed
-                                        ? 'bg-green-500/5 border-green-500/20'
-                                        : 'bg-red-500/5 border-red-500/20'
-                                        }`}
-                                >
-                                    {result.passed ? (
-                                        <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-                                    ) : (
-                                        <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                                    )}
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-white">
-                                            {result.rule_name || `Rule #${result.rule}`}
-                                        </p>
-                                        {result.message && (
-                                            <p className="text-xs text-gray-400 mt-1">{result.message}</p>
-                                        )}
-                                        {result.remediation_hint && !result.passed && (
-                                            <p className="text-xs text-yellow-400 mt-1">💡 {result.remediation_hint}</p>
-                                        )}
+                        /* AI Tab */
+                        <div>
+                            {aiLoading ? (
+                                <div className="flex flex-col items-center justify-center py-12">
+                                    <div className="bg-gradient-to-br from-blue-500/20 to-purple-500/20 p-4 rounded-full mb-4">
+                                        <Bot className="w-8 h-8 text-purple-400 animate-pulse" />
                                     </div>
-                                    {result.severity && (
-                                        <span className={`text-xs px-2 py-0.5 rounded ${result.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
-                                            result.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                                                result.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                    'bg-gray-500/20 text-gray-400'
-                                            }`}>
-                                            {result.severity}
-                                        </span>
+                                    <p className="text-white font-medium">Analyzing with AI...</p>
+                                    <p className="text-gray-500 text-sm mt-1">This may take a few seconds</p>
+                                </div>
+                            ) : aiError ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-center">
+                                    <div className="bg-red-500/10 p-4 rounded-full mb-4">
+                                        <Bot className="w-8 h-8 text-red-400" />
+                                    </div>
+                                    <p className="text-red-400 font-medium">AI Analysis Unavailable</p>
+                                    <p className="text-gray-500 text-sm mt-1 max-w-xs">{aiError}</p>
+                                    <button
+                                        onClick={() => { setAiError(null); fetchAIRecommendations(); }}
+                                        className="mt-4 btn btn-sm bg-white/5 border-white/10 text-gray-300"
+                                    >
+                                        Try Again
+                                    </button>
+                                </div>
+                            ) : aiRecommendations ? (
+                                <div className="space-y-4">
+                                    {/* Summary */}
+                                    <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg p-4 border border-purple-500/20">
+                                        <div className="flex items-start gap-3">
+                                            <Sparkles className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="text-white text-sm leading-relaxed">{aiRecommendations.summary}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Score Projection */}
+                                    {aiRecommendations.score_projection && (
+                                        <div className="bg-[#05080C] rounded-lg p-4 border border-white/10">
+                                            <h4 className="text-sm font-medium text-gray-400 mb-3">Score Projection</h4>
+                                            <div className="flex items-center justify-center gap-8">
+                                                <div className="text-center">
+                                                    <p className="text-2xl font-bold text-red-400">
+                                                        {aiRecommendations.score_projection.current_score?.toFixed(1)}%
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">Current</p>
+                                                </div>
+                                                <div className="text-gray-500">→</div>
+                                                <div className="text-center">
+                                                    <p className="text-2xl font-bold text-green-400">
+                                                        {aiRecommendations.score_projection.projected_score_all_fixed?.toFixed(1)}%
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">If All Fixed</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Recommendations */}
+                                    {aiRecommendations.recommendations?.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-medium text-gray-400 mb-3">Prioritized Recommendations</h4>
+                                            <div className="space-y-2">
+                                                {aiRecommendations.recommendations.map((rec, idx) => (
+                                                    <div key={idx} className="bg-[#05080C] rounded-lg p-3 border border-white/10">
+                                                        <div className="flex items-start gap-3">
+                                                            <span className={`text-xs px-2 py-1 rounded font-bold ${rec.priority === 'critical' ? 'bg-red-500/20 text-red-400' :
+                                                                    rec.priority === 'high' ? 'bg-orange-500/20 text-orange-400' :
+                                                                        rec.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                            'bg-gray-500/20 text-gray-400'
+                                                                }`}>
+                                                                #{rec.priority_rank}
+                                                            </span>
+                                                            <div className="flex-1">
+                                                                <p className="text-sm font-medium text-white">{rec.rule_name}</p>
+                                                                <p className="text-xs text-gray-400 mt-1">{rec.reason}</p>
+                                                                {rec.remediation?.length > 0 && (
+                                                                    <div className="mt-2 text-xs text-blue-400">
+                                                                        💡 {rec.remediation[0]?.action}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-xs text-green-400">+{rec.current_score_impact?.toFixed(1)}%</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
-                            ))}
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-12 text-center">
+                                    <div className="bg-white/5 p-4 rounded-full mb-4">
+                                        <Bot className="w-8 h-8 text-gray-400" />
+                                    </div>
+                                    <p className="text-white font-medium">Get AI-Powered Analysis</p>
+                                    <p className="text-gray-500 text-sm mt-1 max-w-xs">
+                                        Get prioritized recommendations and remediation guidance
+                                    </p>
+                                    <button
+                                        onClick={fetchAIRecommendations}
+                                        className="mt-4 btn btn-sm bg-gradient-to-r from-blue-500 to-purple-600 border-none text-white"
+                                    >
+                                        <Sparkles className="w-4 h-4 mr-2" />
+                                        Analyze with AI
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

@@ -120,6 +120,34 @@ services:
     networks:
       - secured_hub_network
     restart: unless-stopped
+
+  # AI Agent Service - Compliance Analysis
+  ai-agent:
+    build:
+      context: ../ai_agent
+      dockerfile: Dockerfile
+    container_name: secured_hub_ai_agent
+    env_file:
+      - .env
+    environment:
+      # LLM Provider - 'groq' (FREE) or 'gemini'
+      - LLM_PROVIDER=${LLM_PROVIDER:-groq}
+      # Groq (FREE - https://console.groq.com)
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
+      # Gemini (backup)
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+      # Other settings
+      - DJANGO_API_URL=http://api:8001/api/v1
+      - DEBUG=True
+    ports:
+      - "8002:8002"
+    depends_on:
+      - api
+    networks:
+      - secured_hub_network
+    restart: unless-stopped
   # ============================================
   # WEEK 3 SERVICES (Uncomment when ready)
   # ============================================
