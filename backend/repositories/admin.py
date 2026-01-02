@@ -1,7 +1,6 @@
 from django.contrib import admin
 from .models import Repository, TenantCredential
 
-
 @admin.register(TenantCredential)
 class TenantCredentialAdmin(admin.ModelAdmin):
     list_display = ['name', 'tenant', 'provider', 'is_active', 'repositories_count', 'created_at']
@@ -25,7 +24,6 @@ class TenantCredentialAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-
 
 @admin.register(Repository)
 class RepositoryAdmin(admin.ModelAdmin):

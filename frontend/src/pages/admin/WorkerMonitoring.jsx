@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import useWorkerHealth from '../../hooks/useWorkerHealth';
 
-// Reusable loading spinner sized for buttons or panels.
+// reusable loading spinner sized for buttons or panels.
 const Spinner = ({ size = 'md' }) => {
   const sizeClass = size === 'sm' ? 'w-4 h-4' : 'w-8 h-8';
   return <div className={`${sizeClass} border-2 border-primary border-t-transparent rounded-full animate-spin`} />;
 };
 
-// Detailed page for inspecting Celery worker status, tasks, and queues.
+// detailed page for inspecting Celery worker status, tasks, and queues.
 const WorkerMonitoring = () => {
   const { data, loading, error, refetch } = useWorkerHealth({ auto: false });
   const [lastUpdate, setLastUpdate] = useState(null);

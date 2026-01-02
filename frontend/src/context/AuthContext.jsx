@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
             const userRes = await api.get('/auth/profile/');
             setUser(userRes.data.user);
 
-            // Only fetch tenant for non-admin users (admins don't have tenants)
+            // only fetch tenant for non-admin users (admins don't have tenants)
             if (!userRes.data.user.is_superuser && !userRes.data.user.is_staff) {
                 try {
                     const tenantsRes = await api.get('/tenants/');
@@ -31,30 +31,30 @@ export const AuthProvider = ({ children }) => {
                     const userTenant = userTenants.length > 0 ? userTenants[0] : null;
                     setTenant(userTenant);
 
-                    // Check if tenant is blocked
+                    // checking if tenant is blocked
                     if (userTenant && !userTenant.is_active) {
-                        // Tenant is blocked, logout user
+                        // tenant is blocked, logout user
                         localStorage.removeItem('access_token');
                         localStorage.removeItem('refresh_token');
                         setUser(null);
                         setTenant(null);
                         navigate('/login');
-                        // Show error message
+                        // showing error message
                         toast.error('Your account has been blocked. Please contact the administrator.');
                         return;
                     }
                 } catch (tenantError) {
-                    // If tenant fetch fails, continue without tenant (might be admin or error)
+                    // if tenant fetch fails, continue without tenant (might be admin or error)
                     console.error('Failed to fetch tenant:', tenantError);
                     setTenant(null);
                 }
             } else {
-                // Admin users don't have tenants
+                // admin users don't have tenants
                 setTenant(null);
             }
         } catch (error) {
             console.error('Failed to fetch user or tenants:', error);
-            // Check if error is due to blocked tenant
+            // checking if error is due to blocked tenant
             if (error.response?.status === 403 && error.response?.data?.error?.message?.includes('blocked')) {
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
@@ -85,7 +85,7 @@ export const AuthProvider = ({ children }) => {
         const userData = response.data.user;
         setUser(userData);
 
-        // Fetch tenants immediately after login
+        // fetching tenants immediately after login
         try {
             const tenantsRes = await api.get('/tenants/');
             const userTenants = tenantsRes.data.tenants || [];
@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }) => {
             setTenant(null);
         }
 
-        // Determine redirection based on role
+        // determine redirection based on role
         const role = userData.role;
 
         if (role === 'admin' || userData.is_superuser) {
@@ -113,13 +113,13 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            // Call backend logout endpoint
+            // call backend logout endpoint
             await api.post('/auth/logout/');
         } catch (error) {
-            // Continue with logout even if backend call fails
+            // continue with logout even if backend call fails
             console.error('Logout API call failed:', error);
         } finally {
-            // Clear local storage and state
+            // clearing local storage and state
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             setUser(null);
@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // Derive role directly from user object
+    // derive role directly from user object
     const role = user?.role || (user?.is_superuser ? 'admin' : null);
 
     return (

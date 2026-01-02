@@ -9,11 +9,10 @@ from datetime import timedelta
 from django.core.cache import cache
 from django.utils import timezone
 
-
 class RedisInviteManager:
     """Manage invite tokens in Redis with automatic expiration."""
     
-    # Prefixes for different invite types
+    # prefixes for different invite types
     MEMBER_INVITE_PREFIX = "invite:member:token:"
     MEMBER_EMAIL_PREFIX = "invite:member:email:"
     TENANT_INVITE_PREFIX = "invite:tenant:token:"
@@ -23,19 +22,7 @@ class RedisInviteManager:
     
     @classmethod
     def create_member_invite(cls, tenant_id, email, invited_by_id, role='developer', expiry_hours=None):
-        """
-        Create a new member invite token in Redis (Owner → Developer).
-        
-        Args:
-            tenant_id: ID of the tenant
-            email: Email address to invite
-            invited_by_id: ID of user who sent invite
-            role: Role to assign (default: developer)
-            expiry_hours: Hours until expiration (default: 24)
-        
-        Returns:
-            dict: Invite data with token
-        """
+        # creating a new member invite token in Redis (Owner → Developer).
         expiry_hours = expiry_hours or cls.DEFAULT_EXPIRY_HOURS
         token = str(uuid.uuid4())
         
@@ -62,17 +49,7 @@ class RedisInviteManager:
     
     @classmethod
     def create_tenant_invite(cls, email, invited_by_id, expiry_hours=None):
-        """
-        Create a new tenant invite token in Redis (Admin → Tenant Owner).
-        
-        Args:
-            email: Email address to invite
-            invited_by_id: ID of admin who sent invite
-            expiry_hours: Hours until expiration (default: 24)
-        
-        Returns:
-            dict: Invite data with token
-        """
+        # creating a new tenant invite token in Redis (Admin → Tenant Owner).
         expiry_hours = expiry_hours or cls.DEFAULT_EXPIRY_HOURS
         token = str(uuid.uuid4())
         
@@ -95,7 +72,6 @@ class RedisInviteManager:
         
         return invite_data
     
-    # Backward compatibility
     @classmethod
     def create_invite(cls, tenant_id, email, invited_by_id, role='developer', expiry_hours=None):
         """Backward compatibility - creates member invite."""
@@ -103,22 +79,13 @@ class RedisInviteManager:
     
     @classmethod
     def get_invite_by_token(cls, token, invite_type=None):
-        """
-        Retrieve invite data by token.
-        
-        Args:
-            token: Invite token
-            invite_type: 'member' or 'tenant' (optional, will try both if not specified)
-        
-        Returns:
-            dict or None: Invite data if found and valid
-        """
+        # retrieving invite data by token.
         if invite_type == 'member':
             prefixes = [cls.MEMBER_INVITE_PREFIX]
         elif invite_type == 'tenant':
             prefixes = [cls.TENANT_INVITE_PREFIX]
         else:
-            # Try both types
+            # try both types
             prefixes = [cls.MEMBER_INVITE_PREFIX, cls.TENANT_INVITE_PREFIX]
         
         for prefix in prefixes:
@@ -126,7 +93,7 @@ class RedisInviteManager:
             try:
                 data = cache.get(token_key)
             except Exception:
-                # If cache backend is unavailable (e.g., Redis down), treat as missing
+                # if cache backend is unavailable (e.g., Redis down), treat as missing
                 data = None
             if data:
                 return json.loads(data)
@@ -135,16 +102,7 @@ class RedisInviteManager:
     
     @classmethod
     def get_member_invite_by_email(cls, tenant_id, email):
-        """
-        Check if there's an active member invite for this email in this tenant.
-        
-        Args:
-            tenant_id: ID of the tenant
-            email: Email address
-        
-        Returns:
-            dict or None: Invite data if found
-        """
+        # checking if there's an active member invite for this email in this tenant.
         email_key = f"{cls.MEMBER_EMAIL_PREFIX}{tenant_id}:{email}"
         try:
             token = cache.get(email_key)
@@ -157,15 +115,7 @@ class RedisInviteManager:
     
     @classmethod
     def get_tenant_invite_by_email(cls, email):
-        """
-        Check if there's an active tenant invite for this email.
-        
-        Args:
-            email: Email address
-        
-        Returns:
-            dict or None: Invite data if found
-        """
+        # checking if there's an active tenant invite for this email.
         email_key = f"{cls.TENANT_EMAIL_PREFIX}{email}"
         try:
             token = cache.get(email_key)
@@ -176,7 +126,6 @@ class RedisInviteManager:
             return cls.get_invite_by_token(token, invite_type='tenant')
         return None
     
-    # Backward compatibility
     @classmethod
     def get_invite_by_email(cls, tenant_id, email):
         """Backward compatibility - gets member invite."""
@@ -184,27 +133,19 @@ class RedisInviteManager:
     
     @classmethod
     def delete_invite(cls, token):
-        """
-        Delete an invite token from Redis.
-        
-        Args:
-            token: Invite token to delete
-        
-        Returns:
-            bool: True if deleted, False if not found
-        """
-        # Get invite data first to delete email key
+        # deleting an invite token from Redis.
+        # getting invite data first to delete email key
         invite_data = cls.get_invite_by_token(token)
         
         if invite_data:
             invite_type = invite_data.get('type', 'member')
             
             if invite_type == 'member':
-                # Delete member invite keys
+                # deleting member invite keys
                 token_key = f"{cls.MEMBER_INVITE_PREFIX}{token}"
                 email_key = f"{cls.MEMBER_EMAIL_PREFIX}{invite_data['tenant_id']}:{invite_data['email']}"
             else:
-                # Delete tenant invite keys
+                # deleting tenant invite keys
                 token_key = f"{cls.TENANT_INVITE_PREFIX}{token}"
                 email_key = f"{cls.TENANT_EMAIL_PREFIX}{invite_data['email']}"
             
@@ -212,7 +153,7 @@ class RedisInviteManager:
                 cache.delete(token_key)
                 cache.delete(email_key)
             except Exception:
-                # Ignore cache delete errors
+                # ignoring cache delete errors
                 pass
             
             return True
@@ -220,33 +161,15 @@ class RedisInviteManager:
     
     @classmethod
     def mark_accepted(cls, token):
-        """
-        Mark an invite as accepted (deletes it from Redis).
-        
-        Args:
-            token: Invite token
-        
-        Returns:
-            bool: True if marked, False if not found
-        """
+        # mark an invite as accepted (deletes it from Redis).
         return cls.delete_invite(token)
     
     @classmethod
     def list_member_invites(cls, tenant_id):
-        """
-        List all active member invites for a tenant.
-        Note: This requires scanning Redis keys, which is not ideal for production.
-        Consider storing a list of invite tokens per tenant if needed frequently.
-        
-        Args:
-            tenant_id: ID of the tenant
-        
-        Returns:
-            list: List of invite data dicts
-        """
+
         invites = []
         
-        # Get all member invite tokens
+        # getting all member invite tokens
         pattern = f"{cls.MEMBER_INVITE_PREFIX}*"
         try:
             keys = cache.keys(pattern) if hasattr(cache, 'keys') else []
@@ -267,15 +190,10 @@ class RedisInviteManager:
     
     @classmethod
     def list_all_tenant_invites(cls):
-        """
-        List all active tenant invites (Admin → Tenant Owner).
-        
-        Returns:
-            list: List of invite data dicts
-        """
+        # list all active tenant invites (Admin → Tenant Owner).
         invites = []
         
-        # Get all tenant invite tokens
+        # getting all tenant invite tokens
         pattern = f"{cls.TENANT_INVITE_PREFIX}*"
         try:
             keys = cache.keys(pattern) if hasattr(cache, 'keys') else []
@@ -292,7 +210,6 @@ class RedisInviteManager:
         
         return invites
     
-    # Backward compatibility
     @classmethod
     def list_tenant_invites(cls, tenant_id):
         """Backward compatibility - lists member invites."""
@@ -300,15 +217,7 @@ class RedisInviteManager:
     
     @classmethod
     def is_expired(cls, invite_data):
-        """
-        Check if an invite is expired.
-        
-        Args:
-            invite_data: Invite data dict
-        
-        Returns:
-            bool: True if expired
-        """
+        # checking if an invite is expired.
         if not invite_data:
             return True
         

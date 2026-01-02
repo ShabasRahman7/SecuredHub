@@ -1,37 +1,34 @@
-"""Django settings for the SecuredHub backend."""
+# django models/views/serializers
 
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# building paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables
-# Try loading from backend/.env first, then fallback to infra/.env
+# loading environment variables
+# try loading from backend/.env first, then fallback to infra/.env
 env_path = BASE_DIR / '.env'
 if not env_path.exists():
     env_path = BASE_DIR.parent / 'infra' / '.env'
 
 load_dotenv(env_path)
 
-# SECURITY WARNING: keep the secret key used in production secret!
+# security WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-fallback-key')
 
-# SECURITY WARNING: don't run with debug turned on in production!
+# security WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
 
-# Custom User Model
+# custom User Model
 AUTH_USER_MODEL = 'accounts.User'
 
-# Frontend URL for emails
+# frontend URL for emails
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-
-
-# Application definition
 
 INSTALLED_APPS = [
     'daphne',  # Must be first for ASGI
@@ -43,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Third party apps
+    # third party apps
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',  # For logout token blacklist
@@ -51,12 +48,13 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'drf_spectacular_sidecar',
     
-    # Local apps
     'api',
     'accounts.apps.AccountsConfig',           # Custom authentication
+    'notifications',                          # Notifications system
     'repositories.apps.RepositoriesConfig',   # Repository management
     'scans.apps.ScansConfig',                 # Scanning system
     'monitoring',                             # System / worker monitoring
+    'chat.apps.ChatConfig',                   # AI assistant chat
 ]
 
 MIDDLEWARE = [
@@ -90,8 +88,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-
-# Database
+# database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
@@ -105,8 +102,6 @@ DATABASES = {
     }
 }
 
-
-# Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -124,8 +119,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# Internationalization
+# internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
@@ -136,24 +130,21 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
+# static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Media files
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Default primary key field type
+# default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-# REST Framework Configuration
+# rest Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -171,9 +162,9 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-# Celery Configuration
+# celery Configuration
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
-# CELERY_RESULT_BACKEND is set below after Redis configuration
+# celery result backend is set below after Redis configuration
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -195,14 +186,14 @@ SPECTACULAR_SETTINGS = {
     'REDOC_DIST': 'SIDECAR',
 }
 
-# JWT Configuration
+# jwt Configuration
 SIMPLE_JWT = {
-    # Access token: 2 hours for better user experience in development
-    # Consider 30-60 minutes for production
+    # access token: 2 hours for better user experience in development
+    # consider 30-60 minutes for production
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
     
-    # Refresh token: 30 days for good user experience
-    # Users won't need to login frequently
+    # refresh token: 30 days for good user experience
+    # users won't need to login frequently
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -217,7 +208,7 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
-# CORS Configuration
+# cors Configuration
 CORS_ALLOW_ALL_ORIGINS = False  # Set to False to use the whitelist below
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
@@ -250,8 +241,8 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Logging Configuration
-# Email Configuration
+# logging Configuration
+# email Configuration
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
@@ -260,27 +251,27 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
-# Repository Encryption Configuration
-# For production, use a secure 32-byte key from environment variable
+# repository encryption Configuration
+# for production, use a secure 32-byte key from environment variable
 REPOSITORY_ENCRYPTION_KEY = os.getenv('REPOSITORY_ENCRYPTION_KEY', 'xmcC6B0bOp_Ldsurx5DAKQ6pGKcaPDfOMN6vE7qIbJc=')
 
-# GitHub OAuth Configuration
+# github OAuth Configuration
 GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
 GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
 
-# Redis Cache / Result Backend Configuration (supports Upstash via REDIS_URL)
+# redis cache / result backend configuration (supports Upstash via REDIS_URL)
 REDIS_URL = os.getenv('REDIS_URL', '')
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
 
-# Detect if using Upstash (contains 'upstash' in hostname) - requires TLS
+# detect if using Upstash (contains 'upstash' in hostname) - requires TLS
 IS_UPSTASH = 'upstash' in REDIS_HOST.lower()
 
 if REDIS_URL:
     redis_location = REDIS_URL
 else:
-    # Use rediss:// (TLS) for Upstash, redis:// for local
+    # use rediss:// (TLS) for Upstash, redis:// for local
     REDIS_SCHEME = 'rediss' if IS_UPSTASH else 'redis'
     REDIS_AUTH = f"default:{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
     redis_location = f"{REDIS_SCHEME}://{REDIS_AUTH}{REDIS_HOST}:{REDIS_PORT}/0"
@@ -289,7 +280,7 @@ redis_options = {
     "CLIENT_CLASS": "django_redis.client.DefaultClient",
 }
 
-# Upstash and other managed providers commonly use rediss:// (TLS)
+# upstash and other managed providers commonly use rediss:// (TLS)
 if redis_location.startswith("rediss://") or IS_UPSTASH:
     redis_options["CONNECTION_POOL_KWARGS"] = {"ssl_cert_reqs": None}
 
@@ -301,15 +292,23 @@ CACHES = {
     }
 }
 
-# Set Celery result backend to use the same Redis location
+# setting Celery result backend to use the same Redis location
+# celery result backend (set after Redis config)
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', redis_location)
 
-# Django Channels Configuration
+# fix SSL for Celery if using rediss://
+if CELERY_RESULT_BACKEND and CELERY_RESULT_BACKEND.startswith('rediss://'):
+    if '?' not in CELERY_RESULT_BACKEND:
+        CELERY_RESULT_BACKEND += '?ssl_cert_reqs=none'
+    elif 'ssl_cert_reqs' not in CELERY_RESULT_BACKEND:
+        CELERY_RESULT_BACKEND += '&ssl_cert_reqs=none'
+
+# django channels configuration
 ASGI_APPLICATION = 'core.asgi.application'
 
-# Build channel layer config based on Redis setup
+# building channel layer config based on Redis setup
 if IS_UPSTASH or REDIS_PASSWORD:
-    # Upstash/authenticated Redis requires URL format with TLS
+    # upstash/authenticated Redis requires URL format with TLS
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
@@ -319,7 +318,7 @@ if IS_UPSTASH or REDIS_PASSWORD:
         },
     }
 else:
-    # Local Redis without authentication
+    # local Redis without authentication
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
@@ -331,3 +330,20 @@ else:
             },
         },
     }
+
+# internal service URLs
+# centralized configuration for all internal service endpoints
+# change these in one place instead of hardcoding throughout the codebase
+
+# rag (Retrieval-Augmented Generation) Service
+RAG_SERVICE_URL = os.getenv('RAG_SERVICE_URL', 'http://rag-worker:8002')
+
+# rabbitmq / message broker (already configured above in CELERY_BROKER_URL)
+
+# redis (already configured above)
+
+# adding other internal services here as needed
+# sCANNER_WORKER_URL = os.getenv('SCANNER_WORKER_URL', 'http://scanner-worker:8003')
+
+# internal Service Token
+INTERNAL_SERVICE_TOKEN = os.getenv('INTERNAL_SERVICE_TOKEN', 'dev-internal-token')

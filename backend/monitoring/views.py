@@ -6,12 +6,10 @@ from rest_framework import status
 from accounts.permissions import IsAdmin
 from core.celery import app as celery_app
 
-
 class WorkerHealthView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
-        """Return a lightweight snapshot of Celery workers and queues."""
         inspect = celery_app.control.inspect()
 
         try:
@@ -35,7 +33,7 @@ class WorkerHealthView(APIView):
         worker_names = sorted(ping.keys())
         workers_online = len(worker_names)
 
-        # Derive queue names from active_queues inspection
+        # derive queue names from active_queues inspection
         queue_names = set()
         for queues in active_queues.values():
             if not queues:
@@ -51,7 +49,7 @@ class WorkerHealthView(APIView):
             "workers": {
                 "online": workers_online,
                 "names": worker_names,
-                # Active / reserved / scheduled counts aggregated across workers
+                # active / reserved / scheduled counts aggregated across workers
                 "active_tasks": sum(len(v or []) for v in active.values()),
                 "reserved_tasks": sum(len(v or []) for v in reserved.values()),
                 "scheduled_tasks": sum(len(v or []) for v in scheduled.values()),
@@ -59,7 +57,7 @@ class WorkerHealthView(APIView):
             "queues": {
                 "names": sorted(queue_names),
             },
-            # Raw stats from Celery (per-worker), useful if you expand UI later
+            # raw stats from Celery (per-worker), useful if you expand UI later
             "raw": {
                 "stats": stats,
             },

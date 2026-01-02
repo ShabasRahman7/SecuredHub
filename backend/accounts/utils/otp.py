@@ -52,7 +52,6 @@ def check_rate_limit(email):
     return True, 0
 
 def increment_rate_limit(email):
-    """Update rate limit counter."""
     key = get_rate_limit_key(email)
     data = cache.get(key)
     
@@ -61,7 +60,7 @@ def increment_rate_limit(email):
     if not data:
         new_data = {'count': 1, 'last_sent': now}
     else:
-        # Reset if > 1 hour
+        # reset if > 1 hour
         if now - data['last_sent'] > 3600:
             new_data = {'count': 1, 'last_sent': now}
         else:
@@ -80,7 +79,7 @@ def send_otp_email(email, context='register'):
         
     otp = generate_otp()
     
-    # Customize message based on context
+    # customize message based on context
     if context == 'tenant_invite':
         subject = "SecuredHub - Tenant Registration Invitation"
         message = f"""Hello,
@@ -123,10 +122,10 @@ SecuredHub Team"""
     try:
         send_mail(subject, message, from_email, [email], fail_silently=False)
         
-        # Store OTP in Redis
+        # storing OTP in Redis
         cache.set(get_otp_key(email), otp, timeout=OTP_EXPIRY)
         
-        # Update rate limit
+        # updating rate limit
         increment_rate_limit(email)
         
         return True, "OTP sent successfully."
@@ -153,17 +152,17 @@ def check_otp_attempts(email):
     
     now = time.time()
     
-    # Check if currently locked out
+    # checking if currently locked out
     if locked_until and now < locked_until:
         wait_time = int(locked_until - now)
         return False, locked_until, 0
     
-    # If lock expired, reset
+    # if lock expired, reset
     if locked_until and now >= locked_until:
         cache.delete(key)
         return True, None, 3
     
-    # Check remaining attempts
+    # checking remaining attempts
     remaining = max(0, 3 - attempts)
     return remaining > 0, None, remaining
 
@@ -177,7 +176,7 @@ def increment_otp_attempts(email):
     
     data['attempts'] += 1
     
-    # Lock account after 3 failed attempts
+    # lock account after 3 failed attempts
     if data['attempts'] >= 3:
         lockout_duration = 900  # 15 minutes
         data['locked_until'] = time.time() + lockout_duration
@@ -194,7 +193,7 @@ def verify_otp_code(email, code):
     Verify the provided OTP code with brute-force protection.
     Returns verification_token if successful, None otherwise.
     """
-    # Check if account is locked
+    # checking if account is locked
     allowed, locked_until, remaining = check_otp_attempts(email)
     
     if not allowed:
@@ -215,21 +214,20 @@ def verify_otp_code(email, code):
         else:
             return None, f"Invalid OTP. {remaining_attempts} attempt(s) remaining."
         
-    # OTP is valid
+    # oTP is valid
     cache.delete(get_otp_key(email))
     reset_otp_attempts(email)
     
-    # Generate verification token
+    # generating verification token
     verification_token = generate_otp(32)
     cache.set(get_verified_key(email), verification_token, timeout=VERIFIED_TOKEN_EXPIRY)
     
     return verification_token, "OTP verified successfully."
 
 def check_verification_token(email, token):
-    """Check if the email has a valid verification token."""
     try:
         stored_token = cache.get(get_verified_key(email))
     except Exception:
-        # If cache/Redis is unavailable, treat as invalid to avoid 500s
+        # if cache/Redis is unavailable, treat as invalid to avoid 500s
         return False
     return stored_token and stored_token == token

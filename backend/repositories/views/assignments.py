@@ -10,7 +10,6 @@ from accounts.permissions import IsTenantOwner
 from accounts.notifications import send_notification
 from repositories.models import Repository, RepositoryAssignment
 
-
 class RepositoryAssignmentListView(APIView):
     """List all assignments for a repository or all repositories with assignments."""
     permission_classes = [IsAuthenticated, IsTenantOwner]
@@ -57,7 +56,6 @@ class RepositoryAssignmentListView(APIView):
                 })
             return Response({'repositories': result}, status=status.HTTP_200_OK)
 
-
 class RepositoryAssignmentCreateView(APIView):
     """Assign a repository to a developer."""
     permission_classes = [IsAuthenticated, IsTenantOwner]
@@ -83,9 +81,23 @@ class RepositoryAssignmentCreateView(APIView):
         member = get_object_or_404(TenantMember, id=member_id, tenant=tenant)
         
         if RepositoryAssignment.objects.filter(repository=repository, member=member).exists():
-            return Response({
-                'error': 'Repository is already assigned to this developer'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'Repository is already assigned to this member'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # cRITICAL FIX: Link repository to tenant credential if not already set
+        # this ensures private repos can be cloned by scanner worker
+        if not repository.credential_id:
+            # getting tenant's default credential for the repository provider
+            tenant_credential = repository.tenant.credentials.filter(
+                is_active=True
+            ).first()
+            
+            if tenant_credential:
+                repository.credential = tenant_credential
+                repository.save()
+                print(f"Auto-linked credential {tenant_credential.id} to repository {repository.id}")
         
         assignment = RepositoryAssignment.objects.create(
             repository=repository,
@@ -93,7 +105,7 @@ class RepositoryAssignmentCreateView(APIView):
             assigned_by=request.user
         )
         
-        # Send notification to the developer
+        # sending notification to the developer
         send_notification(
             user_id=member.user.id,
             notification_type='repo_assigned',
@@ -117,7 +129,6 @@ class RepositoryAssignmentCreateView(APIView):
             }
         }, status=status.HTTP_201_CREATED)
 
-
 class RepositoryAssignmentDeleteView(APIView):
     """Unassign a repository from a developer."""
     permission_classes = [IsAuthenticated, IsTenantOwner]
@@ -139,7 +150,7 @@ class RepositoryAssignmentDeleteView(APIView):
         repo_name = repository.name
         assignment.delete()
         
-        # Send notification to the developer
+        # sending notification to the developer
         send_notification(
             user_id=member_user_id,
             notification_type='repo_unassigned',
@@ -155,7 +166,6 @@ class RepositoryAssignmentDeleteView(APIView):
             'success': True,
             'message': f'Repository unassigned from {member_email}'
         }, status=status.HTTP_200_OK)
-
 
 list_repository_assignments = RepositoryAssignmentListView.as_view()
 assign_repository = RepositoryAssignmentCreateView.as_view()

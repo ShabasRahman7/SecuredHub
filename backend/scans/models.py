@@ -40,17 +40,48 @@ class Scan(models.Model):
     def __str__(self):
         return f"Scan {self.id} → Repo {self.repository.name}"
 
-
 class ScanFinding(models.Model):
+    SEVERITY_CHOICES = (
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    )
+    
     scan = models.ForeignKey(
         Scan,
         on_delete=models.CASCADE,
         related_name="findings"
     )
+    
+    tool = models.CharField(max_length=64)
+    rule_id = models.CharField(max_length=128)
+    title = models.TextField()
+    description = models.TextField()
+    
+    # severity from scanner
+    severity = models.CharField(
+        max_length=20,
+        choices=SEVERITY_CHOICES,
+        default='medium'
+    )
+    
+    # location of issue was found
     file_path = models.CharField(max_length=500)
-    line = models.IntegerField(null=True, blank=True)
-    severity = models.CharField(max_length=20)
-    rule_id = models.CharField(max_length=100)
-    message = models.TextField()
-
+    line_number = models.IntegerField(null=True, blank=True)
+    
+    # keeping original scanner output for audit trail
+    raw_output = models.JSONField(default=dict, help_text="Original scanner output")
+    
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'scan_findings'
+        ordering = ['-severity', 'file_path']
+        indexes = [
+            models.Index(fields=['severity']),
+            models.Index(fields=['tool']),
+        ]
+    
+    def __str__(self):
+        return f"{self.severity.upper()}: {self.title} ({self.tool})"

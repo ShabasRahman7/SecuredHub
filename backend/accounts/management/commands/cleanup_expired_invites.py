@@ -4,7 +4,6 @@ from datetime import timedelta
 
 from accounts.models import MemberInvite, TenantInvite
 
-
 class Command(BaseCommand):
     help = "Clean up expired and old invitations"
 
@@ -31,7 +30,7 @@ class Command(BaseCommand):
         now = timezone.now()
 
         # -------------------------
-        # EXPIRE INVITES (COMMON LOGIC)
+        # eXPIRE INVITES (COMMON LOGIC)
         # -------------------------
         def expire_invites(model, pending_status, expired_status, label):
             qs = model.objects.filter(
@@ -67,7 +66,7 @@ class Command(BaseCommand):
         )
 
         # -------------------------
-        # DELETE OLD INVITES (OPTIONAL)
+        # deleting OLD INVITES (OPTIONAL)
         # -------------------------
         if delete_old:
             thirty_days_ago = now - timedelta(days=30)
@@ -103,7 +102,7 @@ class Command(BaseCommand):
                     )
 
         # -------------------------
-        # SUMMARY
+        # sUMMARY
         # -------------------------
         if expired_members == 0 and expired_tenants == 0 and not delete_old:
             self.stdout.write(self.style.SUCCESS("No expired invitations found"))

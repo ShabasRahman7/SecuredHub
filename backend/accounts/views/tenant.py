@@ -17,7 +17,6 @@ from ..permissions import IsTenantOwner, IsTenantMember
 from ..utils.redis_invites import RedisInviteManager
 from ..utils.tenant_invites import send_member_invite_email
 
-
 class TenantListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -41,9 +40,6 @@ class TenantListView(APIView):
             },
             status=status.HTTP_200_OK
         )
-
-
-
 
 class MemberListView(APIView):
     permission_classes = [IsAuthenticated, IsTenantMember]
@@ -77,7 +73,6 @@ class MemberListView(APIView):
             status=status.HTTP_200_OK
         )
 
-
 class MemberRemoveView(APIView):
     permission_classes = [IsAuthenticated, IsTenantOwner]
 
@@ -87,12 +82,7 @@ class MemberRemoveView(APIView):
         tags=["Tenants"]
     )
     def delete(self, request, tenant_id, member_id):
-        """
-        Tenant owner delete member.
-
-        - Default: soft delete (marks member as deleted, disables login, keeps data for 30 days).
-        - With ?hard_delete=true: hard delete (permanently removes user and membership).
-        """
+        # soft delete by default, hard delete with ?hard_delete=true
         tenant = get_object_or_404(Tenant, id=tenant_id)
         self.check_object_permissions(request, tenant)
         
@@ -114,7 +104,7 @@ class MemberRemoveView(APIView):
         
         if hard_delete:
             user_email = member.user.email
-            # Hard delete: permanently remove the underlying user account
+            # hard delete: permanently remove the underlying user account
             member.user.delete()
 
             return Response(
@@ -125,7 +115,7 @@ class MemberRemoveView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        # Soft delete: mark member as deleted and schedule hard delete
+        # soft delete: mark member as deleted and schedule hard delete
         member.soft_delete()
 
         return Response(
@@ -136,7 +126,6 @@ class MemberRemoveView(APIView):
             },
             status=status.HTTP_200_OK
         )
-
 
 class MemberRestoreView(APIView):
     permission_classes = [IsAuthenticated, IsTenantOwner]
@@ -168,7 +157,6 @@ class MemberRestoreView(APIView):
             status=status.HTTP_200_OK
         )
 
-
 class MemberBlockView(APIView):
     permission_classes = [IsAuthenticated, IsTenantOwner]
 
@@ -184,7 +172,7 @@ class MemberBlockView(APIView):
         member = get_object_or_404(TenantMember, id=member_id, tenant=tenant)
         block = request.data.get('block', True)
 
-        # Owners cannot block themselves
+        # owners cannot block themselves
         if member.user == request.user:
             return Response({
                 "success": False,
@@ -241,7 +229,7 @@ class InviteDeveloperView(APIView):
                     },
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            # Do not allow inviting an account that already exists elsewhere
+            # do not allow inviting an account that already exists elsewhere
             return Response(
                 {
                     "success": False,
@@ -290,7 +278,6 @@ class InviteDeveloperView(APIView):
             status=status.HTTP_201_CREATED
         )
 
-
 class InviteListView(APIView):
     permission_classes = [IsAuthenticated, IsTenantOwner]
 
@@ -316,7 +303,6 @@ class InviteListView(APIView):
             },
             status=status.HTTP_200_OK
         )
-
 
 class ResendInviteView(APIView):
     permission_classes = [IsAuthenticated, IsTenantOwner]
@@ -393,7 +379,6 @@ class ResendInviteView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-
 class CancelInviteView(APIView):
     permission_classes = [IsAuthenticated, IsTenantOwner]
 
@@ -442,7 +427,6 @@ class CancelInviteView(APIView):
             },
             status=status.HTTP_200_OK
         )
-
 
 class AcceptInviteView(APIView):
     permission_classes = [IsAuthenticated]
@@ -541,7 +525,6 @@ class AcceptInviteView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-
 class TenantUpdateView(APIView):
     permission_classes = [IsAuthenticated, IsTenantMember]
 
@@ -581,7 +564,6 @@ class TenantUpdateView(APIView):
 
     def patch(self, request, tenant_id):
         return self.put(request, tenant_id)
-
 
 list_tenants = TenantListView.as_view()
 update_tenant = TenantUpdateView.as_view()

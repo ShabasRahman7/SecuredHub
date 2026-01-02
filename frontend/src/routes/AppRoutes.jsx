@@ -19,10 +19,13 @@ import TenantSettings from '../pages/tenant/Settings';
 import TenantProfile from '../pages/tenant/Profile';
 import DevDashboard from '../pages/developer/Dashboard';
 import DevRepositories from '../pages/developer/Repositories';
+import DevScans from '../pages/developer/Scans';
+import DevScanResults from '../pages/developer/ScanResults';
 import DevVulnerabilities from '../pages/developer/Vulnerabilities';
 import DevAIAssistant from '../pages/developer/AIAssistant';
 import DevSettings from '../pages/developer/Settings';
 import DevProfile from '../pages/developer/Profile';
+import Notifications from '../pages/shared/Notifications';
 import ProtectedRoute from './ProtectedRoute';
 import GuestRoute from './GuestRoute';
 import PublicRoute from './PublicRoute';
@@ -33,7 +36,7 @@ import AdminLayout from '../layouts/AdminLayout';
 import TenantLayout from '../layouts/TenantLayout';
 import DeveloperLayout from '../layouts/DeveloperLayout';
 
-// Main application router wiring up auth, admin, tenant, and developer areas.
+// main application router wiring up auth, admin, tenant, and developer areas.
 const AppRoutes = () => {
     return (
         <Routes>
@@ -45,7 +48,7 @@ const AppRoutes = () => {
 
             <Route path="/register" element={<Register />} />
             <Route path="/accept-invite/:token" element={<AcceptInvite />} />
-            
+
             <Route path="/auth/github/callback" element={<GitHubCallback />} />
 
             <Route
@@ -60,6 +63,7 @@ const AppRoutes = () => {
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="access-requests" element={<AccessRequests />} />
                 <Route path="tenants" element={<Tenants />} />
+                <Route path="notifications" element={<Notifications />} />
                 <Route path="workers" element={<WorkerMonitoring />} />
                 <Route path="ai" element={<AdminPlaceholder />} />
                 <Route path="audit-logs" element={<AdminPlaceholder />} />
@@ -80,6 +84,7 @@ const AppRoutes = () => {
                 <Route path="repositories" element={<TenantRepositories />} />
                 <Route path="scans" element={<TenantScans />} />
                 <Route path="reports" element={<TenantReports />} />
+                <Route path="notifications" element={<Notifications />} />
                 <Route path="developers" element={<TenantDevelopers />} />
                 <Route path="credentials" element={<TenantCredentials />} />
                 <Route path="settings" element={<TenantSettings />} />
@@ -96,8 +101,12 @@ const AppRoutes = () => {
             >
                 <Route index element={<DevDashboard />} />
                 <Route path="repositories" element={<DevRepositories />} />
+                <Route path="scans" element={<DevScans />} />
+                <Route path="scans/:scanId" element={<DevScanResults />} />
                 <Route path="vulnerabilities" element={<DevVulnerabilities />} />
+                <Route path="notifications" element={<Notifications />} />
                 <Route path="ai-assistant" element={<DevAIAssistant />} />
+                <Route path="ai-assistant/:findingId" element={<DevAIAssistant />} />
                 <Route path="settings" element={<DevSettings />} />
                 <Route path="profile" element={<DevProfile />} />
             </Route>

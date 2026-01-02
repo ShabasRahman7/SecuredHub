@@ -95,7 +95,7 @@ services:
   # Scanner Worker Service (Standalone Celery - Independent Django)
   scanner-worker:
     build:
-      context: ../worker
+      context: ../scanner_worker
       dockerfile: Dockerfile
     container_name: secured_hub_scanner
     env_file:
@@ -103,14 +103,20 @@ services:
     environment:
       - DB_HOST=db
       - DB_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       # Redis config inherited from .env (Upstash)
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - PYTHONPATH=/backend
+      # Note: DJANGO_SETTINGS_MODULE is set manually in tasks, not here
       # Celery result backend will be constructed in settings.py using Upstash
     volumes:
-      - ../worker:/app
+      - ../scanner_worker:/app
+      - ../backend:/backend
       - scanner_workspace:/tmp/scanner_workspace
     depends_on:
       db:
@@ -120,34 +126,27 @@ services:
     networks:
       - secured_hub_network
     restart: unless-stopped
-  # ============================================
-  # WEEK 3 SERVICES (Uncomment when ready)
-  # ============================================
 
-  # RAG Service - Week 3
-  # rag-worker:
-  #   build:
-  #     context: ../rag_service
-  #     dockerfile: Dockerfile
-  #   container_name: secured_hub_rag
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     - DB_HOST=db
-  #     - DB_PORT=5432
-  #     - REDIS_HOST=redis
-  #     - REDIS_PORT=6379
-  #     - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-  #     - CELERY_RESULT_BACKEND=redis://redis:6379/0
-  #     - GEMINI_API_KEY=${GEMINI_API_KEY}
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   networks:
-  #     - secured_hub_network
-  #   restart: unless-stopped
+  # ============================================
+  # RAG SERVICE - AI Fix Suggestions
+  # ============================================
+  rag-worker:
+    build:
+      context: ../rag_service
+      dockerfile: Dockerfile
+    container_name: secured_hub_rag
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    volumes:
+      - ../rag_service:/app
+      - ../rag_service/data:/app/data
+    networks:
+      - secured_hub_network
+    restart: unless-stopped
 
 volumes:
   postgres_data:

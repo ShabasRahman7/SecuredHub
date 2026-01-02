@@ -11,7 +11,6 @@ from accounts.permissions import IsTenantOwner
 from repositories.models import TenantCredential
 from repositories.serializers import CredentialSerializer, CredentialCreateSerializer
 
-
 class CredentialListView(APIView):
     permission_classes = [IsAuthenticated, IsTenantOwner]
 
@@ -30,7 +29,6 @@ class CredentialListView(APIView):
         
         serializer = CredentialSerializer(credentials, many=True)
         return Response({'credentials': serializer.data}, status=status.HTTP_200_OK)
-
 
 class CredentialCreateView(APIView):
     permission_classes = [IsAuthenticated, IsTenantOwner]
@@ -66,7 +64,6 @@ class CredentialCreateView(APIView):
         credential.save()
         
         return Response(CredentialSerializer(credential).data, status=status.HTTP_201_CREATED)
-
 
 class CredentialDetailView(APIView):
     permission_classes = [IsAuthenticated, IsTenantOwner]
@@ -138,7 +135,6 @@ class CredentialDetailView(APIView):
         credential.delete()
         
         return Response({"message": "Credential deleted successfully"}, status=status.HTTP_200_OK)
-
 
 list_credentials = CredentialListView.as_view()
 create_credential = CredentialCreateView.as_view()

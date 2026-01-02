@@ -1,6 +1,6 @@
-// Route paths constants
+// routing paths constants
 export const ROUTES = {
-  // Public routes
+  // public routes
   HOME: '/',
   LOGIN: '/login',
   REGISTER: '/register',
@@ -8,15 +8,15 @@ export const ROUTES = {
   REQUEST_ACCESS: '/request-access',
   ACCEPT_INVITE: '/accept-invite',
 
-  // Admin routes
+  // admin routes
   ADMIN_DASHBOARD: '/admin/dashboard',
   ADMIN_TENANTS: '/admin/tenants',
   ADMIN_ACCESS_REQUESTS: '/admin/access-requests',
 
-  // Tenant routes
+  // tenant routes
   TENANT_DASHBOARD: '/tenant/dashboard',
 
-  // Developer routes
+  // developer routes
   DEVELOPER_DASHBOARD: '/developer/dashboard',
 };
 

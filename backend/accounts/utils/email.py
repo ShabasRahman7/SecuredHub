@@ -2,21 +2,11 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 
-
 def send_tenant_invite_email(tenant_invite):
-    """
-    Send tenant invitation email with secure signup link.
-    
-    Args:
-        tenant_invite: TenantInvite model instance
-        
-    Returns:
-        (success: bool, message: str)
-    """
     email = tenant_invite.email
     token = tenant_invite.token
     
-    # Build the registration URL with invite token
+    # building registration URL with invite token
     frontend_url = settings.FRONTEND_URL.rstrip('/')
     signup_url = f"{frontend_url}/register?invite_token={token}&type=tenant"
     
@@ -61,17 +51,7 @@ SecuredHub Team
     except Exception as e:
         return False, "Failed to send invitation email. Please try again later."
 
-
 def send_access_request_rejection_email(email):
-    """
-    Send access request rejection email.
-    
-    Args:
-        email: Email address of the rejected user
-        
-    Returns:
-        (success: bool, message: str)
-    """
     subject = "SecuredHub - Access Request Update"
     
     message = f"""Hello,
@@ -102,46 +82,36 @@ SecuredHub Team
     except Exception as e:
         return False, "Failed to send rejection email."
 
-
 def verify_tenant_invite_token(token):
-    """
-    Verify a tenant invitation token.
-    
-    Args:
-        token: UUID invitation token
-        
-    Returns:
-        (tenant_invite: TenantInvite|None, error_message: str|None)
-    """
     from ..models import TenantInvite
     from .redis_tokens import InviteTokenManager
     
-    # First check Redis for fast expiration validation (best effort)
+    # first check Redis for fast expiration validation (best effort)
     try:
         email = InviteTokenManager.verify_token(str(token))
     except Exception:
         email = None
     
-    # Validate against database regardless (so we still work if Redis is down or keys evicted)
+    # validating against database (works even if Redis isdown or keys evicted)
     try:
         invite = TenantInvite.objects.get(token=token)
     except TenantInvite.DoesNotExist:
         return None, "Invalid invitation token."
     
-    # If Redis provided an email, ensure it matches
+    # if Redis provided an email, ensure it matches
     if email and invite.email != email:
         return None, "Invalid invitation token."
     
-    # Expiration / status checks
+    # expiration / status checks
     if invite.status == TenantInvite.STATUS_REGISTERED:
         return None, "This invitation has already been used."
     
-    # If expired_at is set, enforce it
+    # if expired_at is set, enforce it
     if invite.expires_at and invite.expires_at < timezone.now():
         invite.status = TenantInvite.STATUS_EXPIRED
         invite.save(update_fields=['status'])
         return None, "This invitation has expired."
     
-    # Still pending and not expired
+    # still pending and not expired
     return invite, None
 

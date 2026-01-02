@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from repositories.models import Repository, TenantCredential
 
-
 class RepositorySerializer(serializers.ModelSerializer):
     tenant_name = serializers.CharField(source='tenant.name', read_only=True)
     credential_name = serializers.CharField(source='credential.name', read_only=True, allow_null=True)
@@ -15,7 +14,6 @@ class RepositorySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'tenant_name', 'credential_name', 'created_at', 'updated_at']
 
-
 class RepositoryCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Repository
@@ -27,7 +25,6 @@ class RepositoryCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A repository with this URL already exists in this tenant.")
         return value
 
-
 class CredentialSerializer(serializers.ModelSerializer):
     repositories_count = serializers.ReadOnlyField()
     
@@ -38,7 +35,6 @@ class CredentialSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'last_used_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'last_used_at', 'repositories_count']
-
 
 class CredentialCreateSerializer(serializers.ModelSerializer):
     access_token = serializers.CharField(write_only=True)

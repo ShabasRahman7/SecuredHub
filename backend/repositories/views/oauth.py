@@ -17,7 +17,6 @@ from accounts.models import Tenant
 from accounts.permissions import IsTenantOwner
 from repositories.models import TenantCredential
 
-
 @method_decorator(csrf_exempt, name='dispatch')
 class GitHubOAuthCallbackView(APIView):
     permission_classes = []
@@ -27,7 +26,7 @@ class GitHubOAuthCallbackView(APIView):
         state = request.GET.get('state')
         error = request.GET.get('error')
         
-        # Validate GitHub OAuth configuration
+        # validating GitHub OAuth configuration
         if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
             return redirect(f"{settings.FRONTEND_URL}/auth/github/callback?error=oauth_not_configured")
         
@@ -45,15 +44,15 @@ class GitHubOAuthCallbackView(APIView):
             if not tenant_id:
                 return redirect(f"{settings.FRONTEND_URL}/auth/github/callback?error=invalid_state")
             
-            # Build the redirect_uri that matches exactly what was used in the authorization request
-            # The frontend sends: ${apiUrl}/auth/github/callback where apiUrl = http://localhost:8001/api/v1
-            # So redirect_uri should be: http://localhost:8001/api/v1/auth/github/callback
-            # Use the request's scheme and host to build it correctly
+            # building the redirect_uri that matches exactly what was used in the authorization request
+            # the frontend sends: ${apiUrl}/auth/github/callback where apiUrl = http://localhost:8001/api/v1
+            # so redirect_uri should be: http://localhost:8001/api/v1/auth/github/callback
+            # use the request's scheme and host to build it correctly
             scheme = request.scheme  # http or https
             host = request.get_host()  # localhost:8001
             redirect_uri = f"{scheme}://{host}/api/v1/auth/github/callback"
             
-            # Exchange authorization code for access token
+            # exchange authorization code for access token
             token_response = requests.post('https://github.com/login/oauth/access_token', {
                 'client_id': settings.GITHUB_CLIENT_ID,
                 'client_secret': settings.GITHUB_CLIENT_SECRET,
@@ -68,7 +67,7 @@ class GitHubOAuthCallbackView(APIView):
             
             token_data = token_response.json()
             
-            # Check for error in response (GitHub sometimes returns 200 with error in JSON)
+            # checking for error in response (GitHub sometimes returns 200 with error in JSON)
             if 'error' in token_data:
                 return redirect(f"{settings.FRONTEND_URL}/auth/github/callback?error=token_exchange_failed")
             
@@ -134,14 +133,13 @@ class GitHubOAuthCallbackView(APIView):
                 credential.set_access_token(access_token)
                 credential.save()
             
-            # Redirect to a callback page that can handle both popup and regular redirects
+            # redirecting to a callback page that can handle both popup and regular redirects
             return redirect(f"{settings.FRONTEND_URL}/auth/github/callback?github_connected=true&credential_id={credential.id}")
             
         except Exception as e:
             return redirect(f"{settings.FRONTEND_URL}/auth/github/callback?error=oauth_processing_failed")
 
 github_oauth_callback = GitHubOAuthCallbackView.as_view()
-
 
 class GitHubCredentialActionsView(APIView):
     permission_classes = [IsAuthenticated, IsTenantOwner]

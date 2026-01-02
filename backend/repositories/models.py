@@ -4,9 +4,7 @@ from cryptography.fernet import Fernet
 from django.conf import settings
 import base64
 
-
 class TenantCredential(models.Model):
-    """Tenant-level OAuth credentials for repository access."""
     
     PROVIDER_GITHUB = 'github'
     PROVIDER_GITLAB = 'gitlab'
@@ -39,12 +37,12 @@ class TenantCredential(models.Model):
         db_index=True
     )
     
-    # OAuth-specific fields
+    # oAuth-specific fields
     encrypted_access_token = models.TextField(
         help_text="Encrypted OAuth access token"
     )
     
-    # GitHub-specific OAuth data
+    # gitHub-specific oAuth data
     github_installation_id = models.CharField(
         max_length=255, 
         null=True, 
@@ -66,14 +64,14 @@ class TenantCredential(models.Model):
         help_text="GitHub account/organization ID"
     )
     
-    # Permissions and scope
+    # permissions and scope
     granted_scopes = models.TextField(
         null=True, 
         blank=True,
         help_text="OAuth scopes granted (comma-separated)"
     )
     
-    # OAuth metadata
+    # oAuth metadata
     oauth_data = models.JSONField(
         default=dict,
         blank=True,
@@ -105,12 +103,9 @@ class TenantCredential(models.Model):
         return f"{self.name} ({self.provider}) - {self.tenant.name}"
     
     def _get_encryption_key(self):
-        """Get encryption key for access tokens."""
-        key = getattr(settings, 'REPOSITORY_ENCRYPTION_KEY', None)
-        if not key:
-            key = Fernet.generate_key()
-        elif isinstance(key, str):
-            key = key.encode('utf-8')
+        key = settings.REPOSITORY_ENCRYPTION_KEY
+        if isinstance(key, str):
+            return key.encode('utf-8')
         return key
     
     def set_access_token(self, token: str):
@@ -145,9 +140,7 @@ class TenantCredential(models.Model):
         """Count of repositories using this credential."""
         return self.repositories.count()
 
-
 class Repository(models.Model):
-    """Simple repository model for multi-tenant management."""
     
     tenant = models.ForeignKey(
         Tenant,
@@ -170,6 +163,13 @@ class Repository(models.Model):
         help_text="Credential used for repository access"
     )
     
+    last_scanned_commit = models.CharField(
+        max_length=40,
+        null=True,
+        blank=True,
+        help_text="SHA hash of the last scanned commit"
+    )
+    
     is_active = models.BooleanField(default=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -185,9 +185,7 @@ class Repository(models.Model):
     def __str__(self):
         return f"{self.name} ({self.tenant.name})"
 
-
 class RepositoryAssignment(models.Model):
-    """Assigns repositories to developers within a tenant."""
     
     repository = models.ForeignKey(
         Repository,

@@ -7,8 +7,6 @@ from drf_spectacular.utils import extend_schema, OpenApiTypes
 from ..utils.email import verify_tenant_invite_token as verify_tenant_invite_token_util
 from ..utils.redis_invites import RedisInviteManager
 
-
-
 class VerifyInviteTokenGetView(APIView):
     permission_classes = [AllowAny]
 
@@ -69,7 +67,7 @@ class VerifyInviteTokenGetView(APIView):
         except Exception as e:
             import traceback
             trace = traceback.format_exc()
-            # Surface the actual error for easier debugging (especially when cache/redis is down)
+            # surface the actual error for easier debugging (especially when cache/redis is down)
             return Response({
                 "success": False,
                 "error": {
@@ -78,6 +76,5 @@ class VerifyInviteTokenGetView(APIView):
                     "trace": trace
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 verify_invite_token_get = VerifyInviteTokenGetView.as_view()

@@ -6,7 +6,6 @@ from datetime import timedelta
 from accounts.models import Tenant, TenantMember, TenantInvite, AccessRequest, MemberInvite
 from accounts.utils.redis_tokens import InviteTokenManager
 
-
 class Command(BaseCommand):
     help = "Permanently delete tenants that were soft-deleted more than 30 days ago"
 
@@ -36,7 +35,7 @@ class Command(BaseCommand):
         now = timezone.now()
         cutoff_date = now - timedelta(days=days)
 
-        # Find tenants that were soft-deleted and scheduled for deletion
+        # finding tenants that were soft-deleted and scheduled for deletion
         tenants_to_delete = Tenant.objects.filter(
             deleted_at__isnull=False,
             deletion_scheduled_at__lte=now
@@ -66,10 +65,10 @@ class Command(BaseCommand):
                 with transaction.atomic():
                     self.stdout.write(f"Permanently deleting tenant: {tenant.name} (ID: {tenant.id})")
                     
-                    # Store owner email before deletion
+                    # storing owner email before deletion
                     owner_email = tenant.created_by.email if tenant.created_by else None
                     
-                    # Check if users table has a tenant_id column and set it to NULL
+                    # checking if users table has a tenant_id column and set it to NULL
                     try:
                         with connection.cursor() as cursor:
                             cursor.execute("""
@@ -86,19 +85,19 @@ class Command(BaseCommand):
                     except Exception:
                         pass
                     
-                    # Delete all TenantMember records first
+                    # deleting all TenantMember records first
                     tenant_members = TenantMember.objects.filter(tenant=tenant)
                     member_count = tenant_members.count()
                     tenant_members.delete()
                     self.stdout.write(f"  - Deleted {member_count} tenant member(s)")
                     
-                    # Delete member invites for this tenant
+                    # deleting member invites for this tenant
                     member_invites = MemberInvite.objects.filter(tenant=tenant)
                     invite_count = member_invites.count()
                     member_invites.delete()
                     self.stdout.write(f"  - Deleted {invite_count} member invite(s)")
                     
-                    # Delete related tenant invites and access requests
+                    # deleting related tenant invites and access requests
                     if owner_email:
                         tenant_invites = TenantInvite.objects.filter(email=owner_email)
                         for invite in tenant_invites:
@@ -116,7 +115,7 @@ class Command(BaseCommand):
                         access_requests.delete()
                         self.stdout.write(f"  - Deleted {request_count} access request(s)")
                     
-                    # Permanently delete the tenant
+                    # permanently delete the tenant
                     tenant_name = tenant.name
                     tenant.delete()
                     deleted_count += 1
@@ -128,7 +127,7 @@ class Command(BaseCommand):
                 errors.append(error_msg)
                 self.stdout.write(self.style.ERROR(f"  ✗ {error_msg}"))
 
-        # Summary
+        # summary
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS(f"Tenant cleanup completed"))
         self.stdout.write(f"  - Successfully deleted: {deleted_count} tenant(s)")

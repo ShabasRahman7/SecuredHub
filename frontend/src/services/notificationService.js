@@ -50,7 +50,7 @@ class NotificationService {
                 this.isConnected = false;
                 this._notifyListeners({ type: 'connection', status: 'disconnected' });
 
-                // Attempt to reconnect if not a clean close
+                // attempt to reconnect if not a clean close
                 if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
                     this._scheduleReconnect(token);
                 }
@@ -118,6 +118,6 @@ class NotificationService {
     }
 }
 
-// Export singleton instance
+// export singleton instance
 const notificationService = new NotificationService();
 export default notificationService;

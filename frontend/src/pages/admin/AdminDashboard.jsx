@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 import api from '../../api/axios';
 import useWorkerHealth from '../../hooks/useWorkerHealth';
 
-// High-level view of platform health, onboarding, and recent admin activity.
+// high-level view of platform health, onboarding, and recent admin activity.
 const AdminDashboard = () => {
     const { user } = useAuth();
     const [tenants, setTenants] = useState([]);
@@ -22,7 +22,7 @@ const AdminDashboard = () => {
         error: workerError,
     } = useWorkerHealth({ auto: true });
 
-    // Fetch summary data for admin
+    // fetching summary data for admin
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
@@ -34,9 +34,9 @@ const AdminDashboard = () => {
                 ]);
 
                 setTenants(tenantsRes.data.tenants || tenantsRes.data.results || []);
-                // Tenant invites: use unverified_count as pending onboarding
+                // tenant invites: use unverified_count as pending onboarding
                 setPendingTenantInvites(invitesRes.data?.unverified_count ?? 0);
-                // Access requests: count field from AdminAccessRequestListView
+                // access requests: count field from AdminAccessRequestListView
                 setPendingAccessRequests(accessRes.data?.count ?? 0);
             } catch (error) {
                 console.error('Failed to fetch admin dashboard data', error);
@@ -48,7 +48,7 @@ const AdminDashboard = () => {
         fetchData();
     }, []);
 
-    // Trigger a simple fake download flow for the platform report.
+    // triggering a simple fake download flow for the platform report.
     const handleDownloadReport = () => {
         Swal.fire({
             title: 'Generating Report...',

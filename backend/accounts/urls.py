@@ -12,8 +12,7 @@ from .views import (
     admin_list_access_requests, admin_approve_access_request, admin_reject_access_request
 )
 
-
-# Authentication URLs
+# authentication URLs
 auth_urlpatterns = [
     path('register/', register, name='register'),
     path('login/', login, name='login'),
@@ -27,7 +26,7 @@ auth_urlpatterns = [
     path('request-access/', request_access, name='request_access'),
 ]
 
-# Tenant URLs
+# tenant URLs
 tenant_urlpatterns = [
     path('tenants/', list_tenants, name='list_tenants'),
     path('tenants/accept-invite/', accept_invite, name='accept_invite'),
@@ -42,7 +41,7 @@ tenant_urlpatterns = [
     path('tenants/<int:tenant_id>/invites/<str:invite_id>/cancel/', cancel_invite, name='cancel_invite'),
 ]
 
-# Admin URLs
+# admin URLs
 admin_urlpatterns = [
     path('admin/tenants/', admin_list_tenants, name='admin_list_tenants'),
     path('admin/tenants/<int:tenant_id>/delete/', admin_delete_tenant, name='admin_delete_tenant'),

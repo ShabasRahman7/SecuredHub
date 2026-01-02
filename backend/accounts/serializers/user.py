@@ -6,7 +6,6 @@ from ..models import AccessRequest
 
 User = get_user_model()
 
-
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True,
@@ -71,7 +70,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         
         return user
 
-
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(
@@ -79,7 +77,6 @@ class LoginSerializer(serializers.Serializer):
         write_only=True,
         style={'input_type': 'password'}
     )
-
 
 class UserSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
@@ -91,7 +88,6 @@ class UserSerializer(serializers.ModelSerializer):
     
     def get_role(self, obj):
         return obj.get_role()
-
 
 class SendOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -111,11 +107,9 @@ class SendOTPSerializer(serializers.Serializer):
             
         return attrs
 
-
 class VerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     otp = serializers.CharField(required=True, max_length=6, min_length=6)
-
 
 class ResetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -136,7 +130,6 @@ class ResetPasswordSerializer(serializers.Serializer):
             })
             
         return attrs
-
 
 class AccessRequestSerializer(serializers.ModelSerializer):
     class Meta:

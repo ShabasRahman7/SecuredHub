@@ -20,7 +20,6 @@ from ..notifications import send_notification, notify_admins, notify_tenant_owne
 
 User = get_user_model()
 
-
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -115,7 +114,7 @@ class RegisterView(APIView):
                 TenantMember.objects.create(tenant=tenant, user=user, role=validated_invite['role'])
                 RedisInviteManager.delete_invite(invite_token)
                 
-                # Notify tenant owners that a developer joined
+                # notifying tenant owners about new developer
                 notify_tenant_owners(
                     tenant_id=tenant.id,
                     notification_type='member_joined',
@@ -134,7 +133,7 @@ class RegisterView(APIView):
                 )
                 validated_invite.mark_accepted()
                 
-                # Notify tenant owners that a developer joined
+                # notify tenant owners that a developer joined
                 notify_tenant_owners(
                     tenant_id=validated_invite.tenant.id,
                     notification_type='member_joined',
@@ -148,7 +147,7 @@ class RegisterView(APIView):
                     }
                 )
         elif is_tenant_signup:
-            # Prefer company name from approved access request, fallback to user info
+            # using company name from access request if available
             tenant_name = None
             access_request = AccessRequest.objects.filter(email=user.email, status=AccessRequest.STATUS_APPROVED).order_by('-created_at').first()
             if access_request and access_request.company_name:
@@ -159,7 +158,6 @@ class RegisterView(APIView):
             TenantMember.objects.create(tenant=tenant, user=user, role=TenantMember.ROLE_OWNER)
             if validated_invite:
                 validated_invite.mark_registered(user)
-
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -177,7 +175,7 @@ class LoginView(APIView):
         email = serializer.validated_data["email"]
         password = serializer.validated_data["password"]
 
-        # Manually verify user credentials so we can distinguish between
+        # manually verify user credentials so we can distinguish between
         # "invalid credentials" and "account blocked / disabled".
         user = User.objects.filter(email=email).first()
         
@@ -199,7 +197,7 @@ class LoginView(APIView):
                 }
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # Check if user's tenant is blocked
+        # checking if user's tenant is blocked
         if hasattr(user, 'tenant_membership') and user.tenant_membership:
             tenant = user.tenant_membership.tenant
             if not tenant.is_active:
@@ -230,7 +228,6 @@ class LoginView(APIView):
                 "refresh": str(refresh),
             }
         }, status=status.HTTP_200_OK)
-
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
@@ -269,7 +266,6 @@ class LogoutView(APIView):
                 }
             }, status=status.HTTP_400_BAD_REQUEST)
 
-
 class SendOTPView(APIView):
     permission_classes = [AllowAny]
 
@@ -303,7 +299,6 @@ class SendOTPView(APIView):
                 "success": False,
                 "error": {"message": message}
             }, status=status.HTTP_429_TOO_MANY_REQUESTS if "wait" in message else status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
@@ -342,7 +337,6 @@ class VerifyOTPView(APIView):
                 "error": {"message": message}
             }, status=status.HTTP_400_BAD_REQUEST)
 
-
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
@@ -375,7 +369,6 @@ class ResetPasswordView(APIView):
             "message": "Password reset successfully. Please login with new password."
         }, status=status.HTTP_200_OK)
 
-
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -385,8 +378,7 @@ class ProfileView(APIView):
         tags=["Authentication"]
     )
     def get(self, request):
-        # Check if user's tenant is blocked (only for non-admin users)
-        # Skip tenant blocking check for admin users
+        # need to check if tenant is blocked (skip for admins)
         if not request.user.is_staff and not request.user.is_superuser:
             if hasattr(request.user, 'tenant_membership') and request.user.tenant_membership:
                 tenant = request.user.tenant_membership.tenant
@@ -429,8 +421,6 @@ class ProfileView(APIView):
             }
         }, status=status.HTTP_400_BAD_REQUEST)
 
-
-
 class RequestAccessView(APIView):
     permission_classes = [AllowAny]
 
@@ -462,7 +452,7 @@ class RequestAccessView(APIView):
         if serializer.is_valid():
             access_request = serializer.save()
             
-            # Notify all admins about the new access request
+            # notifying all admins about new access request
             notify_admins(
                 notification_type='access_request',
                 title='New Access Request',
@@ -487,7 +477,6 @@ class RequestAccessView(APIView):
                 "details": serializer.errors
             }
         }, status=status.HTTP_400_BAD_REQUEST)
-
 
 register = RegisterView.as_view()
 login = LoginView.as_view()

@@ -16,7 +16,7 @@ const AcceptInvite = () => {
         if (authLoading) return;
 
         if (!user) {
-            // Redirect to register with invite token
+            // redirecting to register with invite token
             navigate(`/register?invite_token=${token}`, { state: { invite_token: token, message: 'Please create an account to accept the invitation.' } });
             return;
         }

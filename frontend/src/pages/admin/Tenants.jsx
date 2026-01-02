@@ -14,30 +14,30 @@ const Tenants = () => {
     const [inviteLoading, setInviteLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(null); // track current action to prevent duplicates
 
-    // Modal Ref
+    // modal Ref
     const addTenantModalRef = useRef(null);
 
-    // Fetch Data
+    // fetching Data
     const fetchTenants = async () => {
         setLoading(true);
         try {
             const [tenantsRes, invitesRes] = await Promise.all([
-                api.get('/auth/admin/tenants/?include_deleted=true'), // All tenants including deleted
-                api.get('/auth/admin/tenant-invites/')
+                api.get(API_ENDPOINTS.ADMIN_TENANTS_WITH_DELETED),
+                api.get(API_ENDPOINTS.ADMIN_TENANT_INVITES)
             ]);
 
-            // Process all tenants
+            // processing all tenants
             const allTenants = (tenantsRes.data.tenants || []).map(t => ({
                 ...t,
                 type: 'tenant',
                 status: t.deleted_at ? 'Deleted' : (t.is_active ? 'Active' : 'Blocked')
             }));
 
-            // Separate current and deleted tenants
+            // separate current and deleted tenants
             const current = allTenants.filter(t => !t.deleted_at);
             const deleted = allTenants.filter(t => t.deleted_at);
 
-            // Add invites to current tenants
+            // adding invites to current tenants
             const invites = (invitesRes.data.unverified || []).map(i => ({
                 id: i.id,
                 name: i.email,
@@ -50,14 +50,14 @@ const Tenants = () => {
                 email: i.email
             }));
 
-            // Merge invites with current tenants and sort
+            // merging invites with current tenants and sort
             const mergedCurrent = [...invites, ...current].sort((a, b) => {
                 const dateA = new Date(a.created_at || a.invited_at);
                 const dateB = new Date(b.created_at || b.invited_at);
                 return dateB - dateA;
             });
 
-            // Sort deleted tenants by deletion date (newest first)
+            // sorting deleted tenants by deletion date (newest first)
             const sortedDeleted = deleted.sort((a, b) => {
                 const dateA = new Date(a.deleted_at);
                 const dateB = new Date(b.deleted_at);
@@ -134,7 +134,7 @@ const Tenants = () => {
             return;
         }
 
-        // For deleted tenants: hard delete
+        // for deleted tenants: hard delete
         if (item.deleted_at || isHardDelete) {
             const isConfirmed = await showConfirmDialog({
                 title: `Permanently Delete ${item.name}?`,
@@ -159,7 +159,7 @@ const Tenants = () => {
             return;
         }
 
-        // For current tenants: soft delete
+        // for current tenants: soft delete
         const isConfirmed = await showConfirmDialog({
             title: `Delete ${item.name}?`,
             text: "This will soft-delete the tenant. Data will be kept for 30 days before permanent deletion. You can restore it within this period.",
@@ -213,7 +213,7 @@ const Tenants = () => {
         const action = item.is_active ? 'block' : 'unblock';
         const isConfirmed = await showConfirmDialog({
             title: `${action.charAt(0).toUpperCase() + action.slice(1)} ${item.name}?`,
-            text: action === 'block' 
+            text: action === 'block'
                 ? "This will prevent the tenant and all its members from logging in."
                 : "This will allow the tenant and its members to log in again.",
             confirmButtonText: `Yes, ${action} it!`,
@@ -235,44 +235,44 @@ const Tenants = () => {
         }
     };
 
-    // Filtered Current Tenants (excluding deleted)
+    // filtered Current Tenants (excluding deleted)
     const filteredCurrentTenants = currentTenants.filter(tenant => {
         const matchesSearch = tenant.name.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All Statuses' || tenant.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
 
-    // Filtered Deleted Tenants
+    // filtered Deleted Tenants
     const filteredDeletedTenants = deletedTenants.filter(tenant => {
         return tenant.name.toLowerCase().includes(searchQuery.toLowerCase());
     });
 
-    // Stats Calculation (only for current tenants)
+    // stats Calculation (only for current tenants)
     const totalTenants = currentTenants.filter(t => t.type === 'tenant').length;
     const activeTenantsCount = currentTenants.filter(t => t.status === 'Active').length;
     const totalMembers = currentTenants.reduce((acc, curr) => acc + (curr.member_count !== '-' ? curr.member_count : 0), 0);
 
     return (
         <>
-                        {/* Title Section */}
-                        <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
-                            <div className="flex items-center gap-4">
-                                <div className="flex flex-col gap-1">
-                                    <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight">Tenant Management</h1>
-                                    <p className="text-gray-400 text-sm sm:text-base font-normal leading-normal">View, search, and manage all tenants on the platform.</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => addTenantModalRef.current.showModal()}
-                                className="btn btn-primary h-10 sm:h-11 px-4 sm:px-6 rounded-lg text-sm font-medium gap-2 hover:shadow-lg hover:shadow-primary/20 border-none w-full sm:w-auto"
-                            >
-                                <Plus className="w-5 h-5" />
-                                Add Tenant
-                            </button>
-                        </div>
+            {/* Title Section */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-col gap-1">
+                        <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight">Tenant Management</h1>
+                        <p className="text-gray-400 text-sm sm:text-base font-normal leading-normal">View, search, and manage all tenants on the platform.</p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => addTenantModalRef.current.showModal()}
+                    className="btn btn-primary h-10 sm:h-11 px-4 sm:px-6 rounded-lg text-sm font-medium gap-2 hover:shadow-lg hover:shadow-primary/20 border-none w-full sm:w-auto"
+                >
+                    <Plus className="w-5 h-5" />
+                    Add Tenant
+                </button>
+            </div>
 
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-[#0A0F16] p-6">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 rounded-lg bg-primary/10 text-primary">
@@ -405,11 +405,10 @@ const Tenants = () => {
                                                         <button
                                                             onClick={() => handleBlock(tenant)}
                                                             disabled={actionLoading === `tenant-${tenant.id}-block`}
-                                                            className={`transition-colors text-xs ${
-                                                                tenant.is_active
+                                                            className={`transition-colors text-xs ${tenant.is_active
                                                                     ? 'text-orange-500 hover:text-orange-400'
                                                                     : 'text-green-500 hover:text-green-400'
-                                                            } disabled:opacity-50`}
+                                                                } disabled:opacity-50`}
                                                         >
                                                             {actionLoading === `tenant-${tenant.id}-block` ? <span className="loading loading-spinner loading-xs" /> : (tenant.is_active ? 'Block' : 'Unblock')}
                                                         </button>

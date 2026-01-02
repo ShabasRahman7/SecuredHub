@@ -1,10 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Building2, Activity, Bot, FileText, Settings, LogOut, Shield, X } from 'lucide-react';
+import { LayoutDashboard, Building2, Activity, Bot, FileText, Settings, LogOut, Shield, X, Bell } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
     const location = useLocation();
     const { logout, user } = useAuth();
+    const { unreadCount } = useNotifications();
 
     const isActive = (path) => location.pathname === path;
 
@@ -12,6 +14,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
         { icon: Shield, label: 'Access Requests', path: '/admin/access-requests' },
         { icon: Building2, label: 'Tenants', path: '/admin/tenants' },
+        { icon: Bell, label: 'Notifications', path: '/admin/notifications', showBadge: true },
         { icon: Activity, label: 'Worker Monitoring', path: '/admin/workers' },
         { icon: Bot, label: 'AI Management', path: '/admin/ai' },
         { icon: FileText, label: 'Audit Logs', path: '/admin/audit-logs' },
@@ -28,7 +31,6 @@ const Sidebar = ({ isOpen, onClose }) => {
                 />
             )}
 
-            {/* Sidebar */}
             <aside className={`
                 fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-[#0A0F16] border-r border-white/10 p-4 transition-transform duration-300 ease-in-out
                 lg:static lg:translate-x-0
@@ -54,13 +56,18 @@ const Sidebar = ({ isOpen, onClose }) => {
                             key={item.path}
                             to={item.path}
                             onClick={() => onClose && onClose()} // Close sidebar on mobile when link clicked
-                            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive(item.path)
+                            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors relative ${isActive(item.path)
                                 ? 'bg-primary/20 text-primary'
                                 : 'text-gray-400 hover:bg-white/5 hover:text-white'
                                 }`}
                         >
                             <item.icon className={`w-5 h-5 ${isActive(item.path) ? 'fill-current' : ''}`} />
                             <p className="text-sm font-medium leading-normal">{item.label}</p>
+                            {item.showBadge && unreadCount > 0 && (
+                                <span className="ml-auto flex items-center justify-center min-w-5 h-5 px-1 text-xs font-bold text-white bg-error rounded-full">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                            )}
                         </Link>
                     ))}
                 </div>

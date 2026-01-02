@@ -13,3 +13,4 @@ __all__ = [
     'AccessRequestSerializer',
     'TenantSerializer', 'TenantMemberSerializer', 'TenantInviteSerializer',
 ]
+

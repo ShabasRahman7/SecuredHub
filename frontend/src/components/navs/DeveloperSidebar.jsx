@@ -1,14 +1,18 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Code, Bug, Bot, Settings, LogOut, UserCircle, X } from 'lucide-react';
+import { LayoutDashboard, Code, Shield, Bug, Bot, Settings, LogOut, UserCircle, X, Bell } from 'lucide-react';
 import PropTypes from 'prop-types';
+import { useNotifications } from '../../context/NotificationContext';
 
 const DeveloperSidebar = ({ logout, user, isOpen, onClose }) => {
     const location = useLocation();
+    const { unreadCount } = useNotifications();
 
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dev-dashboard' },
         { id: 'repositories', label: 'Repositories', icon: Code, path: '/dev-dashboard/repositories' },
+        { id: 'scans', label: 'Scans', icon: Shield, path: '/dev-dashboard/scans' },
         { id: 'vulnerabilities', label: 'Vulnerabilities', icon: Bug, path: '/dev-dashboard/vulnerabilities' },
+        { id: 'notifications', label: 'Notifications', icon: Bell, path: '/dev-dashboard/notifications', showBadge: true },
         { id: 'ai-assistant', label: 'AI Assistant', icon: Bot, path: '/dev-dashboard/ai-assistant' },
         { id: 'settings', label: 'Settings', icon: Settings, path: '/dev-dashboard/settings' },
     ];
@@ -65,13 +69,18 @@ const DeveloperSidebar = ({ logout, user, isOpen, onClose }) => {
                                     key={item.id}
                                     to={item.path}
                                     onClick={() => onClose && onClose()}
-                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors ${active
+                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors relative ${active
                                         ? 'bg-primary/20 text-primary'
                                         : 'text-gray-400 hover:bg-white/5 hover:text-white'
                                         }`}
                                 >
                                     <Icon className={`w-5 h-5 ${active ? 'fill-current' : ''}`} />
                                     <p className="text-sm font-medium leading-normal">{item.label}</p>
+                                    {item.showBadge && unreadCount > 0 && (
+                                        <span className="ml-auto flex items-center justify-center min-w-5 h-5 px-1 text-xs font-bold text-white bg-error rounded-full">
+                                            {unreadCount > 99 ? '99+' : unreadCount}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}

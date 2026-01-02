@@ -4,7 +4,7 @@ import { Construction, ArrowLeft } from 'lucide-react';
 const AdminPlaceholder = () => {
     const location = useLocation();
 
-    // Extract feature name from path (e.g., "/admin/ai" -> "AI Management")
+    // extract feature name from path (e.g., "/admin/ai" -> "AI Management")
     const getFeatureName = (pathname) => {
         const path = pathname.split('/').pop();
         const map = {

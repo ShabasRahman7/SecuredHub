@@ -18,8 +18,6 @@ from ..utils.redis_tokens import InviteTokenManager
 
 User = get_user_model()
 
-
-
 class AdminDeleteTenantView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
@@ -45,7 +43,7 @@ class AdminDeleteTenantView(APIView):
         try:
             tenant = get_object_or_404(Tenant, id=tenant_id, deleted_at__isnull=True)
             
-            # Soft delete the tenant
+            # soft delete the tenant
             tenant.soft_delete()
             
             return Response({
@@ -73,10 +71,10 @@ class AdminDeleteTenantView(APIView):
             with transaction.atomic():
                 tenant = get_object_or_404(Tenant, id=tenant_id)
                 
-                # Store owner email before deletion
+                # storing owner email before deletion
                 owner_email = tenant.created_by.email if tenant.created_by else None
                 
-                # Check if users table has a tenant_id column and set it to NULL
+                # checking if users table has a tenant_id column and set it to NULL
                 try:
                     with connection.cursor() as cursor:
                         cursor.execute("""
@@ -93,17 +91,17 @@ class AdminDeleteTenantView(APIView):
                 except Exception:
                     pass
                 
-                # Delete all TenantMember records first and collect their users
+                # deleting all TenantMember records first and collect their users
                 tenant_members = TenantMember.objects.filter(tenant=tenant)
                 member_user_ids = list(tenant_members.values_list('user_id', flat=True))
                 tenant_members.delete()
                 
-                # Delete member invites for this tenant
+                # deleting member invites for this tenant
                 from ..models import MemberInvite
                 member_invites = MemberInvite.objects.filter(tenant=tenant)
                 member_invites.delete()
                 
-                # Delete related tenant invites and access requests
+                # deleting related tenant invites and access requests
                 if owner_email:
                     tenant_invites = TenantInvite.objects.filter(email=owner_email)
                     for invite in tenant_invites:
@@ -117,10 +115,10 @@ class AdminDeleteTenantView(APIView):
                     access_requests = AccessRequest.objects.filter(email=owner_email)
                     access_requests.delete()
                 
-                # Permanently delete the tenant
+                # permanently delete the tenant
                 tenant.delete()
 
-                # Delete all non-staff, non-superuser users that belonged to this tenant
+                # deleting all non-staff, non-superuser users that belonged to this tenant
                 if member_user_ids:
                     User.objects.filter(
                         id__in=member_user_ids,
@@ -141,8 +139,6 @@ class AdminDeleteTenantView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-
 class AdminBlockTenantView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
@@ -154,7 +150,7 @@ class AdminBlockTenantView(APIView):
     def post(self, request, tenant_id):
         tenant = get_object_or_404(Tenant, id=tenant_id)
         
-        # Toggle is_active status
+        # toggling is_active status
         tenant.is_active = not tenant.is_active
         tenant.save()
         
@@ -170,7 +166,6 @@ class AdminBlockTenantView(APIView):
             }
         }, status=status.HTTP_200_OK)
 
-
 class AdminListTenantsView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
@@ -181,38 +176,37 @@ class AdminListTenantsView(APIView):
     )
     def get(self, request):
         try:
-            # By default, exclude soft-deleted tenants unless include_deleted=true
+            # by default, exclude soft-deleted tenants unless include_deleted=true
             include_deleted = request.query_params.get('include_deleted', 'false').lower() == 'true'
             
             if include_deleted:
                 tenants = Tenant.objects.all().order_by('-created_at')
             else:
-                # Check if deleted_at field exists by trying to query it
-                # If migration hasn't been run, the field won't exist in DB
+                # checking if deleted_at field exists by trying to query it
+                # if migration hasn't been run, the field won't exist in DB
                 try:
-                    # Try a simple query to see if the field exists
-                    # This will fail if the column doesn't exist
+                    # try a simple query to see if the field exists
+                    # this will fail if the column doesn't exist
                     test_query = Tenant.objects.filter(deleted_at__isnull=True)[:1]
                     list(test_query)  # Force evaluation to check if field exists
                     tenants = Tenant.objects.filter(deleted_at__isnull=True).order_by('-created_at')
                 except Exception:
-                    # Field doesn't exist yet (migration not run), return all tenants
-                    # This is a temporary workaround until migrations are run
+                    # field doesn't exist yet (migration not run), return all tenants
+                    # this is a temporary workaround until migrations are run
                     tenants = Tenant.objects.all().order_by('-created_at')
             
-            # Serialize tenants
             try:
                 serializer = TenantSerializer(tenants, many=True, context={'request': request})
                 tenants_data = serializer.data
             except Exception as serialize_error:
-                # If serialization fails (e.g., due to missing fields), manually serialize
+                # if serialization fails (e.g., due to missing fields), manually serialize
                 tenants_data = []
                 for tenant in tenants:
                     try:
                         tenant_data = TenantSerializer(tenant, context={'request': request}).data
                         tenants_data.append(tenant_data)
                     except Exception:
-                        # Skip tenants that can't be serialized
+                        # skipping tenants that can't be serialized
                         continue
             
             return Response({
@@ -229,7 +223,6 @@ class AdminListTenantsView(APIView):
                     "details": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class AdminRestoreTenantView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
@@ -259,7 +252,6 @@ class AdminRestoreTenantView(APIView):
                     "details": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class AdminTenantInviteView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
@@ -333,7 +325,6 @@ class AdminTenantInviteView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class AdminTenantInviteListView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
@@ -358,7 +349,6 @@ class AdminTenantInviteListView(APIView):
             "unverified": unverified,
             "all_invites": serializer.data
         }, status=status.HTTP_200_OK)
-
 
 class AdminResendTenantInviteView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
@@ -405,7 +395,6 @@ class AdminResendTenantInviteView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class AdminDeleteTenantInviteView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
@@ -424,7 +413,6 @@ class AdminDeleteTenantInviteView(APIView):
             "success": True,
             "message": f"Invitation for {email} has been deleted."
         }, status=status.HTTP_200_OK)
-
 
 class AdminAccessRequestListView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
@@ -452,7 +440,6 @@ class AdminAccessRequestListView(APIView):
                     "details": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class AdminApproveAccessRequestView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
@@ -526,7 +513,6 @@ class AdminApproveAccessRequestView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class AdminRejectAccessRequestView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
@@ -557,7 +543,6 @@ class AdminRejectAccessRequestView(APIView):
             "message": f"Access request for {access_request.email} rejected."
         }, status=status.HTTP_200_OK)
 
-
 class AdminDeleteAccessRequestView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
@@ -582,7 +567,6 @@ class AdminDeleteAccessRequestView(APIView):
             "success": True,
             "message": f"Access request for {email} has been deleted."
         }, status=status.HTTP_200_OK)
-
 
 admin_delete_tenant = AdminDeleteTenantView.as_view()
 admin_block_tenant = AdminBlockTenantView.as_view()

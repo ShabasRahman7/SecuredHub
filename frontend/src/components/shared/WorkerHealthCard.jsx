@@ -1,14 +1,14 @@
 import { Link } from 'react-router-dom';
 import useWorkerHealth from '../../hooks/useWorkerHealth';
 
-// Small inline loader used while the worker status is being fetched.
+// small inline loader used while the worker status is being fetched.
 const Spinner = () => (
   <div className="flex items-center justify-center py-4">
     <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
   </div>
 );
 
-// Compact summary of Celery worker health for the admin dashboard.
+// compact summary of Celery worker health for the admin dashboard.
 const WorkerHealthCard = () => {
   const { data, loading, error, refetch } = useWorkerHealth({ auto: true });
 

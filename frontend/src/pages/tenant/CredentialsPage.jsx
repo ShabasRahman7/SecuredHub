@@ -15,7 +15,7 @@ const CredentialsPage = () => {
     const oauthMessageReceivedRef = useRef(false);
     const oauthWindowRef = useRef(null);
 
-    // Provider configurations
+    // provider configurations
     const providers = [
         {
             id: 'github',
@@ -77,12 +77,12 @@ const CredentialsPage = () => {
 
     useEffect(() => {
         fetchCredentials();
-        
-        // Check for localStorage fallback (in case postMessage doesn't work)
+
+        // checking for localStorage fallback (in case postMessage doesn't work)
         const checkLocalStorage = () => {
             const success = localStorage.getItem('github_oauth_success');
             const error = localStorage.getItem('github_oauth_error');
-            
+
             if (success === 'true') {
                 localStorage.removeItem('github_oauth_success');
                 setGithubOAuthProcessing(false);
@@ -95,17 +95,17 @@ const CredentialsPage = () => {
                 fetchCredentials();
             }
         };
-        
-        // Check on mount and on focus
+
+        // checking on mount and on focus
         checkLocalStorage();
         window.addEventListener('focus', checkLocalStorage);
-        
-        // Listen for messages from OAuth window
+
+        // listening for messages from OAuth window
         const handleMessage = (event) => {
             if (event.origin !== window.location.origin) {
                 return;
             }
-            
+
             if (event.data.type === 'github_oauth_success') {
                 oauthMessageReceivedRef.current = true;
                 setGithubOAuthProcessing(false);
@@ -118,9 +118,9 @@ const CredentialsPage = () => {
                 fetchCredentials();
             }
         };
-        
+
         window.addEventListener('message', handleMessage);
-        
+
         return () => {
             window.removeEventListener('message', handleMessage);
             window.removeEventListener('focus', checkLocalStorage);
@@ -147,11 +147,11 @@ const CredentialsPage = () => {
         }
 
         if (provider.id === 'github') {
-            // Check if GitHub credential already exists
+            // checking if GitHub credential already exists
             const existingGitHubCredential = credentials.find(
                 cred => cred.provider === 'github' && cred.is_active
             );
-            
+
             if (existingGitHubCredential) {
                 toast.warning(
                     `A GitHub credential "${existingGitHubCredential.name}" is already connected. Please delete it first before connecting a new one.`,
@@ -159,10 +159,10 @@ const CredentialsPage = () => {
                 );
                 return;
             }
-            
+
             handleGitHubOAuth();
         } else {
-            // For future providers, show modal
+            // for future providers, show modal
             setSelectedProvider(provider);
             setNewCredential({
                 name: `${provider.name} Account`,
@@ -174,7 +174,7 @@ const CredentialsPage = () => {
     };
 
     const handleGitHubOAuth = () => {
-        // Check if GitHub client ID is configured
+        // checking if GitHub client ID is configured
         const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
 
         if (!clientId || clientId === 'your_github_client_id') {
@@ -182,10 +182,10 @@ const CredentialsPage = () => {
             return;
         }
 
-        // Show processing modal
+        // showing processing modal
         setGithubOAuthProcessing(true);
 
-        // Redirect to GitHub OAuth
+        // redirecting to GitHub OAuth
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1';
         const redirectUri = `${apiUrl}/auth/github/callback`;
         const scope = 'repo,read:org,admin:repo_hook';
@@ -193,21 +193,21 @@ const CredentialsPage = () => {
 
         const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}`;
 
-        // Reset message received flag
+        // reset message received flag
         oauthMessageReceivedRef.current = false;
-        
-        // Open GitHub OAuth in a new window
+
+        // opening GitHub OAuth in a new window
         const oauthWindow = window.open(githubAuthUrl, '_blank');
         oauthWindowRef.current = oauthWindow;
-        
-        // Check if window was blocked
+
+        // checking if window was blocked
         if (!oauthWindow) {
             setGithubOAuthProcessing(false);
             toast.error('Please allow popups for this site to connect GitHub');
             return;
         }
-        
-        // Only check for manual close after a delay (to allow postMessage to arrive first)
+
+        // only check for manual close after a delay (to allow postMessage to arrive first)
         setTimeout(() => {
             const checkClosed = setInterval(() => {
                 if (oauthWindow.closed && !oauthMessageReceivedRef.current) {
@@ -218,8 +218,8 @@ const CredentialsPage = () => {
                     clearInterval(checkClosed);
                 }
             }, 1000);
-            
-            // Cleanup after 5 minutes
+
+            // cleanup after 5 minutes
             setTimeout(() => {
                 clearInterval(checkClosed);
                 setGithubOAuthProcessing((prev) => {
@@ -254,7 +254,7 @@ const CredentialsPage = () => {
         const confirmed = await showConfirmDialog({
             title: 'Delete Credential?',
             text: isGitHub
-                ? `Are you sure you want to delete "${credential.name}"?\n\n⚠️ This will also revoke the token on GitHub and the application will lose access to your GitHub repositories.\n\nThis action cannot be undone.`
+                ? `Are you sure you want to delete "${credential.name}"?\n\nWarning: This will also revoke the token on GitHub and the application will lose access to your GitHub repositories.\n\nThis action cannot be undone.`
                 : `Are you sure you want to delete "${credential.name}"? This action cannot be undone.`,
             confirmButtonText: isGitHub ? 'Yes, revoke & delete' : 'Yes, delete',
             cancelButtonText: 'Cancel',
@@ -265,11 +265,11 @@ const CredentialsPage = () => {
 
         try {
             if (isGitHub) {
-                // For GitHub, use the revoke endpoint which also revokes on GitHub side
+                // for GitHub, use the revoke endpoint which also revokes on GitHub side
                 await credentialsApi.revokeGitHubCredential(tenant.id, credential.id);
                 toast.success('GitHub credential revoked and deleted successfully');
             } else {
-                // For other providers, use regular delete
+                // for other providers, use regular delete
                 await credentialsApi.deleteCredential(tenant.id, credential.id);
                 toast.success('Credential deleted successfully');
             }
@@ -313,12 +313,12 @@ const CredentialsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {providers.map((provider) => {
                         const IconComponent = provider.icon;
-                        const existingGitHubCredential = provider.id === 'github' 
+                        const existingGitHubCredential = provider.id === 'github'
                             ? credentials.find(cred => cred.provider === 'github' && cred.is_active)
                             : null;
                         const isGitHubAlreadyConnected = provider.id === 'github' && existingGitHubCredential;
                         const isDisabled = !provider.available || isGitHubAlreadyConnected;
-                        
+
                         return (
                             <div
                                 key={provider.id}
@@ -338,7 +338,7 @@ const CredentialsPage = () => {
                                         </span>
                                     </div>
                                 )}
-                                
+
                                 {isGitHubAlreadyConnected && (
                                     <div className="absolute top-2 right-2">
                                         <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
@@ -356,7 +356,7 @@ const CredentialsPage = () => {
                                         {provider.description}
                                     </p>
                                     {provider.available && provider.id === 'github' && (
-                                        <button 
+                                        <button
                                             disabled={isGitHubAlreadyConnected}
                                             className={`
                                                 btn btn-sm btn-outline transition-all

@@ -33,7 +33,7 @@ const Register = () => {
     const location = useLocation();
 
     useEffect(() => {
-        // Check for invite token in URL query params or location state
+        // checking for invite token in URL query params or location state
         const params = new URLSearchParams(location.search);
         const tokenFromUrl = params.get('invite_token');
         const tokenFromState = location.state?.invite_token;
@@ -41,10 +41,10 @@ const Register = () => {
         if (tokenFromUrl || tokenFromState) {
             const token = tokenFromUrl || tokenFromState;
             setInviteToken(token);
-            // Fetch invited email from backend
+            // fetching invited email from backend
             fetchInvitedEmail(token);
         } else {
-            // No invite token - redirect to login
+            // no invite token - redirect to login
             if (!hasShownError) {
                 setHasShownError(true);
                 toast.error('Registration requires an invitation');
@@ -58,7 +58,7 @@ const Register = () => {
             const response = await api.get(`/auth/verify-invite/?token=${token}`);
             setEmail(response.data.email); // Auto-fill email
             
-            // Show different message based on invite type
+            // showing different message based on invite type
             toast.dismiss();
             if (response.data.type === 'member') {
                 toast.info(`You've been invited to join as a Developer`);
@@ -66,13 +66,13 @@ const Register = () => {
                 toast.info(`Signing up as: ${response.data.email}`);
             }
         } catch (err) {
-            // Prevent double toast messages
+            // preventing double toast messages
             if (!hasShownError) {
                 setHasShownError(true);
                 toast.dismiss();
                 toast.error('Invalid or expired invitation link');
             }
-            // Use replace:true to prevent back button navigation
+            // use replace:true to prevent back button navigation
             navigate('/login', { replace: true });
         }
     };
@@ -127,7 +127,7 @@ const Register = () => {
         }
         setLoading(true);
         try {
-            // Split full name into first/last (optional)
+            // splitting full name into first/last (optional)
             let first_name = '';
             let last_name = '';
             if (formData.fullName.trim()) {

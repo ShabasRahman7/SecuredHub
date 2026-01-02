@@ -8,7 +8,7 @@ const GitHubCallback = () => {
         const error = searchParams.get('error');
         const githubConnected = searchParams.get('github_connected');
 
-        // Check if we have a parent window to send message to
+        // checking if we have a parent window to send message to
         const hasParent = window.opener && window.opener !== window;
 
         if (error) {
@@ -41,7 +41,7 @@ const GitHubCallback = () => {
                     break;
             }
             
-            // Send error message to parent window
+            // sending error message to parent window
             if (hasParent) {
                 try {
                     window.opener.postMessage({
@@ -49,46 +49,46 @@ const GitHubCallback = () => {
                         message: errorMessage
                     }, window.location.origin);
                 } catch (e) {
-                    // Fallback: use localStorage if postMessage fails
+                    // fallback: use localStorage if postMessage fails
                     localStorage.setItem('github_oauth_error', errorMessage);
                 }
             } else {
-                // Fallback: use localStorage if no parent window
+                // fallback: use localStorage if no parent window
                 localStorage.setItem('github_oauth_error', errorMessage);
             }
             
-            // Close window after a short delay
+            // closing window after a short delay
             setTimeout(() => {
                 if (hasParent) {
                     window.close();
                 } else {
-                    // If no parent, redirect to credentials page
+                    // if no parent, redirect to credentials page
                     window.location.href = '/tenant-dashboard/credentials';
                 }
             }, 500);
             
         } else if (githubConnected === 'true') {
-            // Success - send message to parent and close
+            // success - send message to parent and close
             if (hasParent) {
                 try {
                     window.opener.postMessage({
                         type: 'github_oauth_success'
                     }, window.location.origin);
                 } catch (e) {
-                    // Fallback: use localStorage if postMessage fails
+                    // fallback: use localStorage if postMessage fails
                     localStorage.setItem('github_oauth_success', 'true');
                 }
             } else {
-                // Fallback: use localStorage if no parent window
+                // fallback: use localStorage if no parent window
                 localStorage.setItem('github_oauth_success', 'true');
             }
             
-            // Close window after a short delay
+            // closing window after a short delay
             setTimeout(() => {
                 if (hasParent) {
                     window.close();
                 } else {
-                    // If no parent, redirect to credentials page
+                    // if no parent, redirect to credentials page
                     window.location.href = '/tenant-dashboard/credentials';
                 }
             }, 500);

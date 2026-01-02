@@ -4,18 +4,12 @@ from django.utils import timezone
 from datetime import timedelta
 import uuid
 
-
+# email auth, no username needed
 class CustomUserManager(BaseUserManager):
-    """
-    Custom user manager where email is the unique identifiers
-    for authentication instead of usernames.
-    """
     def create_user(self, email, password=None, **extra_fields):
-        """
-        Create and save a User with the given email and password.
-        """
         if not email:
             raise ValueError('The Email must be set')
+        # normalizing to prevent case-sensitive duplicates
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -23,9 +17,6 @@ class CustomUserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
-        """
-        Create and save a SuperUser with the given email and password.
-        """
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
@@ -37,13 +28,9 @@ class CustomUserManager(BaseUserManager):
 
         return self.create_user(email, password, **extra_fields)
 
-
+# using email for auth instead of username
 class User(AbstractUser):
-    """
-    Custom User model using email authentication.
-    Role determined by is_staff (admin) or TenantMember.role (owner/developer).
-    """
-    username = None  # Remove username field
+    username = None  # removing username field
     email = models.EmailField(unique=True, db_index=True)
 
     USERNAME_FIELD = 'email'
@@ -61,21 +48,16 @@ class User(AbstractUser):
         return self.email
     
     def get_role(self):
-        """Get user's role - admin or tenant role"""
+        # admins skip tenant role system
         if self.is_staff:
             return 'admin'
         
-        # Since user can only belong to one tenant, use OneToOne relationship
+        # one tenant per user
         if hasattr(self, 'tenant_membership') and self.tenant_membership:
             return self.tenant_membership.role
         return None
 
-
 class Tenant(models.Model):
-    """
-    Tenant model for multi-tenant architecture.
-    Each organization represents a separate tenant in the SaaS platform.
-    """
     name = models.CharField(max_length=255, db_index=True)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField(blank=True, null=True)
@@ -99,49 +81,23 @@ class Tenant(models.Model):
     
     @property
     def is_deleted(self):
-        """Check if tenant is soft-deleted"""
         return self.deleted_at is not None
     
     def soft_delete(self):
-        """Soft delete the tenant (marks as deleted but keeps data)"""
+        # keeping data for 30 days before permanent deletion
         self.deleted_at = timezone.now()
         self.is_active = False
-        # Schedule permanent deletion in 30 days (GDPR compliance)
         self.deletion_scheduled_at = timezone.now() + timedelta(days=30)
         self.save()
     
     def restore(self):
-        """Restore a soft-deleted tenant"""
-        self.deleted_at = None
-        self.deletion_scheduled_at = None
-        self.is_active = True
-        self.save()
-
-    def __str__(self):
-        return self.name
-    
-    @property
-    def is_deleted(self):
-        """Check if tenant is soft-deleted"""
-        return self.deleted_at is not None
-    
-    def soft_delete(self):
-        """Soft delete the tenant (marks as deleted but keeps data for 30 days)"""
-        self.deleted_at = timezone.now()
-        self.is_active = False
-        # Schedule permanent deletion in 30 days (GDPR compliance)
-        self.deletion_scheduled_at = timezone.now() + timedelta(days=30)
-        self.save()
-    
-    def restore(self):
-        """Restore a soft-deleted tenant"""
         self.deleted_at = None
         self.deletion_scheduled_at = None
         self.is_active = True
         self.save()
 
     def save(self, *args, **kwargs):
-        """Auto-generate slug from name if not provided."""
+        # auto-generating URL-safe slug if not provided
         if not self.slug:
             from django.utils.text import slugify
             base_slug = slugify(self.name)
@@ -153,15 +109,8 @@ class Tenant(models.Model):
             self.slug = slug
         super().save(*args, **kwargs)
 
-
 class TenantMember(models.Model):
-    """
-    Membership model linking users to organizations with roles.
-    Implements role-based access control (RBAC).
-    
-    IMPORTANT: Each user can only belong to ONE tenant.
-    This ensures simple security model and clear ownership.
-    """
+    # one user = one tenant (RBAC model)
     ROLE_OWNER = 'owner'
     ROLE_DEVELOPER = 'developer'
     
@@ -196,41 +145,32 @@ class TenantMember(models.Model):
         return f"{self.user.email} → {self.tenant.name} ({self.role})"
 
     def is_owner(self):
-        """Check if member is an owner."""
         return self.role == self.ROLE_OWNER
 
     def is_developer(self):
-        """Check if member is a developer."""
         return self.role == self.ROLE_DEVELOPER
 
     @property
     def is_deleted(self):
-        """Check if member is soft-deleted."""
         return self.deleted_at is not None
 
     def soft_delete(self):
-        """
-        Soft delete the member (marks as deleted but keeps data for 30 days).
-        Also disables the underlying user account so they cannot log in.
-        """
+        # soft delete + disable user login
         from django.utils import timezone
         from datetime import timedelta
 
         self.deleted_at = timezone.now()
-        # Schedule permanent deletion in 30 days (aligned with tenant deletion policy)
+        # scheduling permanent deletion in 30 days
         self.deletion_scheduled_at = timezone.now() + timedelta(days=30)
         self.save(update_fields=['deleted_at', 'deletion_scheduled_at'])
 
-        # Disable user login while member is soft-deleted
+        # disabling user login while member is soft-deleted
         if self.user.is_active:
             self.user.is_active = False
             self.user.save(update_fields=['is_active'])
 
     def restore(self):
-        """
-        Restore a soft-deleted member.
-        Also re-enables the underlying user account so they can log in again.
-        """
+        # restore + re-enable user login
         self.deleted_at = None
         self.deletion_scheduled_at = None
         self.save(update_fields=['deleted_at', 'deletion_scheduled_at'])
@@ -239,11 +179,7 @@ class TenantMember(models.Model):
             self.user.is_active = True
             self.user.save(update_fields=['is_active'])
 
-
 class MemberInvite(models.Model):
-    """
-    Invitation for users to join a tenant organization.
-    """
     STATUS_PENDING = 'pending'
     STATUS_ACCEPTED = 'accepted'
     STATUS_EXPIRED = 'expired'
@@ -286,7 +222,6 @@ class MemberInvite(models.Model):
     expires_at = models.DateTimeField()
     accepted_at = models.DateTimeField(null=True, blank=True)
     
-    # Resend tracking
     last_sent_at = models.DateTimeField(null=True, blank=True)
     resend_count = models.IntegerField(default=0)
 
@@ -300,7 +235,7 @@ class MemberInvite(models.Model):
         return f"Invite: {self.email} -> {self.tenant.name} ({self.status})"
 
     def save(self, *args, **kwargs):
-        """Auto-generate token and expiration."""
+        # auto-generating token and expiration
         if not self.token:
             self.token = str(uuid.uuid4())
         if not self.expires_at:
@@ -326,11 +261,7 @@ class MemberInvite(models.Model):
         self.status = self.STATUS_CANCELLED
         self.save()
 
-
 class TenantInvite(models.Model):
-    """
-    Invitation for new tenants to join the platform (Admin -> Tenant).
-    """
     STATUS_PENDING = 'pending'
     STATUS_REGISTERED = 'registered'
     STATUS_EXPIRED = 'expired'
@@ -376,7 +307,7 @@ class TenantInvite(models.Model):
         return f"Tenant Invite: {self.email} ({self.status})"
     
     def save(self, *args, **kwargs):
-        """Auto-generate token and set expiration (24h)."""
+        # auto-generating token, expires after 24h
         if not self.token:
             self.token = uuid.uuid4()
         if not self.expires_at:
@@ -395,11 +326,7 @@ class TenantInvite(models.Model):
         self.registered_user = user
         self.save()
 
-
 class AccessRequest(models.Model):
-    """
-    Waitlist/Access Request for public users.
-    """
     STATUS_PENDING = 'pending'
     STATUS_APPROVED = 'approved'
     STATUS_REJECTED = 'rejected'
@@ -430,3 +357,4 @@ class AccessRequest(models.Model):
         
     def __str__(self):
         return f"{self.email} - {self.company_name} ({self.status})"
+

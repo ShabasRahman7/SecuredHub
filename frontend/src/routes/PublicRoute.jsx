@@ -14,7 +14,7 @@ const PublicRoute = ({ children }) => {
     }
 
     if (user) {
-        // User is logged in, redirect to appropriate dashboard
+        // user is logged in, redirect to appropriate dashboard
         if (role === 'admin' || user.is_superuser) {
             return <Navigate to="/admin-dashboard" replace />;
         } else if (role === 'owner') {
@@ -22,11 +22,11 @@ const PublicRoute = ({ children }) => {
         } else if (role === 'developer') {
             return <Navigate to="/dev-dashboard" replace />;
         }
-        // Fallback - shouldn't reach here
+        // falling back - shouldn't reach here
         return <Navigate to="/" replace />;
     }
 
-    // User not logged in, show the public page
+    // user not logged in, show the public page
     return children;
 };
 

@@ -20,12 +20,10 @@ const AdminLayout = () => {
 
   return (
     <div className="flex h-screen w-full bg-[#05080C] text-white font-sans overflow-hidden">
-      {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-y-auto relative w-full">
-        {/* Header */}
         <header className="flex sticky top-0 z-10 items-center justify-between whitespace-nowrap border-b border-white/10 px-6 py-3 bg-[#05080C]/80 backdrop-blur-sm">
           <div className="flex items-center gap-4 lg:gap-8">
             <button

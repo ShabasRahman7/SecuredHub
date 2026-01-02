@@ -6,6 +6,7 @@ import api from '../../api/axios';
 import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
 import { tenantService } from '../../api/services/tenantService';
 import { credentialsApi } from '../../services/credentialsApi';
+import { API_ENDPOINTS } from '../../constants/api';
 
 const Repositories = () => {
     const { tenant } = useAuth();
@@ -43,12 +44,12 @@ const Repositories = () => {
     const fetchRepositories = async () => {
         if (!currentTenant) return;
         try {
-            const res = await api.get(`/tenants/${currentTenant.id}/repositories/`);
+            const res = await api.get(API_ENDPOINTS.TENANT_REPOSITORIES(currentTenant.id));
             setRepositories(res.data.repositories || []);
             const assignmentsData = {};
             for (const repo of res.data.repositories || []) {
                 try {
-                    const assignRes = await api.get(`/tenants/${currentTenant.id}/repositories/${repo.id}/assignments/`);
+                    const assignRes = await api.get(API_ENDPOINTS.REPOSITORY_ASSIGNMENTS(currentTenant.id, repo.id));
                     assignmentsData[repo.id] = assignRes.data.assigned_member_ids || [];
                 } catch (err) {
                     assignmentsData[repo.id] = [];
@@ -63,7 +64,7 @@ const Repositories = () => {
     const fetchMembers = async () => {
         if (!currentTenant) return;
         try {
-            const res = await api.get(`/tenants/${currentTenant.id}/members/`);
+            const res = await api.get(API_ENDPOINTS.TENANT_MEMBERS(currentTenant.id));
             const developers = (res.data.members || []).filter(m => m.role === 'developer' && !m.deleted_at);
             setMembers(developers);
         } catch (error) {
@@ -73,7 +74,7 @@ const Repositories = () => {
 
     const handleAddRepo = async (repoData) => {
         try {
-            await api.post(`/tenants/${currentTenant.id}/repositories/create/`, repoData);
+            await api.post(API_ENDPOINTS.ADD_REPOSITORY(currentTenant.id), repoData);
             toast.success("Repository added successfully");
             fetchRepositories();
             return true;
@@ -107,7 +108,7 @@ const Repositories = () => {
             setSearchRepo('');
             const credsRes = await credentialsApi.listCredentials(currentTenant.id);
             const cred = (credsRes.credentials || []).find(c => c.provider === 'github');
-            
+
             if (!cred) {
                 toast.error('No GitHub credential found. Connect GitHub first.');
                 setShowGitHubModal(false);
@@ -116,13 +117,13 @@ const Repositories = () => {
 
             const response = await credentialsApi.getGitHubRepositories(currentTenant.id, cred.id);
             const repos = response.repositories || [];
-            
+
             const existingUrls = repositories.map(repo => repo.url.toLowerCase());
             const availableRepos = repos.filter(repo => {
                 const repoUrl = (repo.clone_url || repo.html_url || '').toLowerCase();
                 return !existingUrls.includes(repoUrl);
             });
-            
+
             setGhRepos(availableRepos);
             setFilteredGhRepos(availableRepos);
         } catch (err) {
@@ -139,8 +140,8 @@ const Repositories = () => {
             setFilteredGhRepos(ghRepos);
             return;
         }
-        setFilteredGhRepos(ghRepos.filter(r => 
-            (r.name || '').toLowerCase().includes(q) || 
+        setFilteredGhRepos(ghRepos.filter(r =>
+            (r.name || '').toLowerCase().includes(q) ||
             (r.full_name || '').toLowerCase().includes(q)
         ));
     };
@@ -157,7 +158,7 @@ const Repositories = () => {
                 url: selectedRepo.clone_url || selectedRepo.html_url,
                 visibility: selectedRepo.private ? 'private' : 'public',
             });
-            
+
             toast.success('Repository imported successfully!');
             fetchRepositories();
             setShowGitHubModal(false);
@@ -241,23 +242,22 @@ const Repositories = () => {
                                             <td>
                                                 <div>
                                                     <div className="font-semibold text-white">{repo.name}</div>
-                                                    <a 
-                                                        href={repo.url} 
-                                                        target="_blank" 
-                                                        rel="noreferrer" 
+                                                    <a
+                                                        href={repo.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
                                                         className="text-sm text-blue-400 hover:underline flex items-center gap-1 mt-1"
                                                     >
-                                                        <LinkIcon className="w-3 h-3" /> 
+                                                        <LinkIcon className="w-3 h-3" />
                                                         <span className="truncate max-w-xs">{repo.url}</span>
                                                     </a>
                                                 </div>
                                             </td>
                                             <td>
-                                                <span className={`badge badge-sm ${
-                                                    repo.visibility === 'private' 
-                                                        ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' 
-                                                        : 'bg-green-500/10 text-green-400 border-green-500/20'
-                                                } border`}>
+                                                <span className={`badge badge-sm ${repo.visibility === 'private'
+                                                    ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                                                    : 'bg-green-500/10 text-green-400 border-green-500/20'
+                                                    } border`}>
                                                     {repo.visibility}
                                                 </span>
                                             </td>
@@ -296,8 +296,8 @@ const Repositories = () => {
                                                     >
                                                         <UserPlus className="w-4 h-4" />
                                                     </button>
-                                                    <button 
-                                                        className="btn btn-sm btn-ghost text-red-500 hover:bg-red-500/10" 
+                                                    <button
+                                                        className="btn btn-sm btn-ghost text-red-500 hover:bg-red-500/10"
                                                         onClick={() => handleDeleteRepository(repo.id, repo.name)}
                                                         title="Delete Repository"
                                                     >
@@ -340,13 +340,13 @@ const Repositories = () => {
 
                         <div className="max-h-80 overflow-y-auto space-y-2">
                             {loadingGhRepos && <p className="text-gray-400 text-center py-6">Loading...</p>}
-                            
+
                             {!loadingGhRepos && filteredGhRepos.length === 0 && ghRepos.length === 0 && (
                                 <p className="text-gray-500 text-center py-6">
                                     {searchRepo ? 'No repositories found matching your search.' : 'All available repositories have already been imported.'}
                                 </p>
                             )}
-                            
+
                             {!loadingGhRepos && filteredGhRepos.length === 0 && ghRepos.length > 0 && (
                                 <p className="text-gray-500 text-center py-6">No repositories found matching your search.</p>
                             )}
@@ -354,11 +354,10 @@ const Repositories = () => {
                             {!loadingGhRepos && filteredGhRepos.slice(0, 5).map((repo) => (
                                 <div
                                     key={repo.id}
-                                    className={`p-3 rounded border cursor-pointer transition ${
-                                        selectedRepo?.id === repo.id 
-                                            ? 'border-blue-500 bg-blue-500/10' 
-                                            : 'border-white/10 hover:bg-white/5'
-                                    }`}
+                                    className={`p-3 rounded border cursor-pointer transition ${selectedRepo?.id === repo.id
+                                        ? 'border-blue-500 bg-blue-500/10'
+                                        : 'border-white/10 hover:bg-white/5'
+                                        }`}
                                     onClick={() => setSelectedRepo(repo)}
                                 >
                                     <div className="flex items-center gap-3">
@@ -376,9 +375,9 @@ const Repositories = () => {
                             <button className="btn btn-ghost" onClick={() => setShowGitHubModal(false)}>
                                 Cancel
                             </button>
-                            <button 
-                                className="btn btn-primary bg-primary border-none" 
-                                disabled={!selectedRepo} 
+                            <button
+                                className="btn btn-primary bg-primary border-none"
+                                disabled={!selectedRepo}
                                 onClick={handleImportRepo}
                             >
                                 Import
@@ -519,31 +518,31 @@ const Repositories = () => {
                                             (id) => !newAssignedIds.includes(id)
                                         );
 
-                                        // Fetch current assignments once to resolve assignment IDs for unassignment
+                                        // fetching current assignments once to resolve assignment IDs for unassignment
                                         let assignmentMap = {};
                                         if (toUnassign.length > 0) {
                                             const assignRes = await api.get(
-                                                `/tenants/${currentTenant.id}/repositories/${repoId}/assignments/`
+                                                API_ENDPOINTS.REPOSITORY_ASSIGNMENTS(currentTenant.id, repoId)
                                             );
                                             (assignRes.data.assignments || []).forEach((a) => {
                                                 assignmentMap[a.member_id] = a.id;
                                             });
                                         }
 
-                                        // Perform unassignments
+                                        // perform unassignments
                                         for (const memberId of toUnassign) {
                                             const assignmentId = assignmentMap[memberId];
                                             if (assignmentId) {
                                                 await api.delete(
-                                                    `/tenants/${currentTenant.id}/repositories/${repoId}/assignments/${assignmentId}/unassign/`
+                                                    API_ENDPOINTS.UNASSIGN_DEVELOPER(currentTenant.id, repoId, assignmentId)
                                                 );
                                             }
                                         }
 
-                                        // Perform assignments
+                                        // perform assignments
                                         for (const memberId of toAssign) {
                                             await api.post(
-                                                `/tenants/${currentTenant.id}/repositories/${repoId}/assign/`,
+                                                API_ENDPOINTS.ASSIGN_DEVELOPERS(currentTenant.id, repoId),
                                                 { member_id: memberId }
                                             );
                                         }

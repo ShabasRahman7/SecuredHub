@@ -8,7 +8,7 @@ export const useInvites = (currentTenant, activeTab) => {
   const [loading, setLoading] = useState(false);
   const [resendingInvite, setResendingInvite] = useState(null);
 
-  // Fetch invites only when on developers tab
+  // fetching invites only when on developers tab
   useEffect(() => {
     if (currentTenant && activeTab === 'developers') {
       fetchInvites();

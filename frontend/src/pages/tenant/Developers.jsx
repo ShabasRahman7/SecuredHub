@@ -138,7 +138,7 @@ const Developers = () => {
             const res = await api.delete(`/tenants/${currentTenant.id}/members/${id}/remove/`);
             if (res.data.success) {
                 showSuccessToast(res.data.message || "Member deleted. Data will be permanently removed in 30 days.");
-                // Refresh to update active/deleted lists
+                // refresh to update active/deleted lists
                 fetchMembers();
             }
         } catch (error) {
@@ -203,7 +203,7 @@ const Developers = () => {
         );
     }
 
-    // Split members into active and deleted (soft-deleted) lists
+    // splitting members into active and deleted (soft-deleted) lists
     const activeMembers = members.filter(m => !m.deleted_at);
     const deletedMembers = members.filter(m => m.deleted_at);
 

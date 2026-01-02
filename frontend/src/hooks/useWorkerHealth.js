@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import api from '../api/axios';
 import { API_ENDPOINTS } from '../constants/api';
 
-// In-memory cache shared across hook instances
+// in-memory cache shared across hook instances
 let cachedHealth = null;
 let cachedAt = 0;
 const CACHE_TTL_MS = 60000; // 60 seconds
@@ -16,7 +16,7 @@ const useWorkerHealth = ({ auto = false } = {}) => {
   const fetchHealth = useCallback(async ({ force = false } = {}) => {
     const now = Date.now();
 
-    // Use cache when recent and not forced
+    // use cache when recent and not forced
     if (!force && cachedHealth && now - cachedAt < CACHE_TTL_MS) {
       setData(cachedHealth);
       return;

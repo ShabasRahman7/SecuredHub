@@ -4,7 +4,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db import connection
 
-
 class HealthCheckView(APIView):
     permission_classes = [AllowAny]
 
@@ -26,6 +25,5 @@ class HealthCheckView(APIView):
             response_data['message'] = 'API is running but database is unavailable'
             response_data['error'] = str(e)
             return Response(response_data, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
 
 health_check = HealthCheckView.as_view()

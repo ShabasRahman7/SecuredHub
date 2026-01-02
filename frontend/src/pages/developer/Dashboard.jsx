@@ -41,10 +41,10 @@ const Dashboard = () => {
             try {
                 const response = await api.get(`/tenants/${tenant.id}/repositories/`);
                 const repositories = response.data.repositories || [];
-                const reposWithTenant = repositories.map(r => ({ 
-                    ...r, 
+                const reposWithTenant = repositories.map(r => ({
+                    ...r,
                     orgName: tenant.name,
-                    orgId: tenant.id 
+                    orgId: tenant.id
                 }));
                 setRepos(reposWithTenant);
             } catch (error) {
@@ -169,12 +169,11 @@ const Dashboard = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                        repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400' :
-                                                        repo.validation_status === 'invalid' ? 'bg-red-500/10 text-red-400' :
-                                                        repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400' :
-                                                        'bg-gray-500/10 text-gray-400'
-                                                    }`}>
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400' :
+                                                            repo.validation_status === 'invalid' ? 'bg-red-500/10 text-red-400' :
+                                                                repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400' :
+                                                                    'bg-gray-500/10 text-gray-400'
+                                                        }`}>
                                                         {repo.validation_status ? repo.validation_status.replace('_', ' ').toUpperCase() : 'Pending'}
                                                     </span>
                                                 </td>
@@ -184,10 +183,10 @@ const Dashboard = () => {
                                                             <span className="text-blue-400">{repo.primary_language}</span>
                                                         )}
                                                         {repo.stars_count > 0 && (
-                                                            <span className="text-yellow-400">⭐ {repo.stars_count}</span>
+                                                            <span className="text-yellow-400">Stars: {repo.stars_count}</span>
                                                         )}
                                                         {repo.forks_count > 0 && (
-                                                            <span className="text-gray-400">🍴 {repo.forks_count}</span>
+                                                            <span className="text-gray-400">Forks: {repo.forks_count}</span>
                                                         )}
                                                     </div>
                                                 </td>
@@ -195,9 +194,9 @@ const Dashboard = () => {
                                                     {repo.created_at ? new Date(repo.created_at).toLocaleDateString() : 'Unknown'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <a 
-                                                        href={repo.url} 
-                                                        target="_blank" 
+                                                    <a
+                                                        href={repo.url}
+                                                        target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="text-primary hover:text-blue-400 flex items-center gap-1"
                                                     >

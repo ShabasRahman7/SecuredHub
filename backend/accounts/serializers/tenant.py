@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from ..models import Tenant, TenantMember, TenantInvite
 
-
 class TenantSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     member_count = serializers.SerializerMethodField()
@@ -21,7 +20,7 @@ class TenantSerializer(serializers.ModelSerializer):
         try:
             data = super().to_representation(instance)
         except Exception as e:
-            # If serialization fails due to missing fields, manually build the representation
+            # if serialization fails due to missing fields, manually build the representation
             try:
                 data = {
                     'id': instance.id,
@@ -38,7 +37,7 @@ class TenantSerializer(serializers.ModelSerializer):
                     'deletion_scheduled_at': None,
                 }
             except Exception:
-                # If even manual building fails, return minimal data
+                # if even manual building fails, return minimal data
                 data = {
                     'id': instance.id,
                     'name': str(instance),
@@ -54,7 +53,7 @@ class TenantSerializer(serializers.ModelSerializer):
                     'deletion_scheduled_at': None,
                 }
         else:
-            # Ensure fields exist even if they're None
+            # ensuring fields exist even if they're None
             try:
                 if 'deleted_at' not in data:
                     data['deleted_at'] = getattr(instance, 'deleted_at', None)
@@ -83,7 +82,6 @@ class TenantSerializer(serializers.ModelSerializer):
     def get_member_count(self, obj):
         return obj.members.count()
 
-
 class TenantCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
@@ -104,12 +102,10 @@ class TenantCreateSerializer(serializers.ModelSerializer):
         
         return tenant
 
-
 class TenantUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
         fields = ['name', 'description', 'is_active']
-
 
 class TenantMemberSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
@@ -135,7 +131,6 @@ class TenantMemberSerializer(serializers.ModelSerializer):
             'deletion_scheduled_at',
         ]
         read_only_fields = ['id', 'joined_at', 'deleted_at', 'deletion_scheduled_at']
-
 
 class TenantInviteSerializer(serializers.ModelSerializer):
     invited_by_email = serializers.EmailField(source='invited_by.email', read_only=True)

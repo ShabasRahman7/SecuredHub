@@ -14,7 +14,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     }
 
     if (allowedRoles && !allowedRoles.includes(role)) {
-        // Redirect to appropriate dashboard if unauthorized for this route
+        // redirecting to appropriate dashboard if unauthorized for this route
         if (role === 'admin') return <Navigate to="/admin-dashboard" replace />;
         if (role === 'tenant') return <Navigate to="/org-dashboard" replace />;
         return <Navigate to="/dev-dashboard" replace />;

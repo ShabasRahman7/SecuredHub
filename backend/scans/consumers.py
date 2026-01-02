@@ -7,7 +7,6 @@ from .models import Scan
 
 SKIP_AUTH = False  # Set True only for wscat testing
 
-
 class ScanConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.scan_id = self.scope['url_route']['kwargs']['scan_id']

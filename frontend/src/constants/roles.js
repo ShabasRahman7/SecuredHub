@@ -1,4 +1,4 @@
-// User roles constants
+// user roles constants
 export const ROLES = {
   ADMIN: 'admin',        // System admin (superuser)
   TENANT: 'owner',       // Tenant owner

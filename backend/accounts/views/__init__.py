@@ -1,4 +1,4 @@
-# Authentication & User Management
+# authentication & User Management
 from .auth import (
     register,
     login,
@@ -10,7 +10,7 @@ from .auth import (
     request_access
 )
 
-# Admin Management
+# admin Management
 from .admin import (
     admin_list_tenants,
     admin_delete_tenant,
@@ -25,7 +25,7 @@ from .admin import (
     admin_reject_access_request
 )
 
-# Tenant Management
+# tenant Management
 from .tenant import (
     list_tenants,
     update_tenant,
@@ -40,7 +40,7 @@ from .tenant import (
     block_member
 )
 
-# Invite Verification
+# invite Verification
 from .verify_invite import (
     verify_invite_token_get
 )
