@@ -1,0 +1,22 @@
+[run]
+source = .
+omit =
+    */migrations/*
+    */tests/*
+    */__pycache__/*
+    */staticfiles/*
+    manage.py
+    core/wsgi.py
+    core/asgi.py
+    */venv/*
+    */env/*
+    conftest.py
+    pytest.ini
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
+
+[html]
+directory = htmlcov

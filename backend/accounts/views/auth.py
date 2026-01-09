@@ -431,22 +431,24 @@ class RequestAccessView(APIView):
         tags=["Authentication"]
     )
     def post(self, request):
-        from django.core.cache import cache
+        email = request.data.get('email', '').lower().strip()
         
-        ip = request.META.get('REMOTE_ADDR')
-        cache_key = f"request_access_rate_limit_{ip}"
-        requests_count = cache.get(cache_key, 0)
-        
-        if requests_count >= 1:
+        # Check if email has already submitted a request
+        existing_request = AccessRequest.objects.filter(email__iexact=email).first()
+        if existing_request:
+            status_messages = {
+                AccessRequest.STATUS_PENDING: "You have already submitted an access request. Please wait for admin approval.",
+                AccessRequest.STATUS_APPROVED: "Your access request has already been approved. Please check your email for the invitation.",
+                AccessRequest.STATUS_REJECTED: "Your previous access request was rejected. Please contact support for assistance.",
+            }
+            message = status_messages.get(existing_request.status, "An access request with this email already exists.")
             return Response({
                 "success": False,
                 "error": {
-                    "message": "Rate limit exceeded",
-                    "details": "You have made too many requests. Please try again later."
+                    "message": "Request already exists",
+                    "details": message
                 }
-            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
-        
-        cache.set(cache_key, requests_count + 1, timeout=3600)
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         serializer = AccessRequestSerializer(data=request.data)
         if serializer.is_valid():

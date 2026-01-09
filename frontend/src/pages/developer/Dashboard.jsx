@@ -8,24 +8,20 @@ import {
     Chart as ChartJS,
     CategoryScale,
     LinearScale,
-    PointElement,
-    LineElement,
+    BarElement,
     Title,
     Tooltip,
-    Legend,
-    Filler
+    Legend
 } from 'chart.js';
-import { Line } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 
 ChartJS.register(
     CategoryScale,
     LinearScale,
-    PointElement,
-    LineElement,
+    BarElement,
     Title,
     Tooltip,
-    Legend,
-    Filler
+    Legend
 );
 
 const Dashboard = () => {
@@ -33,6 +29,13 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const [repos, setRepos] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [scans, setScans] = useState([]);
+    const [vulnerabilityCounts, setVulnerabilityCounts] = useState({
+        critical: 0,
+        high: 0,
+        medium: 0,
+        low: 0
+    });
 
     useEffect(() => {
         const fetchRepos = async () => {
@@ -47,6 +50,44 @@ const Dashboard = () => {
                     orgId: tenant.id
                 }));
                 setRepos(reposWithTenant);
+
+                const allScans = [];
+                const severityCounts = { critical: 0, high: 0, medium: 0, low: 0 };
+
+                for (const repo of reposWithTenant) {
+                    try {
+                        const scanResponse = await api.get(`/scans/repository/${repo.id}/`);
+                        const repoScans = scanResponse.data || [];
+
+                        for (const scan of repoScans) {
+                            if (scan.status === 'completed') {
+                                try {
+                                    const findingsResponse = await api.get(`/scans/${scan.id}/findings/`);
+                                    const findings = findingsResponse.data || [];
+
+                                    findings.forEach(finding => {
+                                        if (severityCounts[finding.severity] !== undefined) {
+                                            severityCounts[finding.severity]++;
+                                        }
+                                    });
+
+                                    allScans.push({
+                                        ...scan,
+                                        repository_name: repo.name,
+                                        findings_count: findings.length
+                                    });
+                                } catch (err) {
+                                }
+                            }
+                        }
+                    } catch (err) {
+                    }
+                }
+
+                allScans.sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
+                setScans(allScans.slice(0, 5));
+                setVulnerabilityCounts(severityCounts);
+
             } catch (error) {
                 console.error('Failed to fetch repositories:', error);
                 toast.error('Failed to load repositories');
@@ -93,24 +134,34 @@ const Dashboard = () => {
         }
     };
 
+    const totalVulns = vulnerabilityCounts.critical + vulnerabilityCounts.high +
+        vulnerabilityCounts.medium + vulnerabilityCounts.low;
+
     const chartData = {
-        labels: ['Dec 1', 'Dec 2', 'Dec 3', 'Dec 4', 'Dec 5', 'Dec 6', 'Dec 7'],
+        labels: ['Critical', 'High', 'Medium', 'Low'],
         datasets: [
             {
-                label: 'Critical',
-                data: [0, 0, 0, 0, 0, 0, 0],
-                borderColor: '#ef4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                fill: true,
-                tension: 0.3,
-            },
-            {
-                label: 'High',
-                data: [0, 0, 0, 0, 0, 0, 0],
-                borderColor: '#f97316',
-                backgroundColor: 'rgba(249, 115, 22, 0.1)',
-                fill: true,
-                tension: 0.3,
+                label: 'Vulnerabilities',
+                data: [
+                    vulnerabilityCounts.critical,
+                    vulnerabilityCounts.high,
+                    vulnerabilityCounts.medium,
+                    vulnerabilityCounts.low
+                ],
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.8)',
+                    'rgba(249, 115, 22, 0.8)',
+                    'rgba(251, 191, 36, 0.8)',
+                    'rgba(96, 165, 250, 0.8)'
+                ],
+                borderColor: [
+                    '#ef4444',
+                    '#f97316',
+                    '#fbbf24',
+                    '#60a5fa'
+                ],
+                borderWidth: 1,
+                borderRadius: 4
             }
         ]
     };
@@ -143,7 +194,7 @@ const Dashboard = () => {
                         <div className="bg-[#0A0F16] border border-white/10 rounded-xl overflow-hidden">
                             <div className="flex justify-between items-center px-6 py-4 border-b border-white/10">
                                 <h2 className="text-lg font-semibold text-white">Recent Scans on My Repositories</h2>
-                                <button onClick={() => navigate('/dev-dashboard/repositories')} className="text-sm font-medium text-primary hover:underline">View All Scans</button>
+                                <button onClick={() => navigate('/dev-dashboard/repositories')} className="text-sm font-medium text-primary hover:underline">View All Repositories</button>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
@@ -151,68 +202,49 @@ const Dashboard = () => {
                                         <tr>
                                             <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Repository</th>
                                             <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Details</th>
-                                            <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Added</th>
+                                            <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Findings</th>
+                                            <th className="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Completed</th>
                                             <th className="px-6 py-3"></th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/10">
-                                        {repos.slice(0, 5).map((repo) => (
-                                            <tr key={repo.id} className="hover:bg-white/5 transition-colors">
+                                        {scans.map((scan) => (
+                                            <tr key={scan.id} className="hover:bg-white/5 transition-colors">
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm font-medium text-white">{repo.name}</div>
-                                                    <div className="text-sm text-gray-500">{repo.orgName}</div>
-                                                    {repo.description && (
-                                                        <div className="text-xs text-gray-600 mt-1 max-w-xs truncate">
-                                                            {repo.description}
-                                                        </div>
-                                                    )}
+                                                    <div className="text-sm font-medium text-white">{scan.repository_name}</div>
+                                                    <div className="text-xs text-gray-500">Scan #{scan.id}</div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400' :
-                                                            repo.validation_status === 'invalid' ? 'bg-red-500/10 text-red-400' :
-                                                                repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400' :
-                                                                    'bg-gray-500/10 text-gray-400'
-                                                        }`}>
-                                                        {repo.validation_status ? repo.validation_status.replace('_', ' ').toUpperCase() : 'Pending'}
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-400">
+                                                        {scan.status.toUpperCase()}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center gap-3 text-sm">
-                                                        {repo.primary_language && (
-                                                            <span className="text-blue-400">{repo.primary_language}</span>
-                                                        )}
-                                                        {repo.stars_count > 0 && (
-                                                            <span className="text-yellow-400">Stars: {repo.stars_count}</span>
-                                                        )}
-                                                        {repo.forks_count > 0 && (
-                                                            <span className="text-gray-400">Forks: {repo.forks_count}</span>
-                                                        )}
-                                                    </div>
+                                                    <span className={`text-sm font-semibold ${scan.findings_count > 0 ? 'text-orange-400' : 'text-green-400'}`}>
+                                                        {scan.findings_count} {scan.findings_count === 1 ? 'finding' : 'findings'}
+                                                    </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {repo.created_at ? new Date(repo.created_at).toLocaleDateString() : 'Unknown'}
+                                                    {scan.completed_at ? new Date(scan.completed_at).toLocaleString() : 'N/A'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <a
-                                                        href={repo.url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary hover:text-blue-400 flex items-center gap-1"
+                                                    <button
+                                                        onClick={() => navigate(`/dev-dashboard/scans/${scan.id}`)}
+                                                        className="text-primary hover:text-blue-400"
                                                     >
-                                                        View Repo <ExternalLink className="w-3 h-3" />
-                                                    </a>
+                                                        View Results
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
-                                        {repos.length === 0 && (
+                                        {scans.length === 0 && (
                                             <tr>
                                                 <td colSpan="5" className="px-6 py-12 text-center">
                                                     <div className="flex flex-col items-center gap-3">
                                                         <Shield className="w-12 h-12 text-gray-600" />
-                                                        <p className="text-gray-400">No repositories assigned yet</p>
+                                                        <p className="text-gray-400">No scans completed yet</p>
                                                         <p className="text-sm text-gray-500">
-                                                            Contact your tenant owner to get repository access
+                                                            Trigger your first scan from the Repositories page
                                                         </p>
                                                     </div>
                                                 </td>
@@ -223,11 +255,11 @@ const Dashboard = () => {
                             </div>
                         </div>
 
-                        {/* Vulnerability Trend Chart */}
+                        {/* vulnerability chart */}
                         <div className="bg-[#0A0F16] border border-white/10 rounded-xl p-6">
-                            <h3 className="text-lg font-semibold text-white mb-4">Vulnerability Trend (Last 30 Days)</h3>
-                            <div className="h-64 cursor-crosshair">
-                                <Line data={chartData} options={chartOptions} />
+                            <h3 className="text-lg font-semibold text-white mb-4">Vulnerability Distribution</h3>
+                            <div className="h-64">
+                                <Bar data={chartData} options={chartOptions} />
                             </div>
                         </div>
                     </div>
@@ -238,14 +270,36 @@ const Dashboard = () => {
                         <div className="bg-[#0A0F16] border border-white/10 rounded-xl p-6">
                             <h3 className="text-lg font-semibold text-white mb-6">Vulnerability Summary</h3>
                             <div className="space-y-5">
-                                <ProgressBar label="Critical" count={0} color="bg-red-500" width="0%" />
-                                <ProgressBar label="High" count={0} color="bg-orange-400" width="0%" />
-                                <ProgressBar label="Medium" count={0} color="bg-yellow-500" width="0%" />
-                                <ProgressBar label="Low" count={0} color="bg-blue-400" width="0%" />
+                                <ProgressBar
+                                    label="Critical"
+                                    count={vulnerabilityCounts.critical}
+                                    color="bg-red-500"
+                                    width={totalVulns > 0 ? `${(vulnerabilityCounts.critical / totalVulns * 100).toFixed(0)}%` : '0%'}
+                                />
+                                <ProgressBar
+                                    label="High"
+                                    count={vulnerabilityCounts.high}
+                                    color="bg-orange-400"
+                                    width={totalVulns > 0 ? `${(vulnerabilityCounts.high / totalVulns * 100).toFixed(0)}%` : '0%'}
+                                />
+                                <ProgressBar
+                                    label="Medium"
+                                    count={vulnerabilityCounts.medium}
+                                    color="bg-yellow-500"
+                                    width={totalVulns > 0 ? `${(vulnerabilityCounts.medium / totalVulns * 100).toFixed(0)}%` : '0%'}
+                                />
+                                <ProgressBar
+                                    label="Low"
+                                    count={vulnerabilityCounts.low}
+                                    color="bg-blue-400"
+                                    width={totalVulns > 0 ? `${(vulnerabilityCounts.low / totalVulns * 100).toFixed(0)}%` : '0%'}
+                                />
                             </div>
-                            <p className="text-xs text-gray-500 mt-4 text-center">
-                                Real data coming in Week 2
-                            </p>
+                            {totalVulns === 0 && (
+                                <p className="text-xs text-gray-500 mt-4 text-center">
+                                    No vulnerabilities detected yet
+                                </p>
+                            )}
                         </div>
 
                         {/* AI Assistant Promo */}

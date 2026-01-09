@@ -15,6 +15,7 @@ const AdminDashboard = () => {
     const [pendingAccessRequests, setPendingAccessRequests] = useState(0);
     const [pendingTenantInvites, setPendingTenantInvites] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [tenantsThisMonth, setTenantsThisMonth] = useState(0);
 
     const {
         data: workerHealth,
@@ -33,10 +34,16 @@ const AdminDashboard = () => {
                     api.get('/auth/admin/access-requests/'),
                 ]);
 
-                setTenants(tenantsRes.data.tenants || tenantsRes.data.results || []);
-                // tenant invites: use unverified_count as pending onboarding
+                const tenantList = tenantsRes.data.tenants || tenantsRes.data.results || [];
+                setTenants(tenantList);
+
+                // calculate tenants created this month
+                const now = new Date();
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const newThisMonth = tenantList.filter(t => new Date(t.created_at) >= startOfMonth).length;
+                setTenantsThisMonth(newThisMonth);
+
                 setPendingTenantInvites(invitesRes.data?.unverified_count ?? 0);
-                // access requests: count field from AdminAccessRequestListView
                 setPendingAccessRequests(accessRes.data?.count ?? 0);
             } catch (error) {
                 console.error('Failed to fetch admin dashboard data', error);
@@ -94,8 +101,8 @@ const AdminDashboard = () => {
                 <StatCard
                     title="Total Tenants"
                     value={tenants.length}
-                    trend={true}
-                    trendValue="+2 this month"
+                    trend={tenantsThisMonth > 0}
+                    trendValue={tenantsThisMonth > 0 ? `+${tenantsThisMonth} this month` : 'No new tenants'}
                     trendDirection="up"
                 />
                 <StatCard
@@ -109,22 +116,22 @@ const AdminDashboard = () => {
                         workerHealth
                             ? `${workerHealth.workers?.online ?? 0} online`
                             : workerLoading
-                            ? 'Loading…'
-                            : '0 online'
+                                ? 'Loading…'
+                                : '0 online'
                     }
                     trend={true}
                     trendValue={
                         workerHealth
                             ? `${workerHealth.workers?.active_tasks ?? 0} active tasks`
                             : workerError
-                            ? 'Failed to load'
-                            : workerLoading
-                            ? 'Fetching…'
-                            : '0 tasks'
+                                ? 'Failed to load'
+                                : workerLoading
+                                    ? 'Fetching…'
+                                    : '0 tasks'
                     }
                     trendDirection="up"
                 />
-                        </div>
+            </div>
 
             <div className="mt-6">
                 <WorkerHealthCard />
@@ -173,35 +180,43 @@ const AdminDashboard = () => {
                 </TableCard>
 
                 <TableCard
-                    title="Recent Audit Logs"
-                    subtitle="Platform-wide administrative actions."
-                    actionText="View All"
-                    actionLink="/admin/audit-logs"
+                    title="Recent Tenants"
+                    subtitle="Latest registered organizations."
+                    actionText="View Tenants"
+                    actionLink="/admin/tenants"
                 >
                     <table className="w-full text-left border-collapse">
                         <thead className="border-b border-white/10 bg-white/5">
                             <tr className="text-xs text-gray-400 uppercase">
-                                <th className="py-3 px-6 font-medium">Event</th>
-                                <th className="py-3 px-6 font-medium">User</th>
-                                <th className="py-3 px-6 font-medium">Timestamp</th>
+                                <th className="py-3 px-6 font-medium">Tenant</th>
+                                <th className="py-3 px-6 font-medium">Members</th>
+                                <th className="py-3 px-6 font-medium">Created</th>
+                                <th className="py-3 px-6 font-medium">Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr className="border-b border-white/5 text-sm text-gray-300 hover:bg-white/5 transition-colors">
-                                <td className="py-4 px-6 font-medium text-white">Org 'DataWeavers' suspended</td>
-                                <td className="py-4 px-6">admin@securedhub.com</td>
-                                <td className="py-4 px-6">2023-10-27 14:30</td>
-                            </tr>
-                            <tr className="border-b border-white/5 text-sm text-gray-300 hover:bg-white/5 transition-colors">
-                                <td className="py-4 px-6 font-medium text-white">System settings updated</td>
-                                <td className="py-4 px-6">admin@securedhub.com</td>
-                                <td className="py-4 px-6">2023-10-27 11:15</td>
-                            </tr>
-                            <tr className="border-b border-white/5 text-sm text-gray-300 hover:bg-white/5 transition-colors">
-                                <td className="py-4 px-6 font-medium text-white">Org 'Innovatech' owner changed</td>
-                                <td className="py-4 px-6">security@securedhub.com</td>
-                                <td className="py-4 px-6">2023-10-26 09:05</td>
-                            </tr>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="4" className="py-8 text-center text-gray-500">Loading...</td>
+                                </tr>
+                            ) : tenants.length > 0 ? (
+                                [...tenants].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5).map((tenant) => (
+                                    <tr key={`recent-${tenant.id}`} className="border-b border-white/5 text-sm text-gray-300 hover:bg-white/5 transition-colors">
+                                        <td className="py-4 px-6 font-medium text-white">{tenant.name}</td>
+                                        <td className="py-4 px-6">{tenant.member_count}</td>
+                                        <td className="py-4 px-6">{new Date(tenant.created_at).toLocaleDateString()}</td>
+                                        <td className="py-4 px-6">
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tenant.is_active !== false ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                                {tenant.is_active !== false ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="4" className="py-8 text-center text-gray-500">No tenants registered yet.</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </TableCard>

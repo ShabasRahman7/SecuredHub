@@ -30,7 +30,6 @@ class NotificationService {
             this.ws = new WebSocket(wsUrl);
 
             this.ws.onopen = () => {
-                console.log('[NotificationService] Connected');
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
                 this._notifyListeners({ type: 'connection', status: 'connected' });
@@ -46,18 +45,15 @@ class NotificationService {
             };
 
             this.ws.onclose = (event) => {
-                console.log('[NotificationService] Disconnected', event.code);
                 this.isConnected = false;
                 this._notifyListeners({ type: 'connection', status: 'disconnected' });
 
-                // attempt to reconnect if not a clean close
                 if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
                     this._scheduleReconnect(token);
                 }
             };
 
-            this.ws.onerror = (error) => {
-                console.error('[NotificationService] Error:', error);
+            this.ws.onerror = () => {
                 this._notifyListeners({ type: 'error', error: 'WebSocket error' });
             };
         } catch (error) {
@@ -110,7 +106,6 @@ class NotificationService {
     _scheduleReconnect(token) {
         this.reconnectAttempts++;
         const delay = this.reconnectDelay * this.reconnectAttempts;
-        console.log(`[NotificationService] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
         setTimeout(() => {
             this.connect(token);

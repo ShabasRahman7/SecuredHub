@@ -37,21 +37,37 @@ def scan_repository_task(self, repo_id: int, scan_id: int):
     workspace_mgr = WorkspaceManager()
     workspace_path = None
     
+    def _update_progress(progress: int, message: str = ''):
+        """Helper to send progress updates via internal API."""
+        try:
+            _make_internal_request('POST', f'/api/v1/internal/scans/{scan_id}/status/', {
+                'status': 'running',
+                'progress': progress,
+                'message': message
+            })
+        except Exception as e:
+            print(f"Progress update failed: {e}")
+    
     try:
         # getting repository info from API
         repo_info = _make_internal_request('GET', f'/api/v1/internal/repositories/{repo_id}/')
         
         print(f"Starting scan for repository: {repo_info['name']} (ID: {repo_id})")
         
-        # updating scan status to running
+        # updating scan status to running (10% - starting)
         _make_internal_request('POST', f'/api/v1/internal/scans/{scan_id}/status/', {
             'status': 'running',
-            'started_at': datetime.now(timezone.utc).isoformat()
+            'started_at': datetime.now(timezone.utc).isoformat(),
+            'progress': 10,
+            'message': 'Initializing scan...'
         })
         
         workspace_path = workspace_mgr.create_workspace(repo_id)
         
         access_token = repo_info.get('access_token')
+        
+        # 25% - Cloning repository
+        _update_progress(25, 'Cloning repository...')
         clone_repository(repo_info['url'], workspace_path, access_token)
         
         # getting commit information
@@ -67,13 +83,15 @@ def scan_repository_task(self, repo_id: int, scan_id: int):
         from scanners.bandit_scanner import BanditScanner
         from scanners.secret_scanner import SecretScanner
         
-        # running Bandit for Python security issues
+        # 50% - Running Bandit for Python security issues
+        _update_progress(50, 'Running Python security scanner (Bandit)...')
         bandit = BanditScanner()
         bandit_findings = bandit.scan(workspace_path)
         all_findings.extend(bandit_findings)
         print(f"Bandit: {len(bandit_findings)} findings")
         
-        # running secret scanner
+        # 75% - Running secret scanner
+        _update_progress(75, 'Scanning for exposed secrets...')
         secret_scanner = SecretScanner()
         secret_findings = secret_scanner.scan(workspace_path)
         all_findings.extend(secret_findings)
@@ -81,6 +99,8 @@ def scan_repository_task(self, repo_id: int, scan_id: int):
         
         print(f"Total findings: {len(all_findings)}")
         
+        # 90% - Submitting findings
+        _update_progress(90, 'Saving scan results...')
         
         filtered_findings = all_findings
 
@@ -98,11 +118,13 @@ def scan_repository_task(self, repo_id: int, scan_id: int):
         findings_count = result.get('findings_count', 0)
         print(f"Submitted {findings_count} findings to API")
         
-        # mark scan as completed
+        # 100% - mark scan as completed
         _make_internal_request('POST', f'/api/v1/internal/scans/{scan_id}/status/', {
             'status': 'completed',
             'completed_at': datetime.now(timezone.utc).isoformat(),
-            'commit_hash': latest_commit
+            'commit_hash': latest_commit,
+            'progress': 100,
+            'message': 'Scan completed'
         })
         
         print(f"Scan completed successfully. {findings_count} findings saved.")

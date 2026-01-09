@@ -40,6 +40,21 @@ app.conf.update(
     task_soft_time_limit=25 * 60,  # 25 minutes
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=50,
+    # redis connection settings for Upstash (prevents connection closed errors)
+    broker_transport_options={
+        'socket_keepalive': True,
+        'socket_connect_timeout': 30,
+        'retry_on_timeout': True,
+    },
+    redis_socket_keepalive=True,
+    redis_socket_connect_timeout=30,
+    redis_retry_on_timeout=True,
+    result_backend_transport_options={
+        'socket_keepalive': True,
+        'socket_connect_timeout': 30,
+        'retry_on_timeout': True,
+        'health_check_interval': 25,
+    },
 )
 
 # explicitly import tasks (don't use autodiscover which looks for packages)

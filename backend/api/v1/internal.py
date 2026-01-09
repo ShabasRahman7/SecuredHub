@@ -48,6 +48,27 @@ def update_scan_status(request, scan_id):
     
     scan.save()
     
+    # broadcasting scan status update to WebSocket clients
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'scan_{scan_id}',
+            {
+                'type': 'scan_update',
+                'scan_id': scan_id,
+                'status': scan.status,
+                'message': request.data.get('message', f'Scan {scan.status}'),
+                'progress': request.data.get('progress', 0),
+                'findings_count': scan.findings.count() if scan.status == 'completed' else 0
+            }
+        )
+    except Exception as e:
+        # continuing even if WebSocket broadcast fails
+        print(f"WebSocket broadcast failed: {e}")
+    
     return Response({'status': 'updated'})
 
 @api_view(['POST'])

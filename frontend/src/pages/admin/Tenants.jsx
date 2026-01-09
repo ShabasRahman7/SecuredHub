@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Filter, Building2, Users, ShieldCheck, RotateCcw, Trash2 } from 'lucide-react';
 import api from '../../api/axios';
+import { API_ENDPOINTS } from '../../constants/api';
 import { toast } from 'react-toastify';
 import { showConfirmDialog, showSuccessToast, showErrorToast } from '../../utils/sweetAlert';
 
@@ -406,8 +407,8 @@ const Tenants = () => {
                                                             onClick={() => handleBlock(tenant)}
                                                             disabled={actionLoading === `tenant-${tenant.id}-block`}
                                                             className={`transition-colors text-xs ${tenant.is_active
-                                                                    ? 'text-orange-500 hover:text-orange-400'
-                                                                    : 'text-green-500 hover:text-green-400'
+                                                                ? 'text-orange-500 hover:text-orange-400'
+                                                                : 'text-green-500 hover:text-green-400'
                                                                 } disabled:opacity-50`}
                                                         >
                                                             {actionLoading === `tenant-${tenant.id}-block` ? <span className="loading loading-spinner loading-xs" /> : (tenant.is_active ? 'Block' : 'Unblock')}

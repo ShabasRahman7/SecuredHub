@@ -1,17 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink, Play, Shield, Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
-// import useWebSocket from '../../hooks/useWebSocket'; // Removed useWebSocket
+import useScanWebSocket from '../../hooks/useScanWebSocket';
 
 const ScanButton = ({ repo, tenantId, onScanComplete }) => {
     const [scanning, setScanning] = useState(false);
     const [scanId, setScanId] = useState(null);
-    const [progress, setProgress] = useState(0);
-    const [scanStatus, setScanStatus] = useState(null);
-    const navigate = useNavigate(); // Added useNavigate
+    const navigate = useNavigate();
+
+    // connecting to WebSocket for real-time updates
+    const { status: wsStatus, progress: wsProgress, message: wsMessage, isConnected } = useScanWebSocket(scanId);
 
     // checking for running scans on mount
     useEffect(() => {
@@ -22,7 +23,6 @@ const ScanButton = ({ repo, tenantId, onScanComplete }) => {
                 const runningScan = scans.find(s => s.status === 'queued' || s.status === 'running');
                 if (runningScan) {
                     setScanId(runningScan.id);
-                    setScanStatus(runningScan.status);
                     setScanning(true);
                 }
             } catch (err) {
@@ -32,45 +32,25 @@ const ScanButton = ({ repo, tenantId, onScanComplete }) => {
         checkRunningScan();
     }, [repo.id]);
 
-    // poll for scan status updates (since WebSocket isn't implemented yet)
+    // listening for status changes from WebSocket
     useEffect(() => {
-        if (!scanId || !scanning) return;
+        if (!wsStatus || !scanId) return;
 
-        const pollInterval = setInterval(async () => {
-            try {
-                const response = await api.get(`/scans/${scanId}/`);
-                const data = response.data;
-
-                setScanStatus(data.status);
-
-                if (data.status === 'completed') {
-                    setScanning(false);
-                    clearInterval(pollInterval);
-                    onScanComplete?.(repo.id, 'completed', scanId);
-                    toast.success(`Scan completed for ${repo.name}`);
-                    // auto-navigate to results after 1 second
-                    setTimeout(() => {
-                        navigate(`/dev-dashboard/scans/${scanId}`);
-                    }, 1000);
-                } else if (data.status === 'failed') {
-                    setScanning(false);
-                    clearInterval(pollInterval);
-                    onScanComplete?.(repo.id, 'failed', scanId);
-                    toast.error(`Scan failed for ${repo.name}`);
-                }
-            } catch (error) {
-                console.error('Error polling scan status:', error);
-            }
-        }, 3000); // Poll every 3 seconds
-
-        return () => clearInterval(pollInterval);
-    }, [scanId, scanning, repo.id, repo.name, navigate, onScanComplete]);
+        if (wsStatus === 'completed') {
+            setScanning(false);
+            onScanComplete?.(repo.id, 'completed', scanId);
+            toast.success(`Scan completed for ${repo.name}`);
+            navigate(`/dev-dashboard/scans/${scanId}`);
+        } else if (wsStatus === 'failed') {
+            setScanning(false);
+            onScanComplete?.(repo.id, 'failed', scanId);
+            toast.error(`Scan failed for ${repo.name}`);
+        }
+    }, [wsStatus, scanId]);
 
     const handleTriggerScan = async () => {
         try {
             setScanning(true);
-            setProgress(0);
-            setScanStatus('queued');
 
             const response = await api.post(`/scans/trigger/${repo.id}/`);
 
@@ -82,9 +62,7 @@ const ScanButton = ({ repo, tenantId, onScanComplete }) => {
                 const existingScanId = response.data.scan?.id;
                 if (existingScanId) {
                     onScanComplete?.(repo.id, 'completed', existingScanId);
-                    setTimeout(() => {
-                        navigate(`/dev-dashboard/scans/${existingScanId}`);
-                    }, 1000);
+                    navigate(`/dev-dashboard/scans/${existingScanId}`);
                 }
                 return;
             }
@@ -95,29 +73,35 @@ const ScanButton = ({ repo, tenantId, onScanComplete }) => {
             toast.info(`Scan started for ${repo.name}`);
         } catch (error) {
             setScanning(false);
-            setScanStatus(null);
             toast.error(error.response?.data?.error || 'Failed to trigger scan');
         }
     };
 
     if (scanning) {
         return (
-            <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                    <span className="text-sm text-blue-400">
-                        {scanStatus === 'queued' && 'Queued...'}
-                        {scanStatus === 'running' && `${progress}%`}
-                    </span>
-                </div>
-                {progress > 0 && (
-                    <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-blue-500 transition-all duration-300"
-                            style={{ width: `${progress}%` }}
-                        />
+            <div className="flex flex-col gap-2 min-w-[180px]">
+
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-xs text-blue-300 truncate">
+                            {wsMessage || (wsStatus === 'queued' ? 'Waiting in queue...' : 'Initializing...')}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+
+                            <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500 ease-out"
+                                    style={{ width: `${wsProgress || 0}%` }}
+                                />
+                            </div>
+
+                            <span className="text-xs font-medium text-blue-400 w-8 text-right">
+                                {wsProgress || 0}%
+                            </span>
+                        </div>
                     </div>
-                )}
+                </div>
             </div>
         );
     }
@@ -139,6 +123,7 @@ const Repositories = () => {
     const [repos, setRepos] = useState([]);
     const [loading, setLoading] = useState(false);
     const [lastScanResults, setLastScanResults] = useState({});
+    const [lastScanTimes, setLastScanTimes] = useState({});
 
     useEffect(() => {
         const fetchRepos = async () => {
@@ -152,6 +137,21 @@ const Repositories = () => {
                     orgName: tenant.name,
                     orgId: tenant.id
                 })));
+
+                repositories.forEach(async (repo) => {
+                    try {
+                        const scanResponse = await api.get(`/scans/repository/${repo.id}/`);
+                        const scans = scanResponse.data || [];
+                        const lastScan = scans.find(s => s.status === 'completed');
+                        if (lastScan) {
+                            setLastScanTimes(prev => ({
+                                ...prev,
+                                [repo.id]: lastScan.completed_at
+                            }));
+                        }
+                    } catch (err) {
+                    }
+                });
             } catch (error) {
                 toast.error('Failed to load repositories');
                 setRepos([]);
@@ -162,12 +162,18 @@ const Repositories = () => {
         fetchRepos();
     }, [tenant]);
 
-    const handleScanComplete = (repoId, status, scanId) => {
+    const handleScanComplete = useCallback((repoId, status, scanId) => {
         setLastScanResults(prev => ({
             ...prev,
             [repoId]: { status, timestamp: new Date(), scanId }
         }));
-    };
+        if (status === 'completed') {
+            setLastScanTimes(prev => ({
+                ...prev,
+                [repoId]: new Date().toISOString()
+            }));
+        }
+    }, []);
 
     const getLastScanBadge = (repoId) => {
         const result = lastScanResults[repoId];
@@ -250,16 +256,25 @@ const Repositories = () => {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <div className="text-right">
-                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${repo.validation_status === 'valid' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                            repo.validation_status === 'invalid' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                                repo.validation_status === 'access_denied' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
-                                                    'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                                            }`}>
-                                            {repo.validation_status ? repo.validation_status.replace('_', ' ').toUpperCase() : 'Pending'}
-                                        </span>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                            Added {new Date(repo.created_at).toLocaleDateString()}
-                                        </div>
+                                        {lastScanTimes[repo.id] ? (
+                                            <>
+                                                <span className="px-2 py-0.5 rounded text-xs font-semibold border bg-blue-500/10 text-blue-400 border-blue-500/20">
+                                                    Last Scanned
+                                                </span>
+                                                <div className="text-xs text-gray-400 mt-1">
+                                                    {new Date(lastScanTimes[repo.id]).toLocaleString()}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span className="px-2 py-0.5 rounded text-xs font-semibold border bg-gray-500/10 text-gray-400 border-gray-500/20">
+                                                    Never Scanned
+                                                </span>
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    Added {new Date(repo.created_at).toLocaleDateString()}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                     <ScanButton
                                         repo={repo}

@@ -26,7 +26,7 @@ const Repositories = () => {
     const [loadingGhRepos, setLoadingGhRepos] = useState(false);
     const [selectedRepo, setSelectedRepo] = useState(null);
     const [searchRepo, setSearchRepo] = useState('');
-    const [repoFormData, setRepoFormData] = useState({ name: '', url: '', visibility: 'private' });
+    const [repoFormData, setRepoFormData] = useState({ name: '', url: '' });
 
     useEffect(() => {
         if (tenant) {
@@ -156,7 +156,6 @@ const Repositories = () => {
             await tenantService.addRepository(currentTenant.id, {
                 name: selectedRepo.name,
                 url: selectedRepo.clone_url || selectedRepo.html_url,
-                visibility: selectedRepo.private ? 'private' : 'public',
             });
 
             toast.success('Repository imported successfully!');
@@ -171,7 +170,7 @@ const Repositories = () => {
         e.preventDefault();
         const success = await handleAddRepo(repoFormData);
         if (success) {
-            setRepoFormData({ name: '', url: '', visibility: 'private' });
+            setRepoFormData({ name: '', url: '' });
             setShowRepoModal(false);
         }
     };
@@ -227,8 +226,8 @@ const Repositories = () => {
                             <thead>
                                 <tr className="border-b border-white/10">
                                     <th className="text-gray-400 font-semibold">Repository</th>
-                                    <th className="text-gray-400 font-semibold">Visibility</th>
-                                    <th className="text-gray-400 font-semibold">Assigned Developers</th>
+                                    <th className="text-gray-400 font-semibold">Developers</th>
+                                    <th className="text-gray-400 font-semibold">Scan Status</th>
                                     <th className="text-gray-400 font-semibold">Created</th>
                                     <th className="text-gray-400 font-semibold text-right">Actions</th>
                                 </tr>
@@ -236,7 +235,8 @@ const Repositories = () => {
                             <tbody>
                                 {repositories.map(repo => {
                                     const assignedMemberIds = assignments[repo.id] || [];
-                                    const assignedMembers = members.filter(m => assignedMemberIds.includes(m.id));
+                                    const assignedCount = assignedMemberIds.length;
+                                    const hasBeenScanned = !!repo.last_scanned_commit;
                                     return (
                                         <tr key={repo.id} className="border-b border-white/5 hover:bg-white/5">
                                             <td>
@@ -253,29 +253,49 @@ const Repositories = () => {
                                                     </a>
                                                 </div>
                                             </td>
+
                                             <td>
-                                                <span className={`badge badge-sm ${repo.visibility === 'private'
-                                                    ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
-                                                    : 'bg-green-500/10 text-green-400 border-green-500/20'
-                                                    } border`}>
-                                                    {repo.visibility}
-                                                </span>
+                                                {assignedCount > 0 ? (
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedRepoForAssign(repo);
+                                                            setAssignSelectedMemberIds(assignedMemberIds);
+                                                            setShowAssignModal(true);
+                                                        }}
+                                                        className="flex items-center gap-2 px-2.5 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg transition-colors"
+                                                    >
+                                                        <Users className="w-4 h-4 text-blue-400" />
+                                                        <span className="text-sm font-medium text-blue-300">{assignedCount}</span>
+                                                        <span className="text-xs text-gray-500">assigned</span>
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-sm text-gray-500 italic">None</span>
+                                                )}
                                             </td>
+
                                             <td>
-                                                <div className="flex items-center gap-2">
-                                                    {assignedMembers.length > 0 ? (
+                                                <div className="flex flex-col gap-1">
+                                                    {hasBeenScanned ? (
                                                         <>
-                                                            <Users className="w-4 h-4 text-gray-400" />
-                                                            <span className="text-sm text-gray-300">{assignedMembers.length}</span>
-                                                            <span className="text-xs text-gray-500">
-                                                                ({assignedMembers.map(m => m.email).join(', ')})
+                                                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-xs font-medium text-green-400 w-fit">
+                                                                <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                                                                Scanned
                                                             </span>
+                                                            {repo.last_scanned_at && (
+                                                                <span className="text-xs text-gray-500">
+                                                                    {new Date(repo.last_scanned_at).toLocaleString()}
+                                                                </span>
+                                                            )}
                                                         </>
                                                     ) : (
-                                                        <span className="text-sm text-gray-500">None assigned</span>
+                                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-gray-500/10 border border-gray-500/20 rounded text-xs font-medium text-gray-400 w-fit">
+                                                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                                                            Not scanned
+                                                        </span>
                                                     )}
                                                 </div>
                                             </td>
+
                                             <td>
                                                 <span className="text-sm text-gray-400">
                                                     {new Date(repo.created_at).toLocaleDateString()}
@@ -595,14 +615,6 @@ const Repositories = () => {
                                 onChange={(e) => setRepoFormData({ ...repoFormData, url: e.target.value })}
                                 required
                             />
-                            <select
-                                className="select select-bordered dark:bg-[#101822] dark:border-[#282f39]"
-                                value={repoFormData.visibility}
-                                onChange={(e) => setRepoFormData({ ...repoFormData, visibility: e.target.value })}
-                            >
-                                <option value="private">Private</option>
-                                <option value="public">Public</option>
-                            </select>
                             <div className="modal-action">
                                 <button type="button" className="btn btn-ghost" onClick={() => setShowRepoModal(false)}>
                                     Cancel

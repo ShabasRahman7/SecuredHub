@@ -14,6 +14,7 @@ import TenantRepositories from '../pages/tenant/Repositories';
 import TenantDevelopers from '../pages/tenant/Developers';
 import TenantCredentials from '../pages/tenant/CredentialsPage';
 import TenantScans from '../pages/tenant/Scans';
+import TenantScanResults from '../pages/tenant/ScanResults';
 import TenantReports from '../pages/tenant/Reports';
 import TenantSettings from '../pages/tenant/Settings';
 import TenantProfile from '../pages/tenant/Profile';
@@ -83,6 +84,7 @@ const AppRoutes = () => {
                 <Route index element={<TenantDashboard />} />
                 <Route path="repositories" element={<TenantRepositories />} />
                 <Route path="scans" element={<TenantScans />} />
+                <Route path="scans/:scanId" element={<TenantScanResults />} />
                 <Route path="reports" element={<TenantReports />} />
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="developers" element={<TenantDevelopers />} />

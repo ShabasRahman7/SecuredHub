@@ -75,52 +75,186 @@ const FindingDetailModal = ({ finding, onClose }) => {
     const navigate = useNavigate();
     const config = SEVERITY_CONFIG[finding.severity] || SEVERITY_CONFIG.low;
 
+    // Extract code snippet from raw_output
+    const getCodeSnippet = () => {
+        if (!finding.raw_output) return null;
+
+        // Bandit stores code in raw_output.code
+        if (finding.raw_output.code) {
+            return finding.raw_output.code;
+        }
+
+        // Some scanners might store it differently
+        if (finding.raw_output.snippet) {
+            return finding.raw_output.snippet;
+        }
+
+        return null;
+    };
+
+    const codeSnippet = getCodeSnippet();
+    const lineNumber = finding.line_number || 1;
+
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-[#0A0F16] rounded-xl border border-white/10 max-w-4xl w-full max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
                 <div className="p-6">
+                    {/* Header */}
                     <div className="flex items-start justify-between mb-6">
                         <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                                <span className={`px-3 py-1 rounded font-bold uppercase ${config.badge} text-white`}>
+                            <div className="flex items-center gap-3 mb-3">
+                                <span className={`px-3 py-1 rounded font-bold uppercase text-sm ${config.badge} text-white`}>
                                     {finding.severity}
                                 </span>
-                                <span className="px-3 py-1 rounded bg-gray-700 text-gray-300">
+                                <span className="px-3 py-1 rounded bg-gray-700 text-gray-300 text-sm">
                                     {finding.tool}
                                 </span>
+                                {finding.rule_id && (
+                                    <span className="px-3 py-1 rounded bg-gray-800 text-gray-400 text-xs font-mono">
+                                        {finding.rule_id}
+                                    </span>
+                                )}
                             </div>
-                            <h2 className="text-2xl font-bold text-white mb-2">{finding.title}</h2>
-                            <p className="text-gray-400">{finding.description}</p>
+                            <h2 className="text-xl font-bold text-white mb-2">{finding.title}</h2>
+                            <p className="text-gray-400 text-sm leading-relaxed">{finding.description}</p>
                         </div>
-                        <button onClick={onClose} className="btn btn-circle btn-sm btn-ghost">
+                        <button onClick={onClose} className="btn btn-circle btn-sm btn-ghost text-gray-400 hover:text-white">
                             ✕
                         </button>
                     </div>
 
-                    <div className="space-y-4">
-                        <div className="bg-[#05080C] border border-white/10 rounded-lg p-4">
-                            <h3 className="text-sm font-semibold text-gray-400 mb-2">Location</h3>
-                            <p className="text-white font-mono text-sm flex items-center gap-2">
-                                <FileText className="w-4 h-4" />
-                                {finding.file_path}
-                            </p>
-                            {finding.line_number && (
-                                <p className="text-gray-400 text-sm mt-1">Line: {finding.line_number}</p>
-                            )}
+                    {/* Location */}
+                    <div className="bg-[#05080C] border border-white/10 rounded-lg p-4 mb-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <FileText className="w-5 h-5 text-blue-400" />
+                                <div>
+                                    <p className="text-white font-mono text-sm">{finding.file_path}</p>
+                                    {finding.line_number && (
+                                        <p className="text-gray-500 text-xs mt-0.5">Line {finding.line_number}</p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
+                    {/* Code Snippet */}
+                    {codeSnippet ? (
+                        <div className="mb-4">
+                            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                                Vulnerable Code
+                            </h3>
+                            <div className="bg-[#0d1117] border border-red-500/30 rounded-lg overflow-hidden">
+                                <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border-b border-red-500/20">
+                                    <AlertCircle className="w-4 h-4 text-red-400" />
+                                    <span className="text-red-400 text-xs font-medium">Security Issue Detected</span>
+                                </div>
+                                <div className="p-4 overflow-x-auto">
+                                    <pre className="text-sm font-mono">
+                                        <code className="text-gray-300">
+                                            {codeSnippet.split('\n').map((line, idx) => {
+                                                const currentLineNum = lineNumber - Math.floor(codeSnippet.split('\n').length / 2) + idx;
+                                                const isVulnerableLine = currentLineNum === lineNumber;
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className={`flex ${isVulnerableLine ? 'bg-red-500/20 -mx-4 px-4' : ''}`}
+                                                    >
+                                                        <span className={`select-none w-12 text-right pr-4 ${isVulnerableLine ? 'text-red-400' : 'text-gray-600'}`}>
+                                                            {currentLineNum > 0 ? currentLineNum : ''}
+                                                        </span>
+                                                        <span className={isVulnerableLine ? 'text-red-300' : ''}>
+                                                            {line || ' '}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </code>
+                                    </pre>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-[#05080C] border border-white/10 rounded-lg p-6 mb-4 text-center">
+                            <FileText className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                            <p className="text-gray-500 text-sm">Code snippet not available</p>
+                            <p className="text-gray-600 text-xs mt-1">Click "Ask AI" for detailed analysis</p>
+                        </div>
+                    )}
+
+                    {/* Additional Security Info */}
+                    {finding.raw_output && (finding.raw_output.issue_confidence || finding.raw_output.issue_cwe || finding.raw_output.more_info) && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                            {/* Confidence Level */}
+                            {finding.raw_output.issue_confidence && (
+                                <div className="bg-[#05080C] border border-white/10 rounded-lg p-3">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Confidence</p>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`w-2 h-2 rounded-full ${finding.raw_output.issue_confidence === 'HIGH' ? 'bg-red-500' :
+                                                finding.raw_output.issue_confidence === 'MEDIUM' ? 'bg-yellow-500' : 'bg-blue-500'
+                                            }`} />
+                                        <span className="text-white text-sm font-medium capitalize">
+                                            {finding.raw_output.issue_confidence.toLowerCase()}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* CWE Info */}
+                            {finding.raw_output.issue_cwe && (
+                                <div className="bg-[#05080C] border border-white/10 rounded-lg p-3">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">CWE ID</p>
+                                    {finding.raw_output.issue_cwe.link ? (
+                                        <a
+                                            href={finding.raw_output.issue_cwe.link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-1"
+                                        >
+                                            CWE-{finding.raw_output.issue_cwe.id}
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                        </a>
+                                    ) : (
+                                        <span className="text-white text-sm font-medium">
+                                            CWE-{finding.raw_output.issue_cwe.id}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Documentation Link */}
+                            {finding.raw_output.more_info && (
+                                <div className="bg-[#05080C] border border-white/10 rounded-lg p-3">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Documentation</p>
+                                    <a
+                                        href={finding.raw_output.more_info}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-1"
+                                    >
+                                        Learn More
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Ask AI Assistant Button */}
-                    <div className="mt-6 pt-6 border-t border-white/10">
+                    <div className="pt-4 border-t border-white/10">
                         <button
                             onClick={() => navigate(`/dev-dashboard/ai-assistant/${finding.id}`)}
-                            className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg flex items-center justify-center gap-3 transition-all transform hover:scale-105"
+                            className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02]"
                         >
                             <Bot className="w-5 h-5" />
-                            <span>Ask AI Assistant About This Finding</span>
+                            <span>Ask AI for Fix Suggestions</span>
                         </button>
-                        <p className="text-xs text-gray-400 text-center mt-2">
-                            Get interactive help fixing this security issue
+                        <p className="text-xs text-gray-500 text-center mt-2">
+                            Get AI-powered remediation guidance for this vulnerability
                         </p>
                     </div>
                 </div>

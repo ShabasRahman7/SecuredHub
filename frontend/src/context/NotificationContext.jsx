@@ -27,12 +27,12 @@ export const NotificationProvider = ({ children }) => {
             const response = await notificationAPI.getNotifications({ page_size: 50 });
             const backendNotifications = response.data.results.map(n => ({
                 id: n.id,
-                type: n.notification_type,
+                notification_type: n.notification_type,
                 title: n.title,
                 message: n.message,
                 data: n.data,
-                timestamp: n.created_at,
-                read: n.is_read,
+                created_at: n.created_at,
+                is_read: n.is_read,
             }));
             setNotifications(backendNotifications);
         } catch (error) {
@@ -84,12 +84,12 @@ export const NotificationProvider = ({ children }) => {
             if (data.type === 'notification') {
                 const notification = {
                     id: Date.now(), // Temporary ID until backend sync
-                    type: data.notification_type,
+                    notification_type: data.notification_type,
                     title: data.title,
                     message: data.message,
                     data: data.data,
-                    timestamp: data.timestamp,
-                    read: false,
+                    created_at: data.timestamp,
+                    is_read: false,
                 };
 
                 setNotifications(prev => [notification, ...prev].slice(0, 50));
@@ -114,7 +114,7 @@ export const NotificationProvider = ({ children }) => {
         try {
             // optimistic update
             setNotifications(prev =>
-                prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+                prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
             );
             setUnreadCount(prev => Math.max(0, prev - 1));
 
@@ -132,7 +132,7 @@ export const NotificationProvider = ({ children }) => {
     const markAllAsRead = useCallback(async () => {
         try {
             // optimistic update
-            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             setUnreadCount(0);
 
             // syncing with backend

@@ -218,7 +218,7 @@ const Scans = () => {
                                                                 <span className="sm:hidden">View</span>
                                                             </button>
                                                         )}
-                                                        {scan.status !== 'queued' && scan.status !== 'running' && (
+                                                        {scan.status !== 'running' && (
                                                             <button
                                                                 onClick={() => handleDeleteScan(scan)}
                                                                 disabled={isDeleting}

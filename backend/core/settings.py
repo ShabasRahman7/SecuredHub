@@ -307,8 +307,18 @@ if CELERY_RESULT_BACKEND and CELERY_RESULT_BACKEND.startswith('rediss://'):
 ASGI_APPLICATION = 'core.asgi.application'
 
 # building channel layer config based on Redis setup
-if IS_UPSTASH or REDIS_PASSWORD:
-    # upstash/authenticated Redis requires URL format with TLS
+if IS_UPSTASH or redis_location.startswith('rediss://'):
+    # Upstash/TLS Redis - rediss:// URL handles SSL automatically
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [redis_location],
+            },
+        },
+    }
+elif REDIS_PASSWORD:
+    # Authenticated Redis without TLS
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',

@@ -47,8 +47,8 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
+        <main className="flex-1 p-4 lg:p-6">
+          <div className="space-y-6">
             <Outlet />
           </div>
         </main>

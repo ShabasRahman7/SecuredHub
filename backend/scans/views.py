@@ -46,7 +46,6 @@ def trigger_scan(request, repo_id):
         )
     
     # checking if this repo's latest commit was already scanned
-    # this prevents wasting time cloning the repo in Celery
     if repo.last_scanned_commit:
         # checking if the latest commit on the repo is the same
         # note: We can't know the latest commit without cloning
@@ -154,6 +153,9 @@ def get_repository_scans(request, repo_id):
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated, IsTenantOwner])
 def delete_scan(request, scan_id):
+    from django.utils import timezone
+    from datetime import timedelta
+    
     user_tenant = request.user.tenant_membership.tenant if hasattr(request.user, 'tenant_membership') else None
     
     scan = get_object_or_404(
@@ -162,22 +164,36 @@ def delete_scan(request, scan_id):
         repository__tenant=user_tenant
     )
     
-    # don't allow deletion of running scans
-    if scan.status in ['queued', 'running']:
-        return Response(
-            {'error': 'Cannot delete a scan that is currently queued or running'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+    force = request.query_params.get('force', 'false').lower() == 'true'
+    
+    # only block deletion of actively running scans (not queued or failed)
+    if scan.status == 'running' and not force:
+        # check if scan is stuck (running for more than 10 minutes without updates)
+        if scan.started_at:
+            stuck_threshold = timezone.now() - timedelta(minutes=10)
+            if scan.started_at < stuck_threshold:
+                # auto-mark as failed since it's stuck
+                scan.status = 'failed'
+                scan.error_message = 'Scan timed out (stuck for over 10 minutes)'
+                scan.save()
+            else:
+                return Response(
+                    {'error': 'Cannot delete a scan that is currently running. Wait for completion or use ?force=true'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            return Response(
+                {'error': 'Cannot delete a scan that is currently running'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
     
     repository = scan.repository
     deleted_commit = scan.commit_hash
     
-    # deleting the scan (cascade will delete findings)
     scan.delete()
     
-    # updating repository's last_scanned_commit if we deleted the last completed scan
+    # update repository's last_scanned_commit if we deleted the last completed scan
     if deleted_commit and repository.last_scanned_commit == deleted_commit:
-        # finding the most recent completed scan for this repo (if any)
         latest_scan = Scan.objects.filter(
             repository=repository,
             status='completed',
