@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'scans.apps.ScansConfig',                 # Scanning system
     'monitoring',                             # System / worker monitoring
     'chat.apps.ChatConfig',                   # AI assistant chat
+    'webhooks.apps.WebhooksConfig',           # GitHub webhook integration
 ]
 
 MIDDLEWARE = [
@@ -258,6 +259,9 @@ REPOSITORY_ENCRYPTION_KEY = os.getenv('REPOSITORY_ENCRYPTION_KEY', 'xmcC6B0bOp_L
 # github OAuth Configuration
 GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
 GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
+
+# webhook Configuration
+WEBHOOK_BASE_URL = os.getenv('WEBHOOK_BASE_URL', 'http://localhost:8001')
 
 # redis cache / result backend configuration (supports Upstash via REDIS_URL)
 REDIS_URL = os.getenv('REDIS_URL', '')

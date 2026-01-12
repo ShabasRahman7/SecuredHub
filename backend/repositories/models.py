@@ -170,6 +170,20 @@ class Repository(models.Model):
         help_text="SHA hash of the last scanned commit"
     )
     
+    webhook_id = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text="GitHub webhook ID for automatic scanning"
+    )
+    
+    webhook_secret = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text="HMAC secret for webhook signature validation"
+    )
+    
     is_active = models.BooleanField(default=True)
     
     created_at = models.DateTimeField(auto_now_add=True)

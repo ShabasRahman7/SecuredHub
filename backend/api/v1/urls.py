@@ -19,4 +19,5 @@ urlpatterns = [
     path("scans/", include("scans.urls")),
     path("chat/", include("chat.urls")),
     path("internal/", include("api.v1.internal_urls")),
+    path("webhooks/", include("webhooks.urls")),
 ]

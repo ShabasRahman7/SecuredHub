@@ -29,7 +29,7 @@ class RepositoryCreateSerializer(serializers.ModelSerializer):
     
     def validate_url(self, value):
         tenant = self.context.get('tenant')
-        if tenant and Repository.objects.filter(tenant=tenant, url=value).exists():
+        if tenant and Repository.objects.filter(tenant=tenant, url=value, is_active=True).exists():
             raise serializers.ValidationError("A repository with this URL already exists in this tenant.")
         return value
 
