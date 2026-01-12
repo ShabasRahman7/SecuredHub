@@ -1,5 +1,6 @@
 """Scanner package initialization"""
-from .bandit_scanner import BanditScanner
-from .secret_scanner import SecretScanner
+from .semgrep_scanner import SemgrepScanner
+from .gitleaks_scanner import GitleaksScanner
+from .trivy_scanner import TrivyScanner
 
-__all__ = ['BanditScanner', 'SecretScanner']
+__all__ = ['SemgrepScanner', 'GitleaksScanner', 'TrivyScanner']

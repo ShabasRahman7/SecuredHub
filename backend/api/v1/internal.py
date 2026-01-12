@@ -1,4 +1,4 @@
-# aPI views
+
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -18,7 +18,7 @@ def _verify_internal_token(request):
     return True
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  # Auth via internal token
+@permission_classes([AllowAny])
 def update_scan_status(request, scan_id):
     if not _verify_internal_token(request):
         return Response(
@@ -46,9 +46,15 @@ def update_scan_status(request, scan_id):
         from django.utils.dateparse import parse_datetime
         scan.completed_at = parse_datetime(request.data['completed_at'])
     
+    if 'progress' in request.data:
+        scan.progress = request.data['progress']
+    
+    if request.data.get('message'):
+        scan.progress_message = request.data['message']
+    
     scan.save()
     
-    # broadcasting scan status update to WebSocket clients
+
     try:
         from channels.layers import get_channel_layer
         from asgiref.sync import async_to_sync
@@ -66,13 +72,13 @@ def update_scan_status(request, scan_id):
             }
         )
     except Exception as e:
-        # continuing even if WebSocket broadcast fails
+
         print(f"WebSocket broadcast failed: {e}")
     
     return Response({'status': 'updated'})
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  # Auth via internal token
+@permission_classes([AllowAny])
 def submit_scan_findings(request, scan_id):
     if not _verify_internal_token(request):
         return Response(
@@ -84,7 +90,7 @@ def submit_scan_findings(request, scan_id):
     
     findings_data = request.data.get('findings', [])
     
-    # bulk create findings
+
     finding_objects = []
     for finding_data in findings_data:
         finding = ScanFinding(
@@ -102,7 +108,7 @@ def submit_scan_findings(request, scan_id):
     
     ScanFinding.objects.bulk_create(finding_objects)
     
-    # updating repository's last scanned commit if requested
+
     if request.data.get('update_repo_commit') and request.data.get('commit_hash'):
         scan.repository.last_scanned_commit = request.data['commit_hash']
         scan.repository.save()
@@ -113,7 +119,7 @@ def submit_scan_findings(request, scan_id):
     }, status=status.HTTP_201_CREATED)
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # Auth via internal token
+@permission_classes([AllowAny])
 def get_repository_info(request, repo_id):
     if not _verify_internal_token(request):
         return Response(
@@ -124,7 +130,7 @@ def get_repository_info(request, repo_id):
     from repositories.models import Repository
     repo = get_object_or_404(Repository.objects.select_related('credential'), id=repo_id)
     
-    # getting access token if available
+
     access_token = None
     if repo.credential:
         access_token = repo.credential.get_access_token()
@@ -135,5 +141,5 @@ def get_repository_info(request, repo_id):
         'url': repo.url,
         'default_branch': repo.default_branch,
         'last_scanned_commit': repo.last_scanned_commit,
-        'access_token': access_token  # Only sent to internal service
+        'access_token': access_token
     })

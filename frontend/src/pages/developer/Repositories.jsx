@@ -9,12 +9,14 @@ import useScanWebSocket from '../../hooks/useScanWebSocket';
 const ScanButton = ({ repo, tenantId, onScanComplete }) => {
     const [scanning, setScanning] = useState(false);
     const [scanId, setScanId] = useState(null);
+    const [initialStatus, setInitialStatus] = useState(null);
+    const [initialProgress, setInitialProgress] = useState(0);
+    const [initialMessage, setInitialMessage] = useState(null);
     const navigate = useNavigate();
 
-    // connecting to WebSocket for real-time updates
+
     const { status: wsStatus, progress: wsProgress, message: wsMessage, isConnected } = useScanWebSocket(scanId);
 
-    // checking for running scans on mount
     useEffect(() => {
         const checkRunningScan = async () => {
             try {
@@ -24,15 +26,16 @@ const ScanButton = ({ repo, tenantId, onScanComplete }) => {
                 if (runningScan) {
                     setScanId(runningScan.id);
                     setScanning(true);
+                    setInitialStatus(runningScan.status);
+                    setInitialProgress(runningScan.progress || 0);
+                    setInitialMessage(runningScan.progress_message || null);
                 }
-            } catch (err) {
-                // no scans or error - ignore
-            }
+            } catch (err) { }
         };
         checkRunningScan();
     }, [repo.id]);
 
-    // listening for status changes from WebSocket
+
     useEffect(() => {
         if (!wsStatus || !scanId) return;
 
@@ -54,9 +57,8 @@ const ScanButton = ({ repo, tenantId, onScanComplete }) => {
 
             const response = await api.post(`/scans/trigger/${repo.id}/`);
 
-            // checking if this is an existing scan (200 OK) or new scan (201 Created)
             if (response.status === 200 && response.data.message) {
-                // already scanned - show message and navigate to existing results
+
                 setScanning(false);
                 toast.info(response.data.message || 'Repository already scanned');
                 const existingScanId = response.data.scan?.id;
@@ -67,7 +69,7 @@ const ScanButton = ({ repo, tenantId, onScanComplete }) => {
                 return;
             }
 
-            // new scan created (201)
+
             const newScanId = response.data.id;
             setScanId(newScanId);
             toast.info(`Scan started for ${repo.name}`);
@@ -77,6 +79,13 @@ const ScanButton = ({ repo, tenantId, onScanComplete }) => {
         }
     };
 
+
+    const displayStatus = wsStatus || initialStatus;
+    const displayProgress = wsProgress ?? initialProgress;
+    const displayMessage = wsMessage || initialMessage ||
+        (displayStatus === 'queued' ? 'Waiting in queue...' :
+            displayStatus === 'running' ? 'Scanning in progress...' : 'Connecting...');
+
     if (scanning) {
         return (
             <div className="flex flex-col gap-2 min-w-[180px]">
@@ -85,19 +94,19 @@ const ScanButton = ({ repo, tenantId, onScanComplete }) => {
                     <Loader2 className="w-4 h-4 animate-spin text-blue-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                         <p className="text-xs text-blue-300 truncate">
-                            {wsMessage || (wsStatus === 'queued' ? 'Waiting in queue...' : 'Initializing...')}
+                            {displayMessage}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
 
                             <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500 ease-out"
-                                    style={{ width: `${wsProgress || 0}%` }}
+                                    style={{ width: `${displayProgress}%` }}
                                 />
                             </div>
 
                             <span className="text-xs font-medium text-blue-400 w-8 text-right">
-                                {wsProgress || 0}%
+                                {displayProgress}%
                             </span>
                         </div>
                     </div>

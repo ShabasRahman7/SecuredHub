@@ -1,4 +1,4 @@
-"""Views for scan API endpoints"""
+
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -8,12 +8,13 @@ from django.shortcuts import get_object_or_404
 from repositories.models import Repository
 from .models import Scan, ScanFinding  
 from .serializers import ScanSerializer, ScanDetailSerializer, ScanFindingSerializer
+from .utils import get_remote_latest_commit
 from accounts.permissions import IsTenantMember, IsTenantOwner
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsTenantMember])
 def trigger_scan(request, repo_id):
-    # getting user's tenant
+
     if not hasattr(request.user, 'tenant_membership') or not request.user.tenant_membership:
         return Response(
             {'error': 'User is not associated with any tenant'},
@@ -22,14 +23,14 @@ def trigger_scan(request, repo_id):
     
     user_tenant = request.user.tenant_membership.tenant
     
-    # getting repository (ensures user has access via IsTenantMember)
+
     repo = get_object_or_404(
-        Repository.objects.select_related('tenant'),
+        Repository.objects.select_related('tenant', 'credential'),
         id=repo_id,
         tenant=user_tenant
     )
     
-    # checking if there's already a queued or running scan for this repo
+
     existing_scan = Scan.objects.filter(
         repository=repo,
         status__in=['queued', 'running']
@@ -45,29 +46,35 @@ def trigger_scan(request, repo_id):
             status=status.HTTP_409_CONFLICT
         )
     
-    # checking if this repo's latest commit was already scanned
-    if repo.last_scanned_commit:
-        # checking if the latest commit on the repo is the same
-        # note: We can't know the latest commit without cloning
-        # but we can check if there was a recent completed scan
+
+    access_token = repo.credential.get_access_token() if repo.credential else None
+    remote_latest_commit = get_remote_latest_commit(repo.url, repo.default_branch or 'HEAD', access_token)
+    
+    repo.refresh_from_db()
+    
+
+    
+
+    if remote_latest_commit and remote_latest_commit == repo.last_scanned_commit:
         recent_scan = Scan.objects.filter(
             repository=repo,
             status='completed',
-            commit_hash=repo.last_scanned_commit
+            commit_hash=remote_latest_commit
         ).order_by('-completed_at').first()
         
         if recent_scan:
-            # returning the existing scan instead of creating a new one
+
             return Response(
                 {
-                    'message': 'Repository was already scanned with this commit',
+                    'message': 'Repository was already scanned with the latest commit',
                     'scan': ScanSerializer(recent_scan).data,
-                    'note': 'Delete existing scan to force re-scan'
+                    'commit': remote_latest_commit[:7],
+                    'note': 'Push new commits or delete existing scan to trigger a new scan'
                 },
                 status=status.HTTP_200_OK
             )
     
-    # creating scan record
+
     scan = Scan.objects.create(
         repository=repo,
         triggered_by=request.user,

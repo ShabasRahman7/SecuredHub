@@ -22,6 +22,7 @@ class ScanSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'repository', 'triggered_by', 'status', 'started_at',
             'completed_at', 'commit_hash', 'branch', 'error_message',
+            'progress', 'progress_message',
             'created_at', 'findings_count', 'severity_summary'
         ]
         read_only_fields = ['id', 'created_at', 'findings_count', 'severity_summary']

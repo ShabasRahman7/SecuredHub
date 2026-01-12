@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import List, Dict
 
 from celery_app import app
-from scanners import BanditScanner, SecretScanner
+from scanners import SemgrepScanner, GitleaksScanner, TrivyScanner
 from utils import clone_repository, get_latest_commit_hash, get_commit_info, WorkspaceManager
 
 API_BASE_URL = os.getenv('BACKEND_API_URL', 'http://api:8001')
@@ -80,27 +80,35 @@ def scan_repository_task(self, repo_id: int, scan_id: int):
         all_findings = []
         print("Running security scanners...")
         
-        from scanners.bandit_scanner import BanditScanner
-        from scanners.secret_scanner import SecretScanner
+        from scanners.semgrep_scanner import SemgrepScanner
+        from scanners.gitleaks_scanner import GitleaksScanner
+        from scanners.trivy_scanner import TrivyScanner
         
-        # 50% - Running Bandit for Python security issues
-        _update_progress(50, 'Running Python security scanner (Bandit)...')
-        bandit = BanditScanner()
-        bandit_findings = bandit.scan(workspace_path)
-        all_findings.extend(bandit_findings)
-        print(f"Bandit: {len(bandit_findings)} findings")
+        # 50% - Running Semgrep for multi-language SAST
+        _update_progress(50, 'Running code security scanner (Semgrep)...')
+        semgrep = SemgrepScanner()
+        sast_findings = semgrep.scan(workspace_path)
+        all_findings.extend(sast_findings)
+        print(f"Semgrep: {len(sast_findings)} findings")
         
-        # 75% - Running secret scanner
-        _update_progress(75, 'Scanning for exposed secrets...')
-        secret_scanner = SecretScanner()
-        secret_findings = secret_scanner.scan(workspace_path)
+        # 65% - Running Gitleaks for secret detection
+        _update_progress(65, 'Scanning for secrets (Gitleaks)...')
+        gitleaks = GitleaksScanner()
+        secret_findings = gitleaks.scan(workspace_path)
         all_findings.extend(secret_findings)
-        print(f"Secret Scanner: {len(secret_findings)} findings")
+        print(f"Gitleaks: {len(secret_findings)} findings")
+        
+        # 80% - Running Trivy for dependency vulnerabilities
+        _update_progress(80, 'Scanning dependencies (Trivy)...')
+        trivy = TrivyScanner()
+        dependency_findings = trivy.scan(workspace_path)
+        all_findings.extend(dependency_findings)
+        print(f"Trivy: {len(dependency_findings)} findings")
         
         print(f"Total findings: {len(all_findings)}")
         
-        # 90% - Submitting findings
-        _update_progress(90, 'Saving scan results...')
+        # 95% - Submitting findings
+        _update_progress(95, 'Saving scan results...')
         
         filtered_findings = all_findings
 

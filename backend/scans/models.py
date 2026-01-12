@@ -34,6 +34,9 @@ class Scan(models.Model):
     branch = models.CharField(max_length=100, default="main")
 
     error_message = models.TextField(null=True, blank=True)
+    
+    progress = models.IntegerField(default=0, help_text="Scan progress percentage 0-100")
+    progress_message = models.CharField(max_length=255, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -59,18 +62,18 @@ class ScanFinding(models.Model):
     title = models.TextField()
     description = models.TextField()
     
-    # severity from scanner
+
     severity = models.CharField(
         max_length=20,
         choices=SEVERITY_CHOICES,
         default='medium'
     )
     
-    # location of issue was found
+
     file_path = models.CharField(max_length=500)
     line_number = models.IntegerField(null=True, blank=True)
     
-    # keeping original scanner output for audit trail
+
     raw_output = models.JSONField(default=dict, help_text="Original scanner output")
     
     created_at = models.DateTimeField(auto_now_add=True)

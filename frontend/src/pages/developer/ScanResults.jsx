@@ -79,7 +79,7 @@ const FindingDetailModal = ({ finding, onClose }) => {
     const getCodeSnippet = () => {
         if (!finding.raw_output) return null;
 
-        // Bandit stores code in raw_output.code
+        // some scanners store code in raw_output.code or raw_output.snippet
         if (finding.raw_output.code) {
             return finding.raw_output.code;
         }
@@ -182,63 +182,81 @@ const FindingDetailModal = ({ finding, onClose }) => {
                         </div>
                     )}
 
-                    {/* Additional Security Info */}
-                    {finding.raw_output && (finding.raw_output.issue_confidence || finding.raw_output.issue_cwe || finding.raw_output.more_info) && (
+                    {/* Additional Security Info - handles Semgrep, Trivy, and legacy formats */}
+                    {finding.raw_output && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                            {/* Confidence Level */}
-                            {finding.raw_output.issue_confidence && (
+                            {/* CWE Info - Semgrep format (array) or legacy Bandit format (object) */}
+                            {(finding.raw_output.cwe?.length > 0 || finding.raw_output.issue_cwe) && (
                                 <div className="bg-[#05080C] border border-white/10 rounded-lg p-3">
-                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Confidence</p>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`w-2 h-2 rounded-full ${finding.raw_output.issue_confidence === 'HIGH' ? 'bg-red-500' :
-                                                finding.raw_output.issue_confidence === 'MEDIUM' ? 'bg-yellow-500' : 'bg-blue-500'
-                                            }`} />
-                                        <span className="text-white text-sm font-medium capitalize">
-                                            {finding.raw_output.issue_confidence.toLowerCase()}
-                                        </span>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">CWE</p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {finding.raw_output.cwe?.map((cwe, idx) => (
+                                            <span key={idx} className="text-blue-400 text-sm font-medium">
+                                                {cwe}
+                                            </span>
+                                        ))}
+                                        {finding.raw_output.issue_cwe && (
+                                            <span className="text-blue-400 text-sm font-medium">
+                                                CWE-{finding.raw_output.issue_cwe.id}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             )}
 
-                            {/* CWE Info */}
-                            {finding.raw_output.issue_cwe && (
+                            {/* OWASP Info - Semgrep format */}
+                            {finding.raw_output.owasp?.length > 0 && (
                                 <div className="bg-[#05080C] border border-white/10 rounded-lg p-3">
-                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">CWE ID</p>
-                                    {finding.raw_output.issue_cwe.link ? (
-                                        <a
-                                            href={finding.raw_output.issue_cwe.link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-1"
-                                        >
-                                            CWE-{finding.raw_output.issue_cwe.id}
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                            </svg>
-                                        </a>
-                                    ) : (
-                                        <span className="text-white text-sm font-medium">
-                                            CWE-{finding.raw_output.issue_cwe.id}
-                                        </span>
-                                    )}
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">OWASP</p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {finding.raw_output.owasp.map((owasp, idx) => (
+                                            <span key={idx} className="text-purple-400 text-sm font-medium">
+                                                {owasp}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 
-                            {/* Documentation Link */}
-                            {finding.raw_output.more_info && (
+                            {/* Trivy - Package/Version Info */}
+                            {finding.raw_output.package_name && (
                                 <div className="bg-[#05080C] border border-white/10 rounded-lg p-3">
-                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Documentation</p>
-                                    <a
-                                        href={finding.raw_output.more_info}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-1"
-                                    >
-                                        Learn More
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                        </svg>
-                                    </a>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Package</p>
+                                    <p className="text-white text-sm font-medium">{finding.raw_output.package_name}</p>
+                                    <p className="text-gray-400 text-xs mt-1">
+                                        {finding.raw_output.installed_version}
+                                        {finding.raw_output.fixed_version && (
+                                            <span className="text-green-400"> → {finding.raw_output.fixed_version}</span>
+                                        )}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* References/Documentation */}
+                            {(finding.raw_output.references?.length > 0 || finding.raw_output.more_info) && (
+                                <div className="bg-[#05080C] border border-white/10 rounded-lg p-3">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">References</p>
+                                    {finding.raw_output.references?.slice(0, 2).map((ref, idx) => (
+                                        <a
+                                            key={idx}
+                                            href={ref}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:text-blue-300 text-xs block truncate"
+                                        >
+                                            {ref.replace(/https?:\/\//, '').substring(0, 40)}...
+                                        </a>
+                                    ))}
+                                    {finding.raw_output.more_info && (
+                                        <a
+                                            href={finding.raw_output.more_info}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+                                        >
+                                            Learn More
+                                        </a>
+                                    )}
                                 </div>
                             )}
                         </div>
