@@ -23,7 +23,7 @@ class NotificationService {
         }
 
         // derive WebSocket host from API URL
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1';
+        const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1';
         const apiHost = new URL(apiUrl).host;
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${wsProtocol}//${apiHost}/ws/notifications/?token=${token}`;

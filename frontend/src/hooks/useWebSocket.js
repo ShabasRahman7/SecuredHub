@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 // derive WebSocket base URL from API URL
 const getWsBaseUrl = () => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1';
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1';
     const url = new URL(apiUrl);
     const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${wsProtocol}//${url.host}`;

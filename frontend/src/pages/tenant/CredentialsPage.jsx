@@ -186,7 +186,7 @@ const CredentialsPage = () => {
         setGithubOAuthProcessing(true);
 
         // redirecting to GitHub OAuth
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1';
+        const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1';
         const redirectUri = `${apiUrl}/auth/github/callback`;
         const scope = 'repo,read:org,admin:repo_hook';
         const state = btoa(JSON.stringify({ tenant_id: tenant.id, return_url: window.location.pathname }));
