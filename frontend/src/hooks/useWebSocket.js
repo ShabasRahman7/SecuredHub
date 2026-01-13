@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8001';
+// derive WebSocket base URL from API URL
+const getWsBaseUrl = () => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1';
+    const url = new URL(apiUrl);
+    const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProtocol}//${url.host}`;
+};
+const WS_BASE_URL = getWsBaseUrl();
 
 export function useWebSocket(scanId, options = {}) {
     const { onMessage, onConnect, onDisconnect, autoConnect = true } = options;
-    
+
     const [status, setStatus] = useState('disconnected');
     const [scanData, setScanData] = useState(null);
     const [error, setError] = useState(null);
@@ -25,14 +32,14 @@ export function useWebSocket(scanId, options = {}) {
 
     const connect = useCallback(() => {
         if (!scanId) return;
-        if (wsRef.current?.readyState === WebSocket.OPEN || 
+        if (wsRef.current?.readyState === WebSocket.OPEN ||
             wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
         const token = localStorage.getItem('access_token');
-        const url = token 
+        const url = token
             ? `${WS_BASE_URL}/ws/scans/${scanId}/?token=${token}`
             : `${WS_BASE_URL}/ws/scans/${scanId}/`;
-        
+
         try {
             wsRef.current = new WebSocket(url);
             setStatus('connecting');
