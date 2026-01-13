@@ -128,3 +128,8 @@ celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
+
+
+# runtime / generated data
+rag_service/data/chroma_db/
+*.sqlite3
