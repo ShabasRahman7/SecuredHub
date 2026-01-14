@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'monitoring',                             # System / worker monitoring
     'chat.apps.ChatConfig',                   # AI assistant chat
     'webhooks.apps.WebhooksConfig',           # GitHub webhook integration
+    'audit.apps.AuditConfig',                 # Audit logging
 ]
 
 MIDDLEWARE = [

@@ -10,6 +10,7 @@ from django.db.models import Count
 from scans.models import Scan, ScanFinding
 from scans.serializers import ScanDetailSerializer
 from scans.sns_publisher import SNSPublisher
+from audit.utils import log_audit_event
 
 def _verify_internal_token(request):
     token = request.headers.get('X-Internal-Token')
@@ -108,6 +109,15 @@ def update_scan_status(request, scan_id):
             })
         except Exception as e:
             print(f"SNS publish failed: {e}")
+        
+        log_audit_event(
+            event_type='scan.completed',
+            target_type='scan',
+            target_id=scan.id,
+            target_name=repo.name,
+            tenant=tenant,
+            metadata={'findings_count': scan.findings.count(), 'severity': severity_breakdown}
+        )
     
     return Response({'status': 'updated'})
 

@@ -10,10 +10,9 @@ urlpatterns = [
     path("notifications/", include("notifications.urls")),
     path("auth/github/callback/", github_oauth_callback, name="github_oauth_callback"),
     path("admin/", include("monitoring.urls")),
+    path("admin/audit-logs/", include("audit.urls")),
 
-    # ====================================================================
     # tenant Endpoints
-    # ====================================================================
     path("", include((tenant_urlpatterns, "tenants"))),
     path("tenants/<int:tenant_id>/repositories/", include("repositories.urls")),
     path("scans/", include("scans.urls")),

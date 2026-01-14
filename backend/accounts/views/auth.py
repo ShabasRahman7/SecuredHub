@@ -17,6 +17,7 @@ from ..utils.otp import send_otp_email, verify_otp_code
 from ..utils.redis_invites import RedisInviteManager
 from ..utils.email import verify_tenant_invite_token
 from ..notifications import send_notification, notify_admins, notify_tenant_owners
+from audit.utils import log_audit_event
 
 User = get_user_model()
 
@@ -48,6 +49,16 @@ class RegisterView(APIView):
         self._process_membership(user, validated_invite, is_tenant_signup, invite_token)
         
         refresh = RefreshToken.for_user(user)
+        
+        log_audit_event(
+            event_type='user.created',
+            actor=user,
+            target_type='user',
+            target_id=user.id,
+            target_name=user.email,
+            request=request
+        )
+        
         return Response({
             "success": True,
             "message": "User registered successfully",
@@ -210,6 +221,17 @@ class LoginView(APIView):
                 }, status=status.HTTP_403_FORBIDDEN)
 
         refresh = RefreshToken.for_user(user)
+        
+        tenant = user.tenant_membership.tenant if hasattr(user, 'tenant_membership') and user.tenant_membership else None
+        log_audit_event(
+            event_type='user.login',
+            actor=user,
+            target_type='user',
+            target_id=user.id,
+            target_name=user.email,
+            tenant=tenant,
+            request=request
+        )
         
         return Response({
             "success": True,
