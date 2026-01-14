@@ -213,6 +213,7 @@ SIMPLE_JWT = {
 # cors Configuration
 CORS_ALLOW_ALL_ORIGINS = False  # Set to False to use the whitelist below
 CORS_ALLOWED_ORIGINS = [
+    'https://secured-hub.vercel.app',
     'https://sh-frontend.shabasdev.xyz',
     'https://securedhub.shabasdev.xyz',
     'http://localhost:3000',
@@ -224,6 +225,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    'https://secured-hub.vercel.app',
     'https://sh-frontend.shabasdev.xyz',
     'https://securedhub.shabasdev.xyz',
     'https://sh-backend.shabasdev.xyz',
