@@ -58,14 +58,12 @@ services:
       dockerfile: Dockerfile
     container_name: secured_hub_api
     command: >
-      sh -c " echo 'Waiting for PostgreSQL...' && until pg_isready -h db -p 5432 -U $POSTGRES_USER; do
+      sh -c " echo 'Waiting for PostgreSQL...' && until pg_isready -h $DB_HOST -p $DB_PORT -U $POSTGRES_USER; do
         sleep 2;
       done && echo 'PostgreSQL is ready' && python manage.py migrate && daphne -b 0.0.0.0 -p 8001 core.asgi:application "
     env_file:
       - .env
     environment:
-      - DB_HOST=db
-      - DB_PORT=5432
       # Redis config inherited from .env (Upstash)
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
@@ -85,10 +83,9 @@ services:
     volumes:
       - ../backend:/app
     depends_on:
-      db:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+
     networks:
       - secured_hub_network
 
@@ -101,8 +98,6 @@ services:
     env_file:
       - .env
     environment:
-      - DB_HOST=db
-      - DB_PORT=5432
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -119,8 +114,6 @@ services:
       - ../backend:/backend
       - scanner_workspace:/tmp/scanner_workspace
     depends_on:
-      db:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     networks:
