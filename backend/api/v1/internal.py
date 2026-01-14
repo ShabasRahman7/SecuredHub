@@ -5,9 +5,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.conf import settings
+from django.db.models import Count
 
 from scans.models import Scan, ScanFinding
 from scans.serializers import ScanDetailSerializer
+from scans.sns_publisher import SNSPublisher
 
 def _verify_internal_token(request):
     token = request.headers.get('X-Internal-Token')
@@ -72,8 +74,40 @@ def update_scan_status(request, scan_id):
             }
         )
     except Exception as e:
-
         print(f"WebSocket broadcast failed: {e}")
+    
+    
+    if scan_status == 'completed':
+        try:
+            repo = scan.repository
+            tenant = repo.tenant
+            
+            severity_counts = scan.findings.values('severity').annotate(count=Count('id'))
+            severity_breakdown = {item['severity']: item['count'] for item in severity_counts}
+            
+            notification_targets = []
+            for member in tenant.members.filter(deleted_at__isnull=True).select_related('user'):
+                notification_targets.append({
+                    'email': member.user.email,
+                    'role': member.role
+                })
+            
+            sns = SNSPublisher()
+            sns.publish_scan_completed({
+                'scan_id': scan.id,
+                'repo_id': repo.id,
+                'repo_name': repo.name,
+                'tenant_id': tenant.id,
+                'tenant_name': tenant.name,
+                'triggered_by': scan.triggered_by if hasattr(scan, 'triggered_by') else 'manual',
+                'findings_count': scan.findings.count(),
+                'severity_breakdown': severity_breakdown,
+                'commit_hash': scan.commit_hash,
+                'scan_url': f"{settings.FRONTEND_URL}/scans/{scan.id}" if hasattr(settings, 'FRONTEND_URL') else None,
+                'notification_targets': notification_targets
+            })
+        except Exception as e:
+            print(f"SNS publish failed: {e}")
     
     return Response({'status': 'updated'})
 
