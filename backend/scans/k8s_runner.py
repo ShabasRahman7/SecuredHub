@@ -8,7 +8,16 @@ ECR_IMAGE = os.environ.get('SCANNER_IMAGE', '180667017068.dkr.ecr.ap-south-1.ama
 NAMESPACE = 'securedhub-scanners'
 
 def get_k8s_client():
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
     config.load_kube_config(config_file=K3S_CONFIG_PATH)
+    
+    # Skip TLS verification for external IP access
+    configuration = client.Configuration.get_default_copy()
+    configuration.verify_ssl = False
+    client.Configuration.set_default(configuration)
+    
     return client.BatchV1Api()
 
 def create_scan_job(scan_id, repo_url, commit_sha='HEAD'):
