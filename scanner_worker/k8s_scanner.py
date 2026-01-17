@@ -75,7 +75,7 @@ def callback_to_backend(scan_id, findings, status='completed'):
     print(f"Calling back to backend...")
     url = f"{BACKEND_API_URL}/api/v1/internal/scans/{scan_id}/status/"
     headers = {
-        'Authorization': f'Token {INTERNAL_SERVICE_TOKEN}',
+        'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
         'Content-Type': 'application/json'
     }
     
