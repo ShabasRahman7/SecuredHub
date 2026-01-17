@@ -104,7 +104,7 @@ def update_scan_status(request, scan_id):
                 'repo_name': repo.name,
                 'tenant_id': tenant.id,
                 'tenant_name': tenant.name,
-                'triggered_by': scan.triggered_by if hasattr(scan, 'triggered_by') else 'manual',
+                'triggered_by': str(scan.triggered_by.email) if scan.triggered_by else 'automatic',
                 'findings_count': scan.findings.count(),
                 'severity_breakdown': severity_breakdown,
                 'commit_hash': scan.commit_hash,
