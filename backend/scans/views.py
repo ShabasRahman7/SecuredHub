@@ -81,15 +81,16 @@ def trigger_scan(request, repo_id):
         status='queued'
     )
     
-    # queueing Celery task (using send_task to avoid importing from separate container)
+    # submit K8s scan job
     try:
-        from celery import current_app
-        # sending task by name (scanner worker will pick it up)
-        current_app.send_task(
-            'tasks.scan_repository_task',
-            args=[repo.id, scan.id],
-            queue='celery'
+        from scans.k8s_runner import submit_scan_job
+        result = submit_scan_job(
+            scan_id=scan.id,
+            repo_url=repo.url,
+            commit_sha=remote_latest_commit or 'HEAD'
         )
+        if not result.get('success'):
+            raise Exception(result.get('error', 'K8s job submission failed'))
     except Exception as e:
         scan.status = 'failed'
         scan.error_message = f"Failed to queue scan: {str(e)}"

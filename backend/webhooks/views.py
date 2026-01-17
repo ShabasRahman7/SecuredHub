@@ -75,12 +75,14 @@ def github_webhook_receiver(request):
     )
     
     try:
-        from celery import current_app
-        current_app.send_task(
-            'tasks.scan_repository_task',
-            args=[repository.id, scan.id],
-            queue='celery'
+        from scans.k8s_runner import submit_scan_job
+        result = submit_scan_job(
+            scan_id=scan.id,
+            repo_url=repository.url,
+            commit_sha=commit_hash
         )
+        if not result.get('success'):
+            raise Exception(result.get('error', 'K8s job submission failed'))
     except Exception as e:
         scan.status = 'failed'
         scan.error_message = f"Failed to queue scan: {str(e)}"
