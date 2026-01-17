@@ -4,7 +4,7 @@ from datetime import datetime
 from kubernetes import client, config
 
 K3S_CONFIG_PATH = os.environ.get('K3S_CONFIG_PATH', '/opt/securedhub/k3s-config.yaml')
-ECR_IMAGE = os.environ.get('SCANNER_IMAGE', '180667017068.dkr.ecr.ap-south-1.amazonaws.com/securedhub-scanner:latest')
+ECR_IMAGE = os.environ.get('SCANNER_IMAGE', '180667017068.dkr.ecr.ap-south-1.amazonaws.com/securedhub-scanner:v2')
 NAMESPACE = 'securedhub-scanners'
 
 def get_k8s_client():
