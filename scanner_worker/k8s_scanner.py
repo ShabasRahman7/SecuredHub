@@ -19,7 +19,14 @@ AWS_REGION = os.environ.get('AWS_REGION', 'ap-south-1')
 def clone_repo(repo_url, target_dir):
     print(f"Cloning {repo_url}...")
     subprocess.run(['git', 'clone', '--depth', '1', repo_url, target_dir], check=True)
-    return target_dir
+    
+    # get actual commit hash
+    result = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=target_dir, capture_output=True, text=True
+    )
+    commit_hash = result.stdout.strip() if result.returncode == 0 else None
+    return target_dir, commit_hash
 
 def run_semgrep(repo_dir):
     print("Running Semgrep...")
@@ -71,7 +78,27 @@ def upload_to_s3(scan_id, results):
     )
     return f"s3://{S3_BUCKET}/{key}"
 
-def callback_to_backend(scan_id, findings, status='completed'):
+def update_progress(scan_id, message, progress=0, status='running'):
+    """Send progress update to backend for real-time WebSocket updates"""
+    url = f"{BACKEND_API_URL}/api/v1/internal/scans/{scan_id}/status/"
+    headers = {
+        'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+        'Content-Type': 'application/json'
+    }
+    payload = {
+        'status': status,
+        'message': message,
+        'progress': progress
+    }
+    if status == 'running' and progress == 0:
+        payload['started_at'] = datetime.utcnow().isoformat()
+    
+    try:
+        requests.post(url, json=payload, headers=headers, timeout=5)
+    except:
+        pass  # Non-critical, don't fail scan if progress update fails
+
+def callback_to_backend(scan_id, findings, status='completed', commit_hash=None):
     print(f"Calling back to backend...")
     url = f"{BACKEND_API_URL}/api/v1/internal/scans/{scan_id}/status/"
     headers = {
@@ -89,8 +116,13 @@ def callback_to_backend(scan_id, findings, status='completed'):
         'status': status,
         'findings_count': len(findings),
         'severity_breakdown': severity_counts,
-        'completed_at': datetime.utcnow().isoformat()
+        'completed_at': datetime.utcnow().isoformat(),
+        'progress': 100 if status == 'completed' else 0,
+        'message': f'Scan {status} - {len(findings)} findings' if status == 'completed' else 'Scan failed'
     }
+    
+    if commit_hash:
+        payload['commit_hash'] = commit_hash
     
     response = requests.post(url, json=payload, headers=headers)
     print(f"Callback response: {response.status_code}")
@@ -145,18 +177,27 @@ def main():
     repo_dir = os.path.join(work_dir, 'repo')
     
     try:
-        clone_repo(REPO_URL, repo_dir)
+        update_progress(SCAN_ID, 'Starting scan...', 0, 'running')
         
+        update_progress(SCAN_ID, 'Cloning repository...', 10)
+        _, actual_commit = clone_repo(REPO_URL, repo_dir)
+        
+        update_progress(SCAN_ID, 'Running Semgrep (SAST)...', 25)
         semgrep_results = run_semgrep(repo_dir)
+        
+        update_progress(SCAN_ID, 'Running Gitleaks (secrets)...', 50)
         gitleaks_results = run_gitleaks(repo_dir)
+        
+        update_progress(SCAN_ID, 'Running Trivy (dependencies)...', 70)
         trivy_results = run_trivy(repo_dir)
         
+        update_progress(SCAN_ID, 'Processing results...', 85)
         findings = normalize_findings(semgrep_results, gitleaks_results, trivy_results)
         
         results = {
             'scan_id': SCAN_ID,
             'repo_url': REPO_URL,
-            'commit_sha': COMMIT_SHA,
+            'commit_sha': actual_commit or COMMIT_SHA,
             'timestamp': datetime.utcnow().isoformat(),
             'findings': findings,
             'raw': {
@@ -166,10 +207,11 @@ def main():
             }
         }
         
+        update_progress(SCAN_ID, 'Uploading to S3...', 95)
         s3_path = upload_to_s3(SCAN_ID, results)
         print(f"Results uploaded to: {s3_path}")
         
-        callback_to_backend(SCAN_ID, findings)
+        callback_to_backend(SCAN_ID, findings, commit_hash=actual_commit)
         
         print(f"=== Scan Complete: {len(findings)} findings ===")
         return 0

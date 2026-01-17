@@ -40,6 +40,10 @@ def update_scan_status(request, scan_id):
     
     if request.data.get('commit_hash'):
         scan.commit_hash = request.data['commit_hash']
+        # also update repository's last_scanned_commit when scan completes
+        if request.data.get('status') == 'completed':
+            scan.repository.last_scanned_commit = request.data['commit_hash']
+            scan.repository.save(update_fields=['last_scanned_commit'])
     
     if request.data.get('started_at'):
         from django.utils.dateparse import parse_datetime
