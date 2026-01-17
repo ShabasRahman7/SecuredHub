@@ -69,8 +69,6 @@ def scan_repository_task(self, repo_id: int, scan_id: int):
         commit_info = get_commit_info(workspace_path)
         latest_commit = commit_info['hash']
         
-        # I rely on the backend to check for duplicates before queuing
-        
         all_findings = []
         print("Running security scanners...")
         
@@ -144,7 +142,6 @@ def scan_repository_task(self, repo_id: int, scan_id: int):
         error_msg = f"Scan failed: {str(e)}"
         print(error_msg)
         
-        # try to mark scan as failed
         try:
             _make_internal_request('POST', f'/api/v1/internal/scans/{scan_id}/status/', {
                 'status': 'failed',
@@ -154,12 +151,10 @@ def scan_repository_task(self, repo_id: int, scan_id: int):
         except Exception as api_error:
             print(f"Failed to update scan status: {api_error}")
         
-        # retrying on transient errors
         if 'timeout' in str(e).lower() or 'connection' in str(e).lower():
             raise self.retry(exc=e, countdown=60)
         raise
         
     finally:
-        # always cleanup workspace
         if workspace_path:
             workspace_mgr.cleanup_workspace(workspace_path)

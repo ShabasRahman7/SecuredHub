@@ -16,11 +16,9 @@ class TenantSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'slug', 'created_at', 'updated_at', 'deleted_at', 'deletion_scheduled_at']
     
     def to_representation(self, instance):
-        """Handle cases where deleted_at fields might not exist in database"""
         try:
             data = super().to_representation(instance)
         except Exception as e:
-            # if serialization fails due to missing fields, manually build the representation
             try:
                 data = {
                     'id': instance.id,
@@ -37,7 +35,6 @@ class TenantSerializer(serializers.ModelSerializer):
                     'deletion_scheduled_at': None,
                 }
             except Exception:
-                # if even manual building fails, return minimal data
                 data = {
                     'id': instance.id,
                     'name': str(instance),
@@ -53,7 +50,6 @@ class TenantSerializer(serializers.ModelSerializer):
                     'deletion_scheduled_at': None,
                 }
         else:
-            # ensuring fields exist even if they're None
             try:
                 if 'deleted_at' not in data:
                     data['deleted_at'] = getattr(instance, 'deleted_at', None)

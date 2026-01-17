@@ -27,10 +27,6 @@ class AdminDeleteTenantView(APIView):
         tags=["Admin"]
     )
     def delete(self, request, tenant_id):
-        """
-        Soft delete a tenant. Data is retained for 30 days before permanent deletion.
-        Use hard_delete parameter for immediate permanent deletion (use with caution).
-        """
         hard_delete = request.query_params.get('hard_delete', 'false').lower() == 'true'
         
         if hard_delete:
@@ -39,12 +35,7 @@ class AdminDeleteTenantView(APIView):
             return self._soft_delete(request, tenant_id)
     
     def _soft_delete(self, request, tenant_id):
-        """Soft delete - marks tenant as deleted, keeps data for 30 days"""
         try:
-            tenant = get_object_or_404(Tenant, id=tenant_id, deleted_at__isnull=True)
-            
-            # soft delete the tenant
-            tenant.soft_delete()
             
             return Response({
                 "success": True,
@@ -66,15 +57,13 @@ class AdminDeleteTenantView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _hard_delete(self, request, tenant_id):
-        """Hard delete - permanently removes tenant and all data immediately"""
         try:
             with transaction.atomic():
                 tenant = get_object_or_404(Tenant, id=tenant_id)
                 
-                # storing owner email before deletion
                 owner_email = tenant.created_by.email if tenant.created_by else None
                 
-                # checking if users table has a tenant_id column and set it to NULL
+                # handling legacy schema where users table may have tenant_id column
                 try:
                     with connection.cursor() as cursor:
                         cursor.execute("""
@@ -91,17 +80,14 @@ class AdminDeleteTenantView(APIView):
                 except Exception:
                     pass
                 
-                # deleting all TenantMember records first and collect their users
                 tenant_members = TenantMember.objects.filter(tenant=tenant)
                 member_user_ids = list(tenant_members.values_list('user_id', flat=True))
                 tenant_members.delete()
                 
-                # deleting member invites for this tenant
                 from ..models import MemberInvite
                 member_invites = MemberInvite.objects.filter(tenant=tenant)
                 member_invites.delete()
                 
-                # deleting related tenant invites and access requests
                 if owner_email:
                     tenant_invites = TenantInvite.objects.filter(email=owner_email)
                     for invite in tenant_invites:
@@ -115,10 +101,8 @@ class AdminDeleteTenantView(APIView):
                     access_requests = AccessRequest.objects.filter(email=owner_email)
                     access_requests.delete()
                 
-                # permanently delete the tenant
                 tenant.delete()
 
-                # deleting all non-staff, non-superuser users that belonged to this tenant
                 if member_user_ids:
                     User.objects.filter(
                         id__in=member_user_ids,
@@ -150,7 +134,6 @@ class AdminBlockTenantView(APIView):
     def post(self, request, tenant_id):
         tenant = get_object_or_404(Tenant, id=tenant_id)
         
-        # toggling is_active status
         tenant.is_active = not tenant.is_active
         tenant.save()
         
@@ -176,23 +159,16 @@ class AdminListTenantsView(APIView):
     )
     def get(self, request):
         try:
-            # by default, exclude soft-deleted tenants unless include_deleted=true
             include_deleted = request.query_params.get('include_deleted', 'false').lower() == 'true'
             
             if include_deleted:
                 tenants = Tenant.objects.all().order_by('-created_at')
             else:
-                # checking if deleted_at field exists by trying to query it
-                # if migration hasn't been run, the field won't exist in DB
                 try:
-                    # try a simple query to see if the field exists
-                    # this will fail if the column doesn't exist
                     test_query = Tenant.objects.filter(deleted_at__isnull=True)[:1]
-                    list(test_query)  # Force evaluation to check if field exists
+                    list(test_query)
                     tenants = Tenant.objects.filter(deleted_at__isnull=True).order_by('-created_at')
                 except Exception:
-                    # field doesn't exist yet (migration not run), return all tenants
-                    # this is a temporary workaround until migrations are run
                     tenants = Tenant.objects.all().order_by('-created_at')
             
             try:
@@ -206,7 +182,6 @@ class AdminListTenantsView(APIView):
                         tenant_data = TenantSerializer(tenant, context={'request': request}).data
                         tenants_data.append(tenant_data)
                     except Exception:
-                        # skipping tenants that can't be serialized
                         continue
             
             return Response({
@@ -233,7 +208,6 @@ class AdminRestoreTenantView(APIView):
         tags=["Admin"]
     )
     def post(self, request, tenant_id):
-        """Restore a soft-deleted tenant"""
         try:
             tenant = get_object_or_404(Tenant, id=tenant_id, deleted_at__isnull=False)
             

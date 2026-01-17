@@ -6,14 +6,12 @@ if (!BASE_URL) {
     throw new Error('VITE_API_BASE_URL is not defined');
 }
 
-// utility function to check if token is expired or about to expire
 const isTokenExpired = (token) => {
     if (!token) return true;
 
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const currentTime = Date.now() / 1000;
-        // checking if token expires in the next 5 minutes (300 seconds)
         return payload.exp < (currentTime + 300);
     } catch (error) {
         console.error('Error parsing token:', error);
@@ -42,13 +40,11 @@ const processQueue = (error, token = null) => {
     failedQueue = [];
 };
 
-// request interceptor - attach access token and proactively refresh if needed
 api.interceptors.request.use(
     async (config) => {
         const token = localStorage.getItem('access_token');
         const refreshToken = localStorage.getItem('refresh_token');
 
-        // skipping token refresh for auth endpoints
         if (config.url?.includes('/auth/login/') ||
             config.url?.includes('/auth/register/') ||
             config.url?.includes('/auth/token/refresh/')) {
@@ -58,7 +54,6 @@ api.interceptors.request.use(
             return config;
         }
 
-        // if token is expired or about to expire, try to refresh it proactively
         if (token && refreshToken && isTokenExpired(token) && !isRefreshing) {
             console.log('[TOKEN] Proactively refreshing token before request...');
 
@@ -82,7 +77,6 @@ api.interceptors.request.use(
 
             } catch (error) {
                 console.error('[TOKEN] Proactive token refresh failed:', error);
-                // continue with existing token, let response interceptor handle it
                 config.headers.Authorization = `Bearer ${token}`;
             } finally {
                 isRefreshing = false;
@@ -96,19 +90,16 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// response interceptor - handle token refresh
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
 
-        // skipping interceptor for login/register endpoints to allow proper error handling
         if (originalRequest.url?.includes('/auth/login/') ||
             originalRequest.url?.includes('/auth/register/')) {
             return Promise.reject(error);
         }
 
-        // handling blocked tenant errors (403 with blocked message)
         if (error.response?.status === 403) {
             const errorMessage = error.response?.data?.error?.message || '';
             if (errorMessage.toLowerCase().includes('blocked')) {
@@ -116,7 +107,6 @@ api.interceptors.response.use(
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
 
-                // redirecting to login
                 if (window.location.pathname !== '/login') {
                     window.location.href = '/login';
                 }
@@ -154,7 +144,6 @@ api.interceptors.response.use(
             }
 
             try {
-                // use a fresh axios instance to avoid interceptor loops
                 const refreshResponse = await axios.post(`${BASE_URL}/auth/token/refresh/`, {
                     refresh: refreshToken
                 }, {
@@ -165,15 +154,12 @@ api.interceptors.response.use(
 
                 const { access, refresh: newRefresh } = refreshResponse.data;
 
-                // updating tokens in localStorage
                 localStorage.setItem('access_token', access);
 
-                // handling refresh token rotation (if backend sends new refresh token)
                 if (newRefresh) {
                     localStorage.setItem('refresh_token', newRefresh);
                 }
 
-                // updating default headers for future requests
                 api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
                 originalRequest.headers.Authorization = `Bearer ${access}`;
 
@@ -189,11 +175,9 @@ api.interceptors.response.use(
                 processQueue(refreshError, null);
                 isRefreshing = false;
 
-                // clearing tokens and redirect to login
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
 
-                // use a more graceful redirect that works with React Router
                 if (window.location.pathname !== '/login') {
                     window.location.href = '/login';
                 }

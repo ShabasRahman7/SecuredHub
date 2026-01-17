@@ -2,14 +2,12 @@ from django.core.cache import cache
 import uuid
 
 class InviteTokenManager:
-    """Manage invite tokens in Redis with 24-hour auto-expiration."""
     
     TOKEN_PREFIX = "invite_token:"
     TOKEN_TTL = 86400  # 24 hours in seconds
     
     @classmethod
     def create_token(cls, email):
-        # creating a new token and store in Redis with 24h TTL.
         token = str(uuid.uuid4())
         cache_key = f"{cls.TOKEN_PREFIX}{token}"
         
@@ -21,7 +19,6 @@ class InviteTokenManager:
     
     @classmethod
     def verify_token(cls, token):
-        # verifying token and return associated email.
         cache_key = f"{cls.TOKEN_PREFIX}{token}"
         
         try:
@@ -32,7 +29,6 @@ class InviteTokenManager:
     
     @classmethod
     def delete_token(cls, token):
-        # deleting token from Redis.
         cache_key = f"{cls.TOKEN_PREFIX}{token}"
         
         try:
@@ -42,7 +38,6 @@ class InviteTokenManager:
     
     @classmethod
     def get_ttl(cls, token):
-        # getting remaining TTL for a token.
         cache_key = f"{cls.TOKEN_PREFIX}{token}"
         
         try:

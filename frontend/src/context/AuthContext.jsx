@@ -8,9 +8,9 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [tenant, setTenant] = useState(null); // Single tenant instead of array
+    const [tenant, setTenant] = useState(null);
     const [loading, setLoading] = useState(true);
-    const navigate = useNavigate(); // Added useNavigate hook
+    const navigate = useNavigate();
 
     const fetchUser = async () => {
         try {
@@ -23,7 +23,6 @@ export const AuthProvider = ({ children }) => {
             const userRes = await api.get('/auth/profile/');
             setUser(userRes.data.user);
 
-            // only fetch tenant for non-admin users (admins don't have tenants)
             if (!userRes.data.user.is_superuser && !userRes.data.user.is_staff) {
                 try {
                     const tenantsRes = await api.get('/tenants/');
@@ -44,17 +43,14 @@ export const AuthProvider = ({ children }) => {
                         return;
                     }
                 } catch (tenantError) {
-                    // if tenant fetch fails, continue without tenant (might be admin or error)
                     console.error('Failed to fetch tenant:', tenantError);
                     setTenant(null);
                 }
             } else {
-                // admin users don't have tenants
                 setTenant(null);
             }
         } catch (error) {
             console.error('Failed to fetch user or tenants:', error);
-            // checking if error is due to blocked tenant
             if (error.response?.status === 403 && error.response?.data?.error?.message?.includes('blocked')) {
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
@@ -85,7 +81,6 @@ export const AuthProvider = ({ children }) => {
         const userData = response.data.user;
         setUser(userData);
 
-        // fetching tenants immediately after login
         try {
             const tenantsRes = await api.get('/tenants/');
             const userTenants = tenantsRes.data.tenants || [];
@@ -95,7 +90,6 @@ export const AuthProvider = ({ children }) => {
             setTenant(null);
         }
 
-        // determine redirection based on role
         const role = userData.role;
 
         if (role === 'admin' || userData.is_superuser) {
@@ -113,13 +107,10 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            // call backend logout endpoint
             await api.post('/auth/logout/');
         } catch (error) {
-            // continue with logout even if backend call fails
             console.error('Logout API call failed:', error);
         } finally {
-            // clearing local storage and state
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             setUser(null);
@@ -128,7 +119,6 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // derive role directly from user object
     const role = user?.role || (user?.is_superuser ? 'admin' : null);
 
     return (

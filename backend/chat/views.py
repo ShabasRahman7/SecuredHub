@@ -1,4 +1,3 @@
-"""AI assistant chat endpoints with RAG-enhanced context."""
 import requests
 from django.conf import settings
 from rest_framework import status
@@ -11,7 +10,6 @@ from .models import ChatConversation, ChatMessage
 from scans.models import ScanFinding
 from scans.serializers import ScanFindingSerializer
 
-# import service URLs from centralized settings
 RAG_SERVICE_URL = settings.RAG_SERVICE_URL
 
 @api_view(['POST'])
@@ -19,7 +17,6 @@ RAG_SERVICE_URL = settings.RAG_SERVICE_URL
 def init_chat(request, finding_id):
     finding = get_object_or_404(ScanFinding, id=finding_id)
     
-    # handling potential duplicates by getting the first conversation
     conversation = ChatConversation.objects.filter(finding=finding).first()
     created = False
     
@@ -83,7 +80,6 @@ def send_message(request, finding_id):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # getting or create conversation (handle duplicates)
     conversation = ChatConversation.objects.filter(finding=finding).first()
     if not conversation:
         conversation = ChatConversation.objects.create(finding=finding)
@@ -111,8 +107,7 @@ def send_message(request, finding_id):
     if code_snippet:
         finding_context['code_snippet'] = code_snippet
     
-    # nOTE: N+1 query pattern here, but acceptable for current scale
-    # consider batch loading if tenant has >1000 findings
+    # N+1 query here is acceptable for current scale
     similar_findings = _fetch_similar_findings(finding)
     if similar_findings:
         finding_context['similar_past_findings'] = similar_findings
@@ -147,10 +142,8 @@ def send_message(request, finding_id):
 def _fetch_code_context(finding):
     try:
         if finding.raw_output and isinstance(finding.raw_output, dict):
-            # bandit stores code in raw_output
             if 'code' in finding.raw_output:
                 return finding.raw_output['code']
-            # try to extract from more_info
             if 'more_info' in finding.raw_output:
                 return finding.raw_output.get('more_info', '')
         return None
@@ -188,13 +181,11 @@ def _fetch_similar_findings(finding):
 def get_all_conversations(request):
     user = request.user
     
-    # multitenant filtering through membership relation
     if not hasattr(user, 'tenant_membership') or not user.tenant_membership:
         return Response({'conversations': []})
     
     tenant = user.tenant_membership.tenant
     
-    # getting all conversations from findings in user's scans
     conversations = ChatConversation.objects.filter(
         finding__scan__repository__tenant=tenant
     ).select_related('finding').prefetch_related('messages').order_by('-updated_at')
@@ -222,7 +213,6 @@ def get_chat_history(request, finding_id):
     finding = get_object_or_404(ScanFinding, id=finding_id)
     
     try:
-        # handling duplicates by getting the first conversation
         conversation = ChatConversation.objects.filter(finding=finding).first()
         if not conversation:
             return Response({'messages': []})
@@ -238,7 +228,6 @@ def delete_conversation(request, conversation_id):
     try:
         conversation = get_object_or_404(ChatConversation, id=conversation_id)
         
-        # verifying user has access to this conversation's tenant
         user = request.user
         if hasattr(user, 'tenant_membership') and user.tenant_membership:
             tenant = user.tenant_membership.tenant

@@ -14,7 +14,6 @@ class SemgrepScanner(BaseScanner):
         findings = []
         
         try:
-            # explicit rulesets avoid --config auto which requires metrics
             cmd = [
                 'semgrep', 'scan',
                 '--config', 'p/security-audit',

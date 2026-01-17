@@ -1,4 +1,3 @@
-"""RAG service API for security fix suggestions."""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.chat import router as chat_router
@@ -12,7 +11,6 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# cors middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

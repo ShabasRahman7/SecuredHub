@@ -1,8 +1,4 @@
-# Docker Compose for SecuredHub
-# All services enabled for Week 2+
-
 services:
-  # PostgreSQL Database
   db:
     image: postgres:15-alpine
     container_name: secured_hub_db
@@ -20,7 +16,6 @@ services:
     networks:
       - secured_hub_network
 
-  # RabbitMQ Message Queue
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: secured_hub_rabbitmq
@@ -51,7 +46,6 @@ services:
   #   networks:
   #     - secured_hub_network
 
-  # Django API Service (HTTP + WebSocket only)
   api:
     build:
       context: ../backend
@@ -90,7 +84,6 @@ services:
     networks:
       - secured_hub_network
 
-  # Scanner Worker Service (Standalone Celery - Independent Django)
   scanner-worker:
     build:
       context: ../scanner_worker
@@ -121,9 +114,6 @@ services:
       - secured_hub_network
     restart: unless-stopped
 
-  # ============================================
-  # RAG SERVICE - AI Fix Suggestions
-  # ============================================
   rag-worker:
     build:
       context: ../rag_service

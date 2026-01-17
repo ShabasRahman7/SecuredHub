@@ -1,4 +1,3 @@
-"""Chat API endpoints"""
 from fastapi import APIRouter, HTTPException
 from ..models.schemas import (
     ChatInitRequest, ChatInitResponse,
@@ -16,7 +15,6 @@ prompt_builder = PromptBuilder()
 
 @router.post("/init", response_model=ChatInitResponse)
 async def initialize_chat(request: ChatInitRequest):
-    # initializing chat for a finding with context
     try:
         initial_message = prompt_builder.build_initial_message(request.finding)
         
@@ -29,12 +27,9 @@ async def initialize_chat(request: ChatInitRequest):
 
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    # processing user message with RAG (retrieval + LLM generation)
     try:
-        # use finding from request (sent by backend with full context)
         finding = request.finding or {}
         
-        # retrieving relevant knowledge based on finding context
         retrieved_context = retriever.retrieve_for_question(
             request.message,
             {
@@ -44,7 +39,6 @@ async def chat(request: ChatRequest):
             }
         )
         
-        # building messages for LLM with full finding context
         messages = prompt_builder.build_chat_messages(
             finding=finding,
             retrieved_context=retrieved_context,

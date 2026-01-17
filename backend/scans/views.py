@@ -81,7 +81,6 @@ def trigger_scan(request, repo_id):
         status='queued'
     )
     
-    # submit K8s scan job
     try:
         from scans.k8s_runner import submit_scan_job
         result = submit_scan_job(
@@ -131,12 +130,10 @@ def get_scan_findings(request, scan_id):
     
     findings = scan.findings.all()
     
-    # filtering by severity
     severity = request.query_params.get('severity')
     if severity:
         findings = findings.filter(severity=severity)
     
-    # filtering by tool
     tool = request.query_params.get('tool')
     if tool:
         findings = findings.filter(tool=tool)
@@ -174,9 +171,7 @@ def delete_scan(request, scan_id):
     
     force = request.query_params.get('force', 'false').lower() == 'true'
     
-    # only block deletion of actively running scans (not queued or failed)
     if scan.status == 'running' and not force:
-        # check if scan is stuck (running for more than 10 minutes without updates)
         if scan.started_at:
             stuck_threshold = timezone.now() - timedelta(minutes=10)
             if scan.started_at < stuck_threshold:
@@ -200,7 +195,6 @@ def delete_scan(request, scan_id):
     
     scan.delete()
     
-    # update repository's last_scanned_commit if we deleted the last completed scan
     if deleted_commit and repository.last_scanned_commit == deleted_commit:
         latest_scan = Scan.objects.filter(
             repository=repository,

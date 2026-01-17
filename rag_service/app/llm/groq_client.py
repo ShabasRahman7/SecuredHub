@@ -1,4 +1,3 @@
-"""Groq LLM client using SDK 1.0.0"""
 from groq import Groq
 from typing import List, Dict
 from ..core.config import GROQ_API_KEY, GROQ_MODEL
@@ -18,7 +17,6 @@ class GroqLLM:
         temperature: float = 0.3,
         max_tokens: int = 1024
     ) -> str:
-        # generating response using Groq Llama 3.3 70B
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,

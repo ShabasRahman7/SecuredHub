@@ -1,10 +1,4 @@
-// aPI endpoints constants
-// centralized API endpoint definitions for better maintainability
-
 export const API_ENDPOINTS = {
-  // ============================================================================
-  // aUTH ENDPOINTS
-  // ============================================================================
   LOGIN: '/auth/login/',
   REGISTER: '/auth/register/',
   LOGOUT: '/auth/logout/',
@@ -16,9 +10,6 @@ export const API_ENDPOINTS = {
   ACCEPT_INVITE: (token) => `/auth/invites/${token}/accept/`,
   PROFILE: '/auth/profile/',
 
-  // ============================================================================
-  // aDMIN ENDPOINTS
-  // ============================================================================
   ADMIN_TENANTS: '/auth/admin/tenants/',
   ADMIN_TENANTS_WITH_DELETED: '/auth/admin/tenants/?include_deleted=true',
   ADMIN_TENANT_INVITES: '/auth/admin/tenant-invites/',
@@ -30,14 +21,10 @@ export const API_ENDPOINTS = {
   ADMIN_RESTORE_TENANT: (tenantId) => `/auth/admin/tenants/${tenantId}/restore/`,
   ADMIN_BLOCK_TENANT: (tenantId) => `/auth/admin/tenants/${tenantId}/block/`,
 
-  // admin Access Requests
   ADMIN_ACCESS_REQUESTS: '/auth/admin/access-requests/',
   ADMIN_APPROVE_ACCESS_REQUEST: (id) => `/auth/admin/access-requests/${id}/approve/`,
   ADMIN_REJECT_ACCESS_REQUEST: (id) => `/auth/admin/access-requests/${id}/reject/`,
 
-  // ============================================================================
-  // tENANT ENDPOINTS
-  // ============================================================================
   TENANTS: '/tenants/',
   TENANT_DETAIL: (id) => `/tenants/${id}/`,
   TENANT_UPDATE: (id) => `/tenants/${id}/update/`,
@@ -48,28 +35,16 @@ export const API_ENDPOINTS = {
     `/tenants/${tenantId}/members/${memberId}/remove/${hardDelete ? '?hard_delete=true' : ''}`,
   TENANT_RESTORE_MEMBER: (tenantId, memberId) => `/tenants/${tenantId}/members/${memberId}/restore/`,
 
-  // tenant Invites
   TENANT_INVITES: (id) => `/tenants/${id}/invites/`,
   TENANT_INVITE_DEVELOPER: (tenantId) => `/tenants/${tenantId}/invite/`,
   TENANT_RESEND_INVITE: (tenantId, inviteId) => `/tenants/${tenantId}/invites/${inviteId}/resend/`,
   TENANT_CANCEL_INVITE: (tenantId, inviteId) => `/tenants/${tenantId}/invites/${inviteId}/cancel/`,
 
-  // ============================================================================
-  // rEPOSITORY ENDPOINTS
-  // ============================================================================
   TENANT_REPOSITORIES: (id) => `/tenants/${id}/repositories/`,
   ADD_REPOSITORY: (tenantId) => `/tenants/${tenantId}/repositories/create/`,
-  DELETE_REPOSITORY: (tenantId, repoId) => `/tenants/${tenantId}/repositories/${repoId}/delete/`,
-
-  // repository Assignments
-  REPOSITORY_ASSIGNMENTS: (tenantId, repoId) => `/tenants/${tenantId}/repositories/${repoId}/assignments/`,
-  ASSIGN_DEVELOPERS: (tenantId, repoId) => `/tenants/${tenantId}/repositories/${repoId}/assign/`,
   UNASSIGN_DEVELOPER: (tenantId, repoId, assignmentId) =>
     `/tenants/${tenantId}/repositories/${repoId}/assignments/${assignmentId}/unassign/`,
 
-  // ============================================================================
-  // sCAN ENDPOINTS
-  // ============================================================================
   SCAN_DETAIL: (scanId) => `/scans/${scanId}/`,
   SCAN_FINDINGS: (scanId) => `/scans/${scanId}/findings/`,
   REPOSITORY_SCANS: (repoId) => `/scans/repository/${repoId}/`,

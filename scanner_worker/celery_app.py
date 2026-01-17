@@ -4,26 +4,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# configure Celery
 app = Celery('scanner_worker')
 
-# disabling Django fixup (we'll setup Django manually in tasks)
 app.set_default()
 app.fixups = []
 
-# broker and result backend configuration
 broker_url = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
 redis_host = os.getenv('REDIS_HOST', 'localhost')
 redis_port = os.getenv('REDIS_PORT', '6379')
 redis_password = os.getenv('REDIS_PASSWORD', '')
 
-# determine Redis scheme (TLS for Upstash)
 is_upstash = 'upstash' in redis_host.lower()
 redis_scheme = 'rediss' if is_upstash else 'redis'
 redis_auth = f"default:{redis_password}@" if redis_password else ""
 result_backend = f"{redis_scheme}://{redis_auth}{redis_host}:{redis_port}/0"
 
-# adding SSL parameter for Upstash
 if is_upstash:
     result_backend += "?ssl_cert_reqs=none"
 
@@ -40,7 +35,6 @@ app.conf.update(
     task_soft_time_limit=25 * 60,  # 25 minutes
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=50,
-    # redis connection settings for Upstash (prevents connection closed errors)
     broker_transport_options={
         'socket_keepalive': True,
         'socket_connect_timeout': 30,
@@ -57,5 +51,4 @@ app.conf.update(
     },
 )
 
-# explicitly import tasks (don't use autodiscover which looks for packages)
 import tasks  # noqa

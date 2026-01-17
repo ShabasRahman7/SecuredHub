@@ -33,7 +33,6 @@ class WorkerHealthView(APIView):
         worker_names = sorted(ping.keys())
         workers_online = len(worker_names)
 
-        # derive queue names from active_queues inspection
         queue_names = set()
         for queues in active_queues.values():
             if not queues:
@@ -49,15 +48,10 @@ class WorkerHealthView(APIView):
             "workers": {
                 "online": workers_online,
                 "names": worker_names,
-                # active / reserved / scheduled counts aggregated across workers
-                "active_tasks": sum(len(v or []) for v in active.values()),
-                "reserved_tasks": sum(len(v or []) for v in reserved.values()),
-                "scheduled_tasks": sum(len(v or []) for v in scheduled.values()),
             },
             "queues": {
                 "names": sorted(queue_names),
             },
-            # raw stats from Celery (per-worker), useful if you expand UI later
             "raw": {
                 "stats": stats,
             },

@@ -35,16 +35,13 @@ class NotificationListView(APIView):
         tags=["Notifications"]
     )
     def get(self, request):
-        # base queryset - only user's own notifications
         queryset = Notification.objects.filter(user=request.user)
         
-        # filtering by read status
         is_read_param = request.query_params.get('is_read')
         if is_read_param is not None:
             is_read = is_read_param.lower() in ('true', '1', 'yes')
             queryset = queryset.filter(is_read=is_read)
         
-        # filtering by notification type
         notification_type = request.query_params.get('notification_type')
         if notification_type:
             queryset = queryset.filter(notification_type=notification_type)
@@ -98,7 +95,6 @@ class MarkNotificationsReadView(APIView):
         
         notification_ids = serializer.validated_data['notification_ids']
         
-        # only mark user's own notifications
         updated_count = Notification.objects.filter(
             id__in=notification_ids,
             user=request.user,
@@ -163,7 +159,6 @@ class UnreadCountView(APIView):
             'unread_count': unread_count
         }, status=status.HTTP_200_OK)
 
-# export view instances
 notification_list = NotificationListView.as_view()
 notification_detail = NotificationDetailView.as_view()
 mark_notifications_read = MarkNotificationsReadView.as_view()

@@ -18,14 +18,12 @@ jobs:
             cd /opt/securedhub/SecuredHub
             git pull origin main
             
-            # rebuild and push scanner image to ECR
             cd scanner_worker
             docker build -f Dockerfile.k8s -t securedhub-scanner:latest .
             /usr/local/bin/aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 180667017068.dkr.ecr.ap-south-1.amazonaws.com
             docker tag securedhub-scanner:latest 180667017068.dkr.ecr.ap-south-1.amazonaws.com/securedhub-scanner:latest
             docker push 180667017068.dkr.ecr.ap-south-1.amazonaws.com/securedhub-scanner:latest
             
-            # rebuild API
             cd ../infra
             docker compose up -d --build api
             docker exec secured_hub_api pip install kubernetes --quiet

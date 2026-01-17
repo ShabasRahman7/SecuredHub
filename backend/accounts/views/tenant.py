@@ -82,7 +82,6 @@ class MemberRemoveView(APIView):
         tags=["Tenants"]
     )
     def delete(self, request, tenant_id, member_id):
-        # soft delete by default, hard delete with ?hard_delete=true
         tenant = get_object_or_404(Tenant, id=tenant_id)
         self.check_object_permissions(request, tenant)
         
@@ -104,7 +103,6 @@ class MemberRemoveView(APIView):
         
         if hard_delete:
             user_email = member.user.email
-            # hard delete: permanently remove the underlying user account
             member.user.delete()
 
             return Response(
@@ -115,7 +113,6 @@ class MemberRemoveView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        # soft delete: mark member as deleted and schedule hard delete
         member.soft_delete()
 
         return Response(
@@ -171,8 +168,6 @@ class MemberBlockView(APIView):
 
         member = get_object_or_404(TenantMember, id=member_id, tenant=tenant)
         block = request.data.get('block', True)
-
-        # owners cannot block themselves
         if member.user == request.user:
             return Response({
                 "success": False,
@@ -229,7 +224,6 @@ class InviteDeveloperView(APIView):
                     },
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            # do not allow inviting an account that already exists elsewhere
             return Response(
                 {
                     "success": False,

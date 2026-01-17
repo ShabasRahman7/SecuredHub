@@ -23,8 +23,8 @@ class GitleaksScanner(BaseScanner):
                 '--source', workspace_path,
                 '--report-format', 'json',
                 '--report-path', report_path,
-                '--no-git',  # scan all files, not just git history
-                '--exit-code', '0'  # don't fail on findings, we handle them
+                '--no-git',
+                '--exit-code', '0'
             ]
             
 
@@ -104,7 +104,6 @@ class GitleaksScanner(BaseScanner):
         rule_lower = rule_id.lower()
         desc_lower = description.lower()
 
-        # active credentials that could give immediate access
         critical_patterns = [
             'aws', 'private-key', 'private_key', 'rsa', 'ssh',
             'github', 'gitlab', 'stripe', 'twilio', 'sendgrid',
@@ -115,7 +114,6 @@ class GitleaksScanner(BaseScanner):
             if pattern in rule_lower or pattern in desc_lower:
                 return 'critical'
         
-        # api keys and tokens
         high_patterns = ['api', 'key', 'token', 'secret', 'password', 'credential']
         
         for pattern in high_patterns:

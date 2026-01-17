@@ -4,12 +4,10 @@ from django.utils import timezone
 from datetime import timedelta
 import uuid
 
-# email auth, no username needed
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError('The Email must be set')
-        # normalizing to prevent case-sensitive duplicates
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -28,9 +26,9 @@ class CustomUserManager(BaseUserManager):
 
         return self.create_user(email, password, **extra_fields)
 
-# using email for auth instead of username
+# email-based auth, no username field
 class User(AbstractUser):
-    username = None  # removing username field
+    username = None
     email = models.EmailField(unique=True, db_index=True)
 
     USERNAME_FIELD = 'email'
@@ -48,11 +46,9 @@ class User(AbstractUser):
         return self.email
     
     def get_role(self):
-        # admins skip tenant role system
         if self.is_staff:
             return 'admin'
         
-        # one tenant per user
         if hasattr(self, 'tenant_membership') and self.tenant_membership:
             return self.tenant_membership.role
         return None
@@ -84,7 +80,7 @@ class Tenant(models.Model):
         return self.deleted_at is not None
     
     def soft_delete(self):
-        # keeping data for 30 days before permanent deletion
+        # 30-day retention before permanent deletion
         self.deleted_at = timezone.now()
         self.is_active = False
         self.deletion_scheduled_at = timezone.now() + timedelta(days=30)
@@ -97,7 +93,6 @@ class Tenant(models.Model):
         self.save()
 
     def save(self, *args, **kwargs):
-        # auto-generating URL-safe slug if not provided
         if not self.slug:
             from django.utils.text import slugify
             base_slug = slugify(self.name)
@@ -109,8 +104,8 @@ class Tenant(models.Model):
             self.slug = slug
         super().save(*args, **kwargs)
 
+# single-tenant-per-user RBAC model
 class TenantMember(models.Model):
-    # one user = one tenant (RBAC model)
     ROLE_OWNER = 'owner'
     ROLE_DEVELOPER = 'developer'
     
@@ -155,22 +150,18 @@ class TenantMember(models.Model):
         return self.deleted_at is not None
 
     def soft_delete(self):
-        # soft delete + disable user login
         from django.utils import timezone
         from datetime import timedelta
 
         self.deleted_at = timezone.now()
-        # scheduling permanent deletion in 30 days
         self.deletion_scheduled_at = timezone.now() + timedelta(days=30)
         self.save(update_fields=['deleted_at', 'deletion_scheduled_at'])
 
-        # disabling user login while member is soft-deleted
         if self.user.is_active:
             self.user.is_active = False
             self.user.save(update_fields=['is_active'])
 
     def restore(self):
-        # restore + re-enable user login
         self.deleted_at = None
         self.deletion_scheduled_at = None
         self.save(update_fields=['deleted_at', 'deletion_scheduled_at'])
@@ -235,7 +226,6 @@ class MemberInvite(models.Model):
         return f"Invite: {self.email} -> {self.tenant.name} ({self.status})"
 
     def save(self, *args, **kwargs):
-        # auto-generating token and expiration
         if not self.token:
             self.token = str(uuid.uuid4())
         if not self.expires_at:
@@ -307,7 +297,6 @@ class TenantInvite(models.Model):
         return f"Tenant Invite: {self.email} ({self.status})"
     
     def save(self, *args, **kwargs):
-        # auto-generating token, expires after 24h
         if not self.token:
             self.token = uuid.uuid4()
         if not self.expires_at:
