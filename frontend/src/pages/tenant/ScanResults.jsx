@@ -198,7 +198,7 @@ const ScanResults = () => {
             {/* severity stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 {Object.entries(findingsBySeverity).map(([severity, count]) => {
-                    const config = SEVERITY_CONFIG[severity];
+                    const config = SEVERITY_CONFIG[severity] || SEVERITY_CONFIG.low;
                     return (
                         <div key={severity} className={`p-4 border rounded-lg ${config.bg} ${config.border}`}>
                             <div className="flex items-center justify-between">
