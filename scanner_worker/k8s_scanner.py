@@ -128,6 +128,39 @@ def callback_to_backend(scan_id, findings, status='completed', commit_hash=None)
     print(f"Callback response: {response.status_code}")
     return response.status_code == 200
 
+def submit_findings(scan_id, findings, commit_hash=None):
+    """Submit actual findings to backend for storage in database"""
+    print(f"Submitting {len(findings)} findings to backend...")
+    url = f"{BACKEND_API_URL}/api/v1/internal/scans/{scan_id}/findings/"
+    headers = {
+        'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+        'Content-Type': 'application/json'
+    }
+    
+    # format findings for backend API
+    backend_findings = []
+    for f in findings:
+        backend_findings.append({
+            'tool': f.get('tool', 'unknown'),
+            'rule_id': f.get('title', ''),
+            'title': f.get('title', ''),
+            'description': f.get('message', ''),
+            'severity': f.get('severity', 'medium').lower(),
+            'file_path': f.get('file', ''),
+            'line_number': f.get('line', 0),
+            'raw_output': {}
+        })
+    
+    payload = {
+        'findings': backend_findings,
+        'commit_hash': commit_hash,
+        'update_repo_commit': True
+    }
+    
+    response = requests.post(url, json=payload, headers=headers)
+    print(f"Submit findings response: {response.status_code}")
+    return response.status_code == 201
+
 def normalize_findings(semgrep, gitleaks, trivy):
     findings = []
     
@@ -211,6 +244,10 @@ def main():
         s3_path = upload_to_s3(SCAN_ID, results)
         print(f"Results uploaded to: {s3_path}")
         
+        # submit findings to backend for storage
+        submit_findings(SCAN_ID, findings, commit_hash=actual_commit)
+        
+        # update scan status to completed
         callback_to_backend(SCAN_ID, findings, commit_hash=actual_commit)
         
         print(f"=== Scan Complete: {len(findings)} findings ===")
